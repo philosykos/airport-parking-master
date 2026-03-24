@@ -1,0 +1,402 @@
+
+.log-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    height: 100%;
+    background: var(--surface-bright);
+    position: relative;
+}
+
+.log-header {
+    padding: var(--space-2) var(--space-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.log-title {
+    font-family: var(--font-headline);
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--on-surface);
+}
+.log-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+/* ── Log Stats (inline text) ── */
+.log-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    transition: color var(--duration-slow) ease;
+}
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background var(--duration-slow) ease, box-shadow var(--duration-slow) ease;
+}
+.log-status.running {
+    color: #059669;
+}
+.log-status.running .status-dot {
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+.log-stats-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--outline-variant);
+}
+.log-count-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+.log-count-value {
+    font-family: var(--font-headline);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+    line-height: 1;
+}
+.log-count-value.bounce {
+    animation: countBounce 0.3s var(--spring);
+}
+
+
+.log-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-1) var(--space-3) var(--space-3);
+}
+.log-table-container {
+    background: var(--surface-container-lowest);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(198, 197, 212, 0.15);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+    table-layout: fixed;
+}
+thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    transition: box-shadow var(--duration-normal);
+}
+.log-table-container.scrolled thead {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+th {
+    padding: var(--space-2) var(--space-3);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--outline);
+    background: var(--surface-container-low);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    border: none;
+}
+td {
+    padding: var(--space-2) var(--space-3);
+    font-size: 14px;
+    vertical-align: middle;
+    overflow: hidden;
+}
+tbody tr {
+    border-bottom: 1px solid rgba(198, 197, 212, 0.1);
+}
+tbody tr:last-child {
+    border-bottom: none;
+}
+tr.log-row {
+    cursor: pointer;
+    transition: background var(--duration-fast), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast);
+    animation: fadeSlideIn var(--duration-normal) ease-out both;
+}
+tr.log-row:hover {
+    background: rgba(223, 224, 255, 0.3);
+    transform: translateX(2px);
+    box-shadow: inset 3px 0 0 var(--surface-tint);
+}
+tr.row-event {
+    background: rgba(255, 218, 214, 0.1);
+}
+tr.row-event:hover {
+    background: rgba(255, 218, 214, 0.2);
+    transform: translateX(2px);
+    box-shadow: inset 3px 0 0 var(--surface-tint);
+}
+
+.cell-time {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--on-surface-variant);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-0\.5) var(--space-1);
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    font-weight: 700;
+    transition: transform var(--duration-fast) var(--spring);
+}
+tr.log-row:hover .tag {
+    transform: scale(1.05);
+}
+.tag-test {
+    background: var(--secondary-fixed);
+    color: var(--on-secondary-fixed);
+}
+.tag-schedule {
+    background: var(--success-bg);
+    color: #059669;
+}
+.tag-event {
+    background: #FED7AA;
+    color: #C2410C;
+}
+
+.cell-status {
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0\.5);
+    padding: var(--space-0\.5) var(--space-1);
+    border-radius: var(--radius-full);
+}
+.cell-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.cell-status.status-ok {
+    background: rgba(209, 250, 229, 0.6);
+    color: #15803D;
+}
+.cell-status.status-ok::before {
+    background: #22C55E;
+}
+.cell-status.status-err {
+    background: rgba(254, 226, 226, 0.6);
+    color: #B91C1C;
+}
+.cell-status.status-err::before {
+    background: #EF4444;
+}
+
+.body-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--on-surface-variant);
+}
+
+
+.empty-msg {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--space-6) var(--space-2);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.empty-icon {
+    margin-bottom: var(--space-2);
+    opacity: 0.5;
+    display: flex;
+    justify-content: center;
+    animation: float 3s ease-in-out infinite;
+}
+
+/* ── Column width classes (replace inline styles) ── */
+.col-time { width: 220px; }
+.col-type { width: 110px; }
+.col-status { width: 130px; }
+
+@media (max-width: 960px) {
+    .log-panel {
+        display: none;
+    }
+}
+
+/* ── Mobile Log FAB ── */
+.log-fab {
+    display: none;
+}
+
+@media (max-width: 960px) {
+    .log-fab {
+        display: flex;
+        position: fixed;
+        bottom: calc(24px + env(safe-area-inset-bottom));
+        right: 16px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: var(--on-primary);
+        border: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+        align-items: center;
+        justify-content: center;
+        z-index: 40;
+        cursor: pointer;
+        transition: transform var(--duration-fast) var(--spring),
+                    box-shadow var(--duration-normal);
+        padding: 0;
+    }
+    .log-fab:active {
+        transform: scale(0.92);
+    }
+    .log-fab .material-symbols-outlined {
+        font-size: 24px;
+    }
+    .log-fab-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 10px;
+        background: var(--danger);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .log-fab-badge:empty {
+        display: none;
+    }
+}
+
+/* ── Mobile Log Bottom Sheet ── */
+.log-sheet-overlay {
+    display: none;
+}
+
+@media (max-width: 960px) {
+    .log-sheet-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--duration-normal) ease;
+    }
+    .log-sheet-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .log-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-height: 85dvh;
+        background: var(--surface-container-lowest);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        transform: translateY(100%);
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+        z-index: 101;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    .log-sheet-overlay.open .log-sheet {
+        transform: translateY(0);
+    }
+    .log-sheet-handle {
+        width: 36px;
+        height: 4px;
+        background: var(--outline-variant);
+        border-radius: 2px;
+        margin: 8px auto;
+        flex-shrink: 0;
+    }
+    .log-sheet-header {
+        display: flex;
+        align-items: center;
+        padding: var(--space-1) var(--space-2) var(--space-2);
+        border-bottom: 1px solid rgba(198, 197, 212, 0.2);
+        flex-shrink: 0;
+        gap: var(--space-2);
+    }
+    .log-sheet-header h3 {
+        font-family: var(--font-headline);
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--on-surface);
+        margin: 0;
+        flex: 1;
+    }
+    .log-sheet-close {
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--on-surface-variant);
+        padding: 0;
+    }
+    .log-sheet-close:active {
+        background: rgba(0, 0, 0, 0.05);
+    }
+    .log-sheet-body {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: auto;
+        padding: var(--space-2);
+        -webkit-overflow-scrolling: touch;
+    }
+    .log-sheet-body table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .log-sheet-body th,
+    .log-sheet-body td {
+        padding: var(--space-1) var(--space-2);
+    }
+    .log-sheet-body .col-time { width: auto; min-width: 100px; }
+    .log-sheet-body .col-type { width: auto; min-width: 60px; }
+    .log-sheet-body .col-status { width: auto; min-width: 70px; }
+    .log-sheet-body .cell-time {
+        font-size: 12px;
+    }
+}

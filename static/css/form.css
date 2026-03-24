@@ -1,0 +1,687 @@
+
+.form-panel {
+    width: 520px;
+    min-width: 520px;
+    background: var(--surface-container-lowest);
+    border-right: 1px solid rgba(198, 197, 212, 0.2);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: border-color var(--duration-slow);
+}
+.form-panel--active {
+    border-right-color: var(--success);
+    border-right-width: 2px;
+}
+.form-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+}
+
+.form-section {
+    margin-bottom: var(--space-4);
+}
+.form-section:last-child {
+    margin-bottom: 0;
+}
+
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+.field-row + .field-row {
+    margin-top: var(--space-2);
+}
+.field-group {
+    position: relative;
+    min-width: 0;
+}
+
+/* ── Labels ── */
+label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    margin-bottom: var(--space-1);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+.field-group:focus-within label {
+    color: var(--surface-tint);
+}
+
+/* ── Inputs & Selects ── */
+input[type="text"], input[type="number"], input[type="tel"],
+input[type="date"], input[type="time"], select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 12px var(--space-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-family: inherit;
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+    transition:
+        background var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-normal) var(--ease-out),
+        border-color var(--duration-normal) var(--ease-out);
+    outline: none;
+}
+input:focus, select:focus {
+    box-shadow: 0 0 0 3px rgba(73, 85, 179, 0.15);
+    background-color: var(--surface-container-lowest);
+    border-color: var(--surface-tint);
+}
+input:focus-visible, select:focus-visible {
+    outline: none;
+}
+input::placeholder {
+    color: var(--text-muted);
+}
+select.is-placeholder,
+input[type="number"].is-placeholder,
+input[data-td-target].is-placeholder {
+    color: var(--text-muted);
+}
+
+/* ── Tempus Dominus Theme ── */
+input[data-td-target] {
+    cursor: pointer;
+}
+
+/* Input group wrapper */
+.td-input-group {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+.td-input-group input {
+    flex: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.td-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    background: var(--surface-container-low);
+    border: 1px solid transparent;
+    border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--duration-fast), background var(--duration-fast);
+}
+.td-toggle:hover {
+    color: var(--surface-tint);
+    background: var(--surface-container);
+}
+.td-toggle:active {
+    background: var(--surface-container-low);
+}
+.field-group:focus-within .td-toggle {
+    border-color: var(--surface-tint);
+    background: var(--surface-container-lowest);
+}
+.field-group.has-error .td-toggle {
+    background: var(--danger-bg);
+    border-color: rgba(186, 26, 26, 0.3);
+}
+
+/* Material Symbols icon mapping for TD */
+[class^="td-icon-"]::before {
+    font-family: 'Material Symbols Outlined';
+    font-weight: 400;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+}
+.td-icon-time::before   { content: 'schedule'; }
+.td-icon-date::before   { content: 'calendar_today'; }
+.td-icon-up::before     { content: 'keyboard_arrow_up'; }
+.td-icon-down::before   { content: 'keyboard_arrow_down'; }
+.td-icon-prev::before   { content: 'chevron_left'; }
+.td-icon-next::before   { content: 'chevron_right'; }
+.td-icon-today::before  { content: 'today'; }
+.td-icon-clear::before  { content: 'close'; }
+.td-icon-close::before  { content: 'close'; }
+
+/* Widget container */
+.tempus-dominus-widget {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    background: var(--surface-container-lowest) !important;
+    border: 1px solid rgba(198, 197, 212, 0.45) !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: 0 8px 32px rgba(25, 28, 29, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    font-family: var(--font-body);
+    padding: 6px;
+    min-width: 0;
+}
+.tempus-dominus-widget.show.has-scroll-time {
+    display: flex !important;
+    align-items: stretch;
+}
+.tempus-dominus-widget.has-scroll-time > [class*="date-container"] {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Animation — input 아래에서 자연스럽게 나타남 */
+.tempus-dominus-widget {
+    animation: none !important;
+    transition: none !important;
+}
+.tempus-dominus-widget.show {
+    display: block;
+    animation: tdFadeIn 150ms var(--ease-out) !important;
+}
+@keyframes tdFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Header / navigation */
+.tempus-dominus-widget .date-container-days [data-action="pickerSwitch"] {
+    padding: 12px 8px;
+}
+.tempus-dominus-widget .picker-switch {
+    font-family: var(--font-headline);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--on-surface);
+}
+.tempus-dominus-widget .previous,
+.tempus-dominus-widget .next {
+    color: var(--on-surface-variant);
+    border-radius: var(--radius-md);
+    transition: background var(--duration-fast), color var(--duration-fast);
+}
+.tempus-dominus-widget .previous:hover,
+.tempus-dominus-widget .next:hover {
+    background: var(--surface-container-low);
+    color: var(--surface-tint);
+}
+
+/* Weekday headers */
+.tempus-dominus-widget .dow {
+    font-family: var(--font-headline);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* Day cells */
+.tempus-dominus-widget .day {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--on-surface);
+    border-radius: var(--radius-md);
+    transition: background var(--duration-fast), color var(--duration-fast);
+}
+.tempus-dominus-widget .day:hover {
+    background: var(--surface-container-low) !important;
+    color: var(--on-surface);
+}
+.tempus-dominus-widget .day.today {
+    border: 1px solid var(--surface-tint);
+}
+.tempus-dominus-widget .day.today:hover {
+    background: var(--surface-container-low) !important;
+    color: var(--surface-tint);
+}
+/* ── Active (selected) date ── */
+.tempus-dominus-widget .day.active,
+.tempus-dominus-widget .day.active:hover {
+    background: var(--surface-tint) !important;
+    color: #fff !important;
+}
+/* ── Range endpoints: From & To ── */
+.tempus-dominus-widget .day.range-start,
+.tempus-dominus-widget .day.range-end {
+    background: var(--primary) !important;
+    color: var(--on-primary) !important;
+    position: relative;
+    z-index: 1;
+}
+.tempus-dominus-widget .day.range-start {
+    border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
+}
+.tempus-dominus-widget .day.range-end {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+}
+.tempus-dominus-widget .day.range-start.range-end {
+    border-radius: var(--radius-md) !important;
+}
+/* ── In-range days: connecting band ── */
+.tempus-dominus-widget .day.in-range {
+    background: var(--primary-fixed) !important;
+    border-radius: 0 !important;
+    color: var(--on-surface) !important;
+}
+/* ── Active overlapping range endpoint ── */
+.tempus-dominus-widget .day.active.range-start,
+.tempus-dominus-widget .day.active.range-end {
+    background: var(--primary) !important;
+    color: var(--on-primary) !important;
+}
+/* ── Hover overrides for range days ── */
+.tempus-dominus-widget .day.range-start:hover,
+.tempus-dominus-widget .day.range-end:hover {
+    background: var(--primary) !important;
+    color: var(--on-primary) !important;
+}
+.tempus-dominus-widget .day.in-range:hover {
+    background: var(--primary-fixed-dim) !important;
+    color: var(--on-surface) !important;
+}
+.tempus-dominus-widget .day.disabled {
+    color: var(--outline-variant) !important;
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+}
+.tempus-dominus-widget .day.old,
+.tempus-dominus-widget .day.new {
+    color: var(--outline-variant);
+}
+
+/* ── Vanilla picker: calendar grid & header ── */
+.picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 4px 8px;
+}
+.picker-header .previous,
+.picker-header .next {
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+}
+.tempus-dominus-widget .picker-switch {
+    flex: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 8px;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0;
+    padding: 0 4px 4px;
+}
+.calendar-grid .dow,
+.calendar-grid .day {
+    text-align: center;
+    padding: 7px 3px;
+    border-radius: var(--radius-md);
+    min-width: 32px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+.calendar-grid .dow {
+    cursor: default;
+    padding-bottom: 4px;
+}
+
+/* Hide TD's built-in time panel (replaced by custom scroll picker) */
+.tempus-dominus-widget .time-container {
+    display: none !important;
+}
+.tempus-dominus-widget .toolbar {
+    display: none !important;
+}
+
+/* ── iOS 스크롤 시간 피커 ── */
+.td-scroll-time {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-left: 1px solid rgba(198, 197, 212, 0.35);
+    padding: 8px 4px;
+    min-width: 0;
+}
+.td-scroll-sep {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-muted);
+    line-height: 1;
+    padding: 0 1px;
+    user-select: none;
+}
+.td-scroll-column {
+    position: relative;
+    width: 40px;
+    height: calc(36px * 5); /* 5 visible items */
+    overflow: hidden;
+}
+.td-scroll-column-inner {
+    height: 100%;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.td-scroll-column-inner::-webkit-scrollbar {
+    display: none;
+}
+.td-scroll-item {
+    height: 36px;
+    line-height: 36px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--outline-variant);
+    scroll-snap-align: center;
+    user-select: none;
+    transition: color 0.15s, font-weight 0.15s;
+    cursor: pointer;
+}
+.td-scroll-item.active {
+    color: var(--on-surface);
+    font-weight: 700;
+    font-size: 18px;
+}
+.td-scroll-spacer {
+    pointer-events: none;
+}
+.td-scroll-highlight {
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    right: 2px;
+    height: 36px;
+    transform: translateY(-50%);
+    background: var(--surface-container-low);
+    border-radius: var(--radius-md);
+    pointer-events: none;
+    z-index: 0;
+}
+.td-scroll-column-inner {
+    position: relative;
+    z-index: 1;
+}
+.td-scroll-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 60px;
+    pointer-events: none;
+    z-index: 2;
+}
+.td-scroll-fade-top {
+    top: 0;
+    background: linear-gradient(to bottom, var(--surface-container-lowest) 0%, transparent 100%);
+}
+.td-scroll-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--surface-container-lowest) 0%, transparent 100%);
+}
+
+/* ── Select Chevron ── */
+select {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23767683' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+}
+.field-group:hover select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234955B3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ── Error States ── */
+.field-group.has-error input,
+.field-group.has-error select {
+    background: var(--danger-bg);
+    border-color: rgba(186, 26, 26, 0.3);
+    box-shadow: 0 0 0 3px rgba(186, 26, 26, 0.1);
+    animation: shake 0.3s ease;
+}
+.field-group.has-error input:focus,
+.field-group.has-error select:focus {
+    box-shadow: 0 0 0 3px rgba(186, 26, 26, 0.2);
+    border-color: var(--danger);
+}
+.field-group.has-error label {
+    color: var(--danger);
+}
+.field-error {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: var(--space-0\.5);
+    display: none;
+    animation: fadeSlideIn var(--duration-fast) var(--ease-out);
+}
+.field-group.has-error .field-error {
+    display: block;
+}
+
+.error-msg {
+    font-size: 14px;
+    color: var(--danger);
+    padding: var(--space-1) var(--space-2);
+    background: var(--danger-bg);
+    border-radius: var(--radius-md);
+    margin: 0 0 var(--space-1);
+}
+
+/* ── Action Bar ── */
+.action-bar {
+    padding: 0;
+    margin-top: auto;
+}
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+}
+
+/* ── Buttons Base ── */
+button {
+    position: relative;
+    overflow: hidden;
+    padding: 12px var(--space-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition:
+        background var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--spring),
+        box-shadow var(--duration-normal) var(--ease-out),
+        opacity var(--duration-normal);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+}
+button:focus-visible {
+    outline: 2px solid var(--surface-tint);
+    outline-offset: 2px;
+}
+button:active:not(:disabled) {
+    transform: scale(0.97);
+}
+button:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    transform: none;
+}
+.btn-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+button svg {
+    flex-shrink: 0;
+}
+
+/* ── Button Ripple ── */
+.btn-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    margin-left: -20px;
+    animation: ripple 0.6s var(--ease-out) forwards;
+    pointer-events: none;
+}
+
+/* ── Start Button ── */
+.btn-start {
+    background: var(--success);
+    color: #fff;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3);
+}
+.btn-start:hover:not(:disabled) {
+    background: var(--success-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.4);
+}
+
+/* ── Stop Button ── */
+.btn-stop {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 4px 12px -2px rgba(186, 26, 26, 0.3);
+}
+.btn-stop:hover:not(:disabled) {
+    background: var(--danger-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -4px rgba(186, 26, 26, 0.4);
+}
+
+/* ── Test Button ── */
+.btn-test {
+    background: transparent;
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+}
+.btn-test:hover:not(:disabled) {
+    background: rgba(0, 11, 96, 0.06);
+    border-color: var(--surface-tint);
+    color: var(--surface-tint);
+}
+.btn-test .btn-ripple {
+    background: rgba(0, 11, 96, 0.15);
+}
+
+/* ── Clear Button ── */
+.btn-clear {
+    background: var(--neutral);
+    color: #fff;
+}
+.btn-clear:hover:not(:disabled) {
+    background: var(--neutral-hover);
+    transform: translateY(-1px);
+}
+
+/* ── Loading State ── */
+.btn--loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+.btn--loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+}
+
+@media (max-width: 960px) {
+    .form-panel {
+        width: 100%;
+        min-width: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(198, 197, 212, 0.2);
+        height: auto;
+        max-height: none;
+    }
+    .form-panel--active {
+        border-bottom-color: var(--success);
+        border-bottom-width: 2px;
+    }
+    .form-body {
+        overflow: visible;
+    }
+
+    /* 날짜 피커 모바일 레이아웃 수정 */
+    .tempus-dominus-widget {
+        width: calc(100vw - 32px) !important;
+        max-width: 360px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+    }
+    .tempus-dominus-widget.has-scroll-time {
+        flex-direction: column;
+    }
+    .tempus-dominus-widget.has-scroll-time .td-scroll-time {
+        border-left: none;
+        border-top: 1px solid rgba(198, 197, 212, 0.35);
+        justify-content: center;
+        padding: 8px var(--space-2);
+    }
+}
+
+@media (max-width: 480px) {
+    .form-body {
+        padding: var(--space-2);
+    }
+    .field-row {
+        grid-template-columns: 1fr;
+    }
+    .action-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    button {
+        padding: 10px var(--space-2);
+        font-size: 14px;
+    }
+    select {
+        font-size: 16px;
+        min-height: 44px;
+    }
+    .field-group label {
+        font-size: 13px;
+    }
+}
