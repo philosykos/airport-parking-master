@@ -1,13 +1,11 @@
-import os
-
-# REQUEST_URL 검사는 import 시점에 돌므로 app import 전에 넣는다.
-# load_dotenv()는 기존 환경변수를 덮어쓰지 않는다.
-os.environ.setdefault("REQUEST_URL", "https://example.invalid/reserve")
+import dataclasses
 
 import pytest
 
 from app import app as flask_app
 from services import t2_valet
+
+TEST_URL = "https://example.invalid/reserve"
 
 
 def _block_network(*args, **kwargs):
@@ -16,8 +14,8 @@ def _block_network(*args, **kwargs):
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    # 셸이나 .env의 실제 REQUEST_URL이 setdefault보다 앞서도 외부로 나가지 않게 막는다
-    monkeypatch.setattr(t2_valet, "REQUEST_URL", "https://example.invalid/reserve")
+    # 설정 파일의 실제 URL 대신 테스트용 URL을 쓰고, 외부 호출 자체도 막는다
+    monkeypatch.setattr(t2_valet, "CONFIG", dataclasses.replace(t2_valet.CONFIG, url=TEST_URL))
     monkeypatch.setattr(t2_valet.http_requests, "post", _block_network)
     monkeypatch.setattr(t2_valet, "LOG_FILE", str(tmp_path / "api_call.log"))
     monkeypatch.setattr(t2_valet, "USER_DATA_FILE", str(tmp_path / "user_data.json"))

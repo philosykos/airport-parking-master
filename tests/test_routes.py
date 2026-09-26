@@ -1,6 +1,8 @@
+import dataclasses
 import re
 from pathlib import Path
 
+import app as app_module
 from services import t2_valet
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -49,7 +51,7 @@ def test_test_call_requires_name_and_phone(client):
 
 
 def test_test_call_never_reaches_network(client):
-    # 셸이나 .env에 실제 REQUEST_URL이 있어도 테스트는 외부로 나가지 않아야 한다
+    # 설정 파일의 실제 URL이 아니라 테스트용 URL로 가고, 그마저도 외부로 나가지 않아야 한다
     resp = client.post("/t2-valet/api/test", json={"name": "홍길동", "phone": "01012345678"})
     assert resp.status_code == 200
     result = resp.get_json()["result"]
@@ -165,3 +167,51 @@ def test_t2_page_has_back_link(client):
     tag = match.group(0)
     assert 'href="/"' in tag
     assert 'aria-label="서비스 선택으로 돌아가기"' in tag
+
+
+# ── 설정 연결 ──
+
+def test_test_call_uses_config(client, monkeypatch):
+    cfg = dataclasses.replace(t2_valet.CONFIG,
+                              payload={**t2_valet.CONFIG.payload, "carType": "PREMIUM"})
+    monkeypatch.setattr(t2_valet, "CONFIG", cfg)
+    captured = {}
+
+    def fake_call(url, payload):
+        captured.update(url=url, payload=payload)
+        return {"time": "t", "type": "call", "status": 500, "body": "fake", "url": url, "payload": payload}
+    monkeypatch.setattr(t2_valet, "do_single_call", fake_call)
+
+    resp = client.post("/t2-valet/api/test", json={"name": "홍길동", "phone": "01012345678"})
+    assert resp.status_code == 200
+    assert captured["url"] == "https://example.invalid/reserve"
+    assert captured["payload"]["carType"] == "PREMIUM"
+    assert captured["payload"]["name"] == "홍길동"
+
+
+def test_defaults_uses_config_interval(client, monkeypatch):
+    monkeypatch.setattr(t2_valet, "CONFIG", dataclasses.replace(t2_valet.CONFIG, interval_sec=45))
+    data = client.get("/t2-valet/api/defaults").get_json()
+    assert data == {"interval": "45", "hasSavedData": False}
+
+
+def test_saved_interval_overrides_config(client):
+    client.post("/t2-valet/api/save-defaults",
+                json={"name": "홍길동", "phone": "01012345678", "interval": "20"})
+    assert client.get("/t2-valet/api/defaults").get_json()["interval"] == "20"
+
+
+def test_warn_legacy_env_prints_keys(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text("REQUEST_URL=https://x\nCAR_TYPE=BASIC\n", encoding="utf-8")
+    app_module.warn_legacy_env(env)
+    assert capsys.readouterr().out.strip() == (
+        "[경고] .env의 REQUEST_URL, CAR_TYPE은 더 이상 읽지 않습니다. config/t2_valet.toml로 옮기세요."
+    )
+
+
+def test_warn_legacy_env_silent_without_legacy_keys(tmp_path, capsys):
+    env = tmp_path / ".env"
+    env.write_text("OTHER=1\n", encoding="utf-8")
+    app_module.warn_legacy_env(env)
+    assert capsys.readouterr().out == ""

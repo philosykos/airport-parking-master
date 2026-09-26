@@ -4,22 +4,21 @@
 
 ## 설정
 
-`.env` 파일을 생성하고 값을 입력하세요:
+Python 3.11 이상이 필요하다. 설정 파일을 표준 라이브러리 `tomllib`로 읽는다.
 
-```env
-# 필수
-REQUEST_URL=https://api.amanopark.co.kr/api/web/booking/reservation
+서비스 설정은 `config/<서비스>.toml`에 있다. 인천 T2 발렛은 `config/t2_valet.toml`이다.
 
-# 선택 (기본값 표시)
-REQUEST_INTERVAL=30            # 폴링 간격 (초 단위, 최소: 10)
-CAR_TYPE=BASIC
-BOOKING_TYPE=BASIC
-ROOT=WEB
-IS_USING_CAR_WASH=false
-IS_CREW=false
-CUSTOMER_REQUEST=              # 특별 요청 사항 (선택)
-CAR_WASH_TYPE=                 # 세차 종류 (선택)
-```
+| 키 | 뜻 | 규칙 |
+|---|---|---|
+| `request.url` | 예약 API 주소 | `http://` 또는 `https://`로 시작 |
+| `request.interval_sec` | 폴링 간격 기본값(초) | 10 이상 정수 |
+| `payload.car_type`, `payload.booking_type`, `payload.root` | 예약 API의 `carType`, `type`, `root` 값 | 빈 값이 아닌 문자열 |
+| `payload.is_using_car_wash`, `payload.is_crew` | 예약 API의 `isUsingCarWash`, `isCrew` 값 | `true` 또는 `false` |
+| `payload.customer_request`, `payload.car_wash_type` | 특별 요청, 세차 종류 | 문자열. 빈 문자열이면 보내지 않는다(null) |
+
+설정이 잘못되면 `python app.py`가 `[설정 오류] config/t2_valet.toml: <키> — <이유>`를 출력하고 종료한다. 표에 없는 키도 오류다.
+
+예전처럼 `.env`에 `REQUEST_URL`, `CAR_TYPE` 등을 적어 두었다면 더 이상 읽지 않는다. 값을 `config/t2_valet.toml`로 옮기고 `.env`에서 지운다. 옛 키가 남아 있으면 앱을 시작할 때 경고가 나온다.
 
 ## 실행
 

@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import threading
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,13 +11,6 @@ from flask import Blueprint, jsonify, render_template, request
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# REQUEST_URL 필수 검증
-REQUEST_URL = os.environ.get("REQUEST_URL", "").strip()
-if not REQUEST_URL:
-    print("[ERROR] REQUEST_URL 환경변수가 설정되지 않았습니다.")
-    print("  .env 파일에 REQUEST_URL=https://... 형식으로 설정해주세요.")
-    sys.exit(1)
 
 # 파일 경로는 services/ 가 아니라 프로젝트 루트 기준
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -108,35 +100,12 @@ DEFAULT_HEADERS = {
     "Accept": "application/json, text/plain, */*",
 }
 
-def _bool_env(key, default=False):
-    val = os.environ.get(key, "").strip().lower()
-    if not val:
-        return default
-    return val in ("true", "1", "yes")
-
-
-def _str_env(key, default=None):
-    val = os.environ.get(key, "").strip()
-    return val if val else default
-
-
 def _load_user_data():
     try:
         with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
-
-
-FIXED_PAYLOAD = {
-    "carType": _str_env("CAR_TYPE", "BASIC"),
-    "type": _str_env("BOOKING_TYPE", "BASIC"),
-    "customerRequest": _str_env("CUSTOMER_REQUEST", None),
-    "root": _str_env("ROOT", "WEB"),
-    "isUsingCarWash": _bool_env("IS_USING_CAR_WASH", False),
-    "isCrew": _bool_env("IS_CREW", False),
-    "carWashType": _str_env("CAR_WASH_TYPE", None),
-}
 
 
 def add_log(entry):
@@ -160,7 +129,7 @@ def load_logs_from_file():
 
 def build_payload(data):
     """프론트엔드 개별 필드를 API payload JSON으로 병합"""
-    payload = dict(FIXED_PAYLOAD)
+    payload = dict(CONFIG.payload)
     payload["name"] = data.get("name", "")
     payload["phone"] = data.get("phone", "")
     payload["carNumber"] = data.get("carNumber", "")
@@ -225,7 +194,7 @@ def index():
 
 @bp.route("/api/defaults")
 def defaults():
-    result = {"interval": os.environ.get("REQUEST_INTERVAL", "30")}
+    result = {"interval": str(CONFIG.interval_sec)}
     user_data = _load_user_data()
     if user_data:
         fields = ["name", "phone", "carNumber", "carModel", "carBrand",
@@ -236,15 +205,6 @@ def defaults():
             result["interval"] = user_data["interval"]
         result["hasSavedData"] = True
     else:
-        payload_str = os.environ.get("REQUEST_PAYLOAD", "").strip()
-        if payload_str:
-            try:
-                p = json.loads(payload_str)
-                for f in ["name", "phone", "carNumber", "carModel", "carBrand",
-                          "carColor", "departingAt", "arrivedAt", "departingAir"]:
-                    result[f] = p.get(f, "")
-            except json.JSONDecodeError:
-                pass
         result["hasSavedData"] = False
     return jsonify(result)
 
@@ -270,7 +230,7 @@ def test_call():
         return jsonify({"error": "이름과 휴대전화는 필수입니다."}), 400
 
     payload = build_payload(data)
-    entry = do_single_call(REQUEST_URL, payload)
+    entry = do_single_call(CONFIG.url, payload)
     entry["type"] = "test"
     add_log(entry)
 
@@ -303,7 +263,7 @@ def start():
 
     stop_event.clear()
     is_running = True
-    worker_thread = threading.Thread(target=call_worker, args=(REQUEST_URL, payload, interval_sec), daemon=True)
+    worker_thread = threading.Thread(target=call_worker, args=(CONFIG.url, payload, interval_sec), daemon=True)
     worker_thread.start()
 
     return jsonify({"message": "호출을 시작합니다."})
