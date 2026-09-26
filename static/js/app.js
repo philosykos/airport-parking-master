@@ -3,6 +3,7 @@ let currentLogs = [];
 let lastSuccessId = null;
 let initialLogsFetched = false;
 var savedDefaults = null;
+const API_BASE = '/t2-valet/api';
 
 // SVG icon constants
 const SVG_ZAP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
@@ -155,7 +156,7 @@ async function testCall() {
     btn.innerHTML = SVG_LOADER + ' 호출 중…';
 
     try {
-        const resp = await fetch('/test', {
+        const resp = await fetch(API_BASE + '/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -195,7 +196,7 @@ async function startPolling() {
     if (!validateInput(data)) return;
 
     try {
-        const resp = await fetch('/start', {
+        const resp = await fetch(API_BASE + '/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -217,7 +218,7 @@ async function startPolling() {
 
 async function stopPolling() {
     try {
-        const resp = await fetch('/stop', { method: 'POST' });
+        const resp = await fetch(API_BASE + '/stop', { method: 'POST' });
         const result = await resp.json();
         if (!resp.ok) {
             showError(result.error);
@@ -280,7 +281,7 @@ function stopLogPolling() {
 
 async function fetchLogs() {
     try {
-        const resp = await fetch('/logs');
+        const resp = await fetch(API_BASE + '/logs');
         const data = await resp.json();
         renderLogs(data.logs);
         updateUI(data.running);
@@ -772,7 +773,7 @@ function showToast(message, type) {
 
 async function clearLogs() {
     try {
-        await fetch('/logs/clear', { method: 'POST' });
+        await fetch(API_BASE + '/logs/clear', { method: 'POST' });
         document.getElementById('log-body').innerHTML =
             '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
         document.getElementById('log-count').textContent = '0';
@@ -788,7 +789,7 @@ async function clearLogs() {
 
 async function loadDefaults() {
     try {
-        const resp = await fetch('/defaults');
+        const resp = await fetch(API_BASE + '/defaults');
         const data = await resp.json();
         if (data.name) document.getElementById('name').value = data.name;
         if (data.phone) document.getElementById('phone').value = data.phone;
@@ -828,7 +829,7 @@ async function loadDefaults() {
 
 async function saveUserData(data) {
     try {
-        var resp = await fetch('/save-defaults', {
+        var resp = await fetch(API_BASE + '/save-defaults', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
