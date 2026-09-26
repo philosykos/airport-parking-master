@@ -10,8 +10,15 @@ from app import app as flask_app
 from services import t2_valet
 
 
+def _block_network(*args, **kwargs):
+    raise RuntimeError("테스트에서 외부 호출 차단")
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    # 셸이나 .env의 실제 REQUEST_URL이 setdefault보다 앞서도 외부로 나가지 않게 막는다
+    monkeypatch.setattr(t2_valet, "REQUEST_URL", "https://example.invalid/reserve")
+    monkeypatch.setattr(t2_valet.http_requests, "post", _block_network)
     monkeypatch.setattr(t2_valet, "LOG_FILE", str(tmp_path / "api_call.log"))
     monkeypatch.setattr(t2_valet, "USER_DATA_FILE", str(tmp_path / "user_data.json"))
     flask_app.config["TESTING"] = True

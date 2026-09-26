@@ -48,6 +48,16 @@ def test_test_call_requires_name_and_phone(client):
     assert resp.get_json()["error"] == "이름과 휴대전화는 필수입니다."
 
 
+def test_test_call_never_reaches_network(client):
+    # 셸이나 .env에 실제 REQUEST_URL이 있어도 테스트는 외부로 나가지 않아야 한다
+    resp = client.post("/t2-valet/api/test", json={"name": "홍길동", "phone": "01012345678"})
+    assert resp.status_code == 200
+    result = resp.get_json()["result"]
+    assert result["url"] == "https://example.invalid/reserve"
+    assert result["status"] == "ERROR"
+    assert "테스트에서 외부 호출 차단" in result["body"]
+
+
 def test_start_requires_name_and_phone(client):
     resp = client.post("/t2-valet/api/start", json={})
     assert resp.status_code == 400
