@@ -1,0 +1,14 @@
+# 인천공항 제2터미널 발렛파킹 설정. 규칙은 README의 "설정" 절 참고.
+
+[request]
+url = "https://api.amanopark.co.kr/api/web/booking/reservation"
+interval_sec = 30          # 폴링 간격 기본값(초), 최소 10
+
+[payload]                  # 예약 API에 고정으로 보내는 값
+car_type = "BASIC"
+booking_type = "BASIC"
+root = "WEB"
+is_using_car_wash = false
+is_crew = false
+customer_request = ""      # 빈 문자열이면 null로 보낸다
+car_wash_type = ""         # 빈 문자열이면 null로 보낸다

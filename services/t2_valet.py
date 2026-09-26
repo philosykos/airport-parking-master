@@ -2,11 +2,14 @@ import json
 import os
 import sys
 import threading
+from dataclasses import dataclass
 from datetime import datetime
 
 import urllib3
 import requests as http_requests
 from flask import Blueprint, jsonify, render_template, request
+
+from services.config import config_label, fail, load_toml, reject_unknown, require_table
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -22,6 +25,72 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USER_DATA_FILE = os.path.join(BASE_DIR, "user_data.json")
 
 bp = Blueprint("t2_valet", __name__, url_prefix="/t2-valet")
+
+# ── 설정 (config/t2_valet.toml) ──
+CONFIG_LABEL = config_label("t2_valet")
+MIN_INTERVAL_SEC = 10
+
+# TOML 키: (예약 API 필드, 타입, 빈 문자열 허용 — 허용하면 None으로 보낸다)
+PAYLOAD_FIELDS = {
+    "car_type": ("carType", str, False),
+    "booking_type": ("type", str, False),
+    "root": ("root", str, False),
+    "is_using_car_wash": ("isUsingCarWash", bool, False),
+    "is_crew": ("isCrew", bool, False),
+    "customer_request": ("customerRequest", str, True),
+    "car_wash_type": ("carWashType", str, True),
+}
+
+# 예전 .env에서 쓰던 키. 남아 있으면 app.py가 옮기라고 경고한다.
+LEGACY_ENV_KEYS = (
+    "REQUEST_URL", "REQUEST_INTERVAL", "REQUEST_PAYLOAD", "CAR_TYPE", "BOOKING_TYPE",
+    "ROOT", "IS_USING_CAR_WASH", "IS_CREW", "CUSTOMER_REQUEST", "CAR_WASH_TYPE",
+)
+
+
+@dataclass(frozen=True)
+class T2Config:
+    url: str
+    interval_sec: int
+    payload: dict  # 예약 API 필드 이름으로 매핑을 마친 고정 페이로드
+
+
+def parse_config(raw):
+    reject_unknown(raw, {"request", "payload"}, "", CONFIG_LABEL)
+    request_cfg = require_table(raw, "request", CONFIG_LABEL)
+    payload_cfg = require_table(raw, "payload", CONFIG_LABEL)
+    reject_unknown(request_cfg, {"url", "interval_sec"}, "request.", CONFIG_LABEL)
+    reject_unknown(payload_cfg, set(PAYLOAD_FIELDS), "payload.", CONFIG_LABEL)
+
+    url = request_cfg.get("url")
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        fail(CONFIG_LABEL, "request.url", "http:// 또는 https://로 시작하는 문자열이어야 합니다")
+
+    interval = request_cfg.get("interval_sec")
+    if type(interval) is not int:  # bool은 int의 하위 타입이라 isinstance로는 걸러지지 않는다
+        fail(CONFIG_LABEL, "request.interval_sec", "정수여야 합니다")
+    if interval < MIN_INTERVAL_SEC:
+        fail(CONFIG_LABEL, "request.interval_sec",
+             f"{MIN_INTERVAL_SEC} 이상이어야 합니다 (현재 {interval})")
+
+    payload = {}
+    for key, (field, kind, allow_empty) in PAYLOAD_FIELDS.items():
+        path = f"payload.{key}"
+        if key not in payload_cfg:
+            fail(CONFIG_LABEL, path, "값이 없습니다")
+        value = payload_cfg[key]
+        if type(value) is not kind:
+            fail(CONFIG_LABEL, path, "문자열이어야 합니다" if kind is str else "true 또는 false여야 합니다")
+        if kind is str and value == "":
+            if not allow_empty:
+                fail(CONFIG_LABEL, path, "빈 문자열일 수 없습니다")
+            value = None
+        payload[field] = value
+
+    return T2Config(url=url, interval_sec=interval, payload=payload)
+
+
+CONFIG = parse_config(load_toml("t2_valet"))
 
 # 로그 파일
 LOG_DIR = os.path.join(BASE_DIR, "logs")
