@@ -1,6 +1,7 @@
 let pollInterval = null;
 let currentLogs = [];
 let lastSuccessId = null;
+let initialLogsFetched = false;
 var savedDefaults = null;
 
 // SVG icon constants
@@ -291,7 +292,13 @@ async function fetchLogs() {
         if (data.logs && data.logs.length > 0) {
             const latest = data.logs[data.logs.length - 1];
             const successId = latest.time + '-' + latest.status;
-            if (latest.status === 200 && lastSuccessId !== successId) {
+            if (!initialLogsFetched) {
+                // 첫 로드 시에는 기존 로그의 successId만 기록하고 토스트는 띄우지 않음
+                initialLogsFetched = true;
+                if (latest.status === 200) {
+                    lastSuccessId = successId;
+                }
+            } else if (latest.status === 200 && lastSuccessId !== successId) {
                 lastSuccessId = successId;
                 showToast('예약이 완료되었습니다', 'success');
             }
