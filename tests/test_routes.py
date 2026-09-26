@@ -146,3 +146,12 @@ def test_landing_does_not_load_t2_scripts(client):
     html = client.get("/").get_data(as_text=True)
     assert "js/app.js" not in html
     assert "js/datepicker.js" not in html
+
+
+def test_t2_page_has_back_link(client):
+    html = client.get("/t2-valet/").get_data(as_text=True)
+    match = re.search(r'<a class="header-back"[^>]*>', html)
+    assert match, "돌아가기 링크가 없다"
+    tag = match.group(0)
+    assert 'href="/"' in tag
+    assert 'aria-label="서비스 선택으로 돌아가기"' in tag

@@ -51,6 +51,10 @@
     <!-- Header -->
     <nav class="app-header">
         <div class="app-header-left">
+            <a class="header-back" href="{{ url_for('landing') }}" aria-label="서비스 선택으로 돌아가기">
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                <span class="header-back-text">서비스 선택</span>
+            </a>
             <span class="title-main">인천공항 2터미널 발렛파킹 예약 서비스</span>
             <div class="status-badge" id="header-status">
                 <span class="ping-container">

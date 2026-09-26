@@ -27,6 +27,33 @@
     letter-spacing: -0.05em;
     color: var(--primary-deep);
 }
+.header-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-0\.5);
+    padding: var(--space-0\.5) var(--space-1);
+    border-radius: var(--radius-full);
+    color: var(--on-surface-variant);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.header-back:hover {
+    background: var(--surface-container);
+    color: var(--primary);
+}
+.header-back:focus-visible {
+    outline: 2px solid var(--primary-fixed-dim);
+    outline-offset: 2px;
+}
+.header-back .material-symbols-outlined {
+    font-size: 20px;
+}
+@media (max-width: 480px) {
+    .header-back-text {
+        display: none;
+    }
+}
 
 .status-badge {
     display: inline-flex;
