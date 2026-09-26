@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from services import t2_valet
@@ -117,3 +118,31 @@ def test_data_paths_are_project_root():
 def test_old_routes_are_gone(client):
     for path in ("/test", "/logs", "/defaults"):
         assert client.get(path).status_code == 404
+
+
+# ── 랜딩 ──
+
+def test_landing_lists_services(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'href="/t2-valet/"' in html
+    assert "인천공항 제2터미널 발렛파킹" in html
+    assert "김포공항 국내선 예약주차장" in html
+    assert "<title>공항 주차 예약 서비스</title>" in html
+
+
+def test_landing_gmp_card_is_disabled(client):
+    html = client.get("/").get_data(as_text=True)
+    match = re.search(r'<div class="service-card is-soon"[^>]*>', html)
+    assert match, "김포 카드 여는 태그가 없다"
+    tag = match.group(0)
+    assert 'role="group"' in tag
+    assert 'aria-disabled="true"' in tag
+    assert "href" not in tag
+
+
+def test_landing_does_not_load_t2_scripts(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "js/app.js" not in html
+    assert "js/datepicker.js" not in html

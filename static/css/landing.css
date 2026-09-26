@@ -1,0 +1,140 @@
+/* ── Landing: tokens.css body 규칙 재정의 ── */
+body.landing {
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 0; /* 960px 이하 FAB 자리 여백 제거 */
+}
+
+.landing-main {
+    width: 100%;
+    max-width: 880px;
+    margin: 64px auto 0; /* 고정 헤더 높이 */
+    padding: var(--space-6) var(--space-3);
+}
+
+.landing-title {
+    font-family: var(--font-headline);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--on-surface);
+}
+
+.landing-subtitle {
+    margin-top: var(--space-1);
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+/* ── Service Cards ── */
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.service-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-height: 220px;
+    padding: var(--space-3);
+    border-radius: var(--radius-xl);
+    text-decoration: none;
+    color: inherit;
+}
+
+.service-code {
+    font-family: var(--font-headline);
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.service-name {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.service-desc {
+    flex: 1;
+    font-size: 14px;
+}
+
+.service-cta {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* 활성 카드 */
+.service-card.is-active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+    color: var(--on-primary);
+    box-shadow: var(--shadow-float);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.service-card.is-active .service-desc {
+    color: var(--primary-fixed-dim);
+}
+.service-card.is-active:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+.service-card.is-active:focus-visible {
+    outline: 3px solid var(--primary-fixed-dim);
+    outline-offset: 3px;
+}
+
+/* 준비 중 카드 */
+.service-card.is-soon {
+    background: var(--surface-container-lowest);
+    border: 1px dashed var(--outline-variant);
+    cursor: default;
+}
+.service-card.is-soon .service-code {
+    color: var(--outline-variant);
+}
+.service-card.is-soon .service-desc {
+    color: var(--text-muted);
+}
+
+.service-badge {
+    align-self: flex-start;
+    padding: var(--space-0\.5) var(--space-1);
+    border-radius: var(--radius-full);
+    background: var(--warning-bg);
+    color: var(--on-surface-variant);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+@media (max-width: 960px) {
+    .service-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-main {
+        margin-top: 56px;
+        padding: var(--space-4) var(--space-2);
+    }
+    .landing-title {
+        font-size: 22px;
+    }
+    .service-card {
+        min-height: 180px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .service-card.is-active {
+        transition: none;
+    }
+    .service-card.is-active:hover {
+        transform: none;
+    }
+}
