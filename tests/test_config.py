@@ -101,3 +101,9 @@ def test_find_legacy_env_keys(tmp_path):
 
 def test_find_legacy_env_keys_without_file(tmp_path):
     assert find_legacy_env_keys(tmp_path / ".env", t2_valet.LEGACY_ENV_KEYS) == []
+
+
+def test_find_legacy_env_keys_unreadable_file(tmp_path):
+    env = tmp_path / ".env"
+    env.write_bytes("# 한글 주석\nREQUEST_URL=https://x\n".encode("cp949"))
+    assert find_legacy_env_keys(env, t2_valet.LEGACY_ENV_KEYS) == []

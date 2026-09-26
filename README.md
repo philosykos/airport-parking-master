@@ -16,7 +16,7 @@ Python 3.11 이상이 필요하다. 설정 파일을 표준 라이브러리 `tom
 | `payload.is_using_car_wash`, `payload.is_crew` | 예약 API의 `isUsingCarWash`, `isCrew` 값 | `true` 또는 `false` |
 | `payload.customer_request`, `payload.car_wash_type` | 특별 요청, 세차 종류 | 문자열. 빈 문자열이면 보내지 않는다(null) |
 
-설정이 잘못되면 `python app.py`가 `[설정 오류] config/t2_valet.toml: <키> — <이유>`를 출력하고 종료한다. 표에 없는 키도 오류다.
+설정이 잘못되면 `python app.py`가 `[설정 오류] config/t2_valet.toml: <키> — <이유>`를 출력하고 종료한다. 표에 없는 키도 오류다. 파일이 없거나 TOML 문법이 틀리면 그 파일의 전체 경로를 담은 오류가 나온다.
 
 예전처럼 `.env`에 `REQUEST_URL`, `CAR_TYPE` 등을 적어 두었다면 더 이상 읽지 않는다. 값을 `config/t2_valet.toml`로 옮기고 `.env`에서 지운다. 옛 키가 남아 있으면 앱을 시작할 때 경고가 나온다.
 

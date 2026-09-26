@@ -46,7 +46,7 @@ def find_legacy_env_keys(env_path, keys):
     try:
         with open(env_path, encoding="utf-8") as f:
             lines = f.read().splitlines()
-    except FileNotFoundError:
+    except (OSError, UnicodeDecodeError):
         return []
     found = []
     for line in lines:
