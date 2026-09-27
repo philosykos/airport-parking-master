@@ -1,6 +1,7 @@
 """Playwright adapter. All browser objects belong to the runtime's event loop."""
 import asyncio
 import re
+import random
 import time
 from datetime import datetime, timedelta
 from typing import Protocol
@@ -78,6 +79,13 @@ class PlaywrightGimpoClient:
         self.payment_response_ok = False
         self.closed = False
         self.check_page_ready = False
+
+    async def _pace(self, stage):
+        # Cancellable pauses between actions; never shorten the polling interval
+        # or block the runtime loop that processes stop/payment commands.
+        bounds = {"page": (1.5, 2.5), "transition": (2.0, 3.5),
+                  "field": (0.4, 0.9), "submit": (1.0, 1.8)}
+        await asyncio.sleep(random.uniform(*bounds[stage]))
 
     async def _start(self):
         if self.context:
@@ -223,16 +231,19 @@ class PlaywrightGimpoClient:
             await self.page.wait_for_function("typeof rescheck === 'function'")
             await self.page.evaluate("() => new Promise(resolve => $(resolve))")
             self.check_page_ready = True
+            await self._pace("page")
         # Reuse the loaded search form, restoring the requested values if the
         # visible browser was edited between polling attempts.
         if await self.page.locator("#parkingDivCd").input_value() != AIRPORT:
             await self.page.select_option("#parkingDivCd", AIRPORT)
+            await self._pace("field")
         await self.page.wait_for_function("Array.from(document.querySelectorAll('#parkingNm option')).some(o => o.value === '2')")
         name = await self.page.locator('#parkingNm option[value="2"]').text_content()
         if name.strip() != PARKING_NAME:
             raise BrowserFault("공식 주차장 선택 목록이 변경되었습니다.")
         if await self.page.locator("#parkingNm").input_value() != PARKING:
             await self.page.select_option("#parkingNm", PARKING)
+            await self._pace("field")
         # Official date widgets are readonly: update displayed values in this tab.
         await self.page.evaluate("([a,b]) => {$('#resInDttm').val(a); $('#resOutDttm').val(b)}",
                                  [(entry_at or self.inputs["entryAt"]) + ":00", (exit_at or self.inputs["exitAt"]) + ":00"])
@@ -242,6 +253,7 @@ class PlaywrightGimpoClient:
         return await self._check_loaded_search_form()
 
     async def _check_loaded_search_form(self):
+        await self._pace("submit")
         async with self.page.expect_response("**/reservation/reservationCheck.json") as pending:
             await self.page.click("#parkCheckBtn")
         return await self._read_code(await pending.value) == "00"
@@ -311,12 +323,15 @@ class PlaywrightGimpoClient:
 
     async def prepare(self, *, bootstrap=False):
         entry_window = await self._find_application_window() if bootstrap else None
+        await self.page.locator("#requestBtn").wait_for(state="visible")
+        await self._pace("transition")
         async with self.page.expect_navigation(wait_until="load") as pending:
             await self.page.click("#requestBtn")
         response = await pending.value
         if response is None or response.status != 200 or urlparse(self.page.url).path != "/reservation/resInsert.do":
             raise BrowserFault("공식 예약신청 화면에 진입하지 못했습니다.", "SESSION_EXPIRED")
         await self.page.locator("#carNo").wait_for(state="visible")
+        await self._pace("page")
         await self.page.evaluate("() => new Promise(resolve => $(resolve))")
         await self.page.evaluate("""() => {
             window.__gimpoHandoffCancelled = false;
@@ -337,6 +352,23 @@ class PlaywrightGimpoClient:
             }).observe(modal, {attributes: true, attributeFilter: ['class', 'style', 'hidden']});
             window.addEventListener('beforeunload', () => { if (visible) cancel(); });
         }""")
+        # Native confirm dialogs can activate the OS window even when immediately
+        # accepted by Playwright. Handle only our validated automatic confirmation
+        # in-page; manual confirmations and payment dialogs retain native behavior.
+        await self.page.evaluate("""expected => {
+            const originalConfirm = window.confirm.bind(window);
+            window.__gimpoAutomaticConfirmation = false;
+            window.__gimpoConfirmationMismatch = false;
+            window.confirm = message => {
+                if (!window.__gimpoAutomaticConfirmation) return originalConfirm(message);
+                const valid = typeof message === 'string'
+                    && message.startsWith('작성 내용을 다시 한번 확인해주세요.')
+                    && expected.every(value => message.includes(value));
+                if (!valid) window.__gimpoConfirmationMismatch = true;
+                return valid;
+            };
+        }""", [self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00",
+                 PARKING_NAME, self.inputs["carNumber"], self.inputs["phone"]])
         # Check the server-rendered bootstrap identity before replacing the dates.
         initial = {**self.inputs, "discountSelection": "DC001"}
         if entry_window:
@@ -346,6 +378,7 @@ class PlaywrightGimpoClient:
             await self._apply_requested_dates(entry_window)
         OfficialContract.summary(await self._form(), {**self.inputs, "discountSelection": "DC001"})
         if self.inputs["discountSelection"] != "DC001":
+            await self._pace("field")
             async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
                 await self.page.select_option("#discountCd", self.inputs["discountSelection"])
             response = await pending.value
@@ -362,8 +395,10 @@ class PlaywrightGimpoClient:
         summary = OfficialContract.summary(await self._form(), self.inputs)
         for selector, key in (("#carNo", "carNumber"), ("#mobile", "phone"),
                               ("#password", "reservationPassword"), ("#passwordCk", "reservationPassword")):
+            await self._pace("field")
             await self.page.fill(selector, self.inputs[key])
         for name in AGREEMENTS:
+            await self._pace("field")
             await self.page.locator("#" + name).evaluate("element => { element.checked = true; element.dispatchEvent(new Event('change', {bubbles: true})); }")
         if self.inputs["mode"] == "watch":
             # Keep manual clicks from creating a second, untracked request chain.
@@ -389,13 +424,18 @@ class PlaywrightGimpoClient:
                 await responses[path].put(response)
         self.page.on("response", collect)
         try:
+            await self.page.evaluate("""() => {
+                window.__gimpoAutomaticConfirmation = true;
+                window.__gimpoConfirmationMismatch = false;
+            }""")
             notice = self.page.locator("#flashMessage")
             if await notice.is_visible():
                 message = await notice.locator("#alertMassage").inner_text()
                 if not re.fullmatch(r"예약가능\s*주차면수\s*:\s*0", message.strip()):
                     raise BrowserFault("공식 만차 안내 문구가 변경되었습니다.")
-                await notice.locator("#flashMessageClose").click()
+                await notice.locator("#flashMessageClose").evaluate("button => button.click()")
                 await notice.wait_for(state="hidden")
+            await self._pace("submit")
             # Dispatch exactly one owned click; the visible control remains locked.
             await self.page.locator("#reservationBtn").evaluate(
                 "button => button.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))")
@@ -429,6 +469,8 @@ class PlaywrightGimpoClient:
         finally:
             self.allow_confirmation = False
             self.page.remove_listener("response", collect)
+            if not self.page.is_closed():
+                await self.page.evaluate("window.__gimpoAutomaticConfirmation = false")
 
     async def alive(self):
         return not self.closed and self.page is not None and not self.page.is_closed() and self.browser.is_connected()

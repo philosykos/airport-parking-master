@@ -267,3 +267,71 @@ def test_summary_displays_discounted_price(ui_server):
         page.wait_for_function("document.querySelector('#summary').textContent.includes('52,000원')")
         assert '104,000원' not in page.locator('#summary').inner_text()
         browser.close()
+
+
+def test_saved_interval_survives_reload_with_previous_job(ui_server):
+    base, runtime = ui_server
+    job = runtime.create(inputs())
+    job = wait_state(runtime, job['id'], READY)
+    runtime.stop(job['id'], job)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.fill('#intervalSeconds', '60')
+        page.locator('#intervalSeconds').blur()
+        page.wait_for_function("fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => d.intervalSeconds === 60)")
+        page.reload()
+        page.wait_for_function("!document.getElementById('check').disabled")
+        assert page.input_value('#intervalSeconds') == '60'
+        assert runtime.store.get_defaults()['intervalSeconds'] == 60
+        browser.close()
+
+
+@pytest.mark.parametrize('saved_dates', [True, False])
+def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates):
+    base, runtime = ui_server
+    raw = inputs()
+    job = runtime.create(raw)
+    job = wait_state(runtime, job['id'], READY)
+    runtime.stop(job['id'], job)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    defaults = {'intervalSeconds': 60}
+    if saved_dates:
+        defaults.update(entryAt=raw['entryAt'], exitAt=raw['exitAt'])
+    runtime.store.save_defaults(defaults)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        assert page.input_value('#entryAt') == raw['entryAt']
+        assert page.input_value('#exitAt') == raw['exitAt']
+        assert page.input_value('#intervalSeconds') == '60'
+        # Calendar/time widgets emit vp.change instead of native change.
+        page.locator('#exit-picker').dispatch_event('vp.change')
+        page.wait_for_function("fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => !!d.entryAt && !!d.exitAt)")
+        assert runtime.store.get_defaults()['entryAt'] == raw['entryAt']
+        page.reload()
+        page.wait_for_function("!document.getElementById('check').disabled")
+        assert page.input_value('#exitAt') == raw['exitAt']
+        browser.close()
+
+
+def test_expired_saved_dates_use_current_booking_range(ui_server):
+    base, runtime = ui_server
+    runtime.store.save_defaults({'entryAt': '2000-01-01 10:00', 'exitAt': '2000-01-01 14:00', 'intervalSeconds': 60})
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        assert not page.input_value('#entryAt').startswith('2000-')
+        assert not page.input_value('#exitAt').startswith('2000-')
+        assert page.input_value('#intervalSeconds') == '60'
+        browser.close()

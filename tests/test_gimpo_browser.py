@@ -170,6 +170,8 @@ def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_docum
     eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
     client = runtime.clients[job['id']]
     browser, context, page = client.browser, client.context, client.page
+    dialogs = []
+    page.on('dialog', lambda dialog: dialogs.append(dialog.message))
 
     async def inspect_first():
         assert page.url.endswith('/reservation/resInsert.do')
@@ -181,6 +183,11 @@ def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_docum
         return await client._form()
     original = runtime._submit(inspect_first()).result(timeout=5)
     assert client.check_count == 2
+    stages = client.pacing_stages
+    assert stages.index('submit') < stages.index('transition')
+    assert stages[stages.index('transition') + 1] == 'page'
+    assert stages.count('field') >= 8
+    assert stages[-1] == 'submit'
     assert len(runtime.store.get(job['id'])['logs']) == 1
     advance_application_retry(runtime, job['id'])
     eventually(lambda: client.check_count == 3 and runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE')
@@ -207,6 +214,7 @@ def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_docum
     assert client.quote_requests[0]['inDttm'] == [client.inputs['entryAt'] + ':00']
     assert client.quote_requests[0]['outDttm'] == [client.inputs['exitAt'] + ':00']
     assert sum(path == '/reservation/duplicateReservation.json' for path, _ in client.requests) == 3
+    assert dialogs == []
     assert client.version['generation'] == current['generation'] == 1
     assert client.forwarded == []
     assert len(runtime.store.events(job['id'])) == 1
@@ -262,3 +270,46 @@ def test_missing_official_requested_price_stops_before_reservation(browser_runti
     job = runtime.create(inputs())
     eventually(lambda: runtime.store.get(job['id'])['state'] == 'REVIEW_REQUIRED', timeout=15)
     assert runtime.store.events(job['id']) == []
+
+
+def test_background_confirmation_rejects_mismatch_and_preserves_manual_dialog(browser_runtime):
+    runtime = browser_runtime
+    class Full(FixtureBrowser):
+        codes = ('00', '10')
+    runtime.client_factory = Full
+    job = runtime.create(inputs())
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    client = runtime.clients[job['id']]
+    async def inspect():
+        assert await client.page.evaluate('''() => {
+            window.__gimpoAutomaticConfirmation = true;
+            const accepted = confirm('작성 내용을 다시 한번 확인해주세요. wrong dates');
+            window.__gimpoAutomaticConfirmation = false;
+            return !accepted && window.__gimpoConfirmationMismatch;
+        }''')
+        async with client.page.expect_event('dialog') as pending:
+            await client.page.evaluate("setTimeout(() => confirm('manual confirmation'), 0)")
+        dialog = await pending.value
+        assert dialog.message == 'manual confirmation'
+        await dialog.dismiss()
+    runtime._submit(inspect()).result(timeout=5)
+    assert client.forwarded == []
+
+
+def test_stop_during_transition_pause_never_opens_application(browser_runtime):
+    runtime = browser_runtime
+    class Paused(FixtureBrowser):
+        async def _pace(self, stage):
+            await super()._pace(stage)
+            if stage == 'transition':
+                await asyncio.Event().wait()
+    runtime.client_factory = Paused
+    job = runtime.create(inputs())
+    eventually(lambda: job['id'] in runtime.clients and
+               'transition' in runtime.clients[job['id']].pacing_stages, timeout=15)
+    client = runtime.clients[job['id']]
+    runtime.stop(job['id'], runtime.store.get(job['id']))
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    assert client.closed
+    assert not any(path == '/reservation/resInsert.do' for path, _ in client.requests)
+    assert client.forwarded == []

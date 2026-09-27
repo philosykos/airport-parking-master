@@ -37,9 +37,10 @@
                 const saved = await this.api.call('/defaults');
                 this.apply(Object.fromEntries(['airportCode', 'parkingId', 'carNumber', 'phone', 'discountSelection', 'intervalSeconds'].filter(key => key in saved).map(key => [key, saved[key]])));
                 const existing = await this.api.call('/jobs/active');
+                if (!existing.job?.active) this.restoreDates('entryAt' in saved || 'exitAt' in saved ? saved : existing.recent?.inputs);
                 this.connected = true;
                 this.setJob(existing.job || existing.recent);
-                if (this.job) this.apply(this.job.inputs);
+                if (this.job?.active) this.apply(this.job.inputs);
                 this.render();
             } catch (error) { this.message(error.message); }
             this.poll();
@@ -108,9 +109,18 @@
             }
             this.updateExitLimits();
         }
+        restoreDates(data) {
+            if (!data) return;
+            const entry = this.parse(data.entryAt), exit = this.parse(data.exitAt);
+            if (!entry || !exit || entry.getMinutes() % 10 || exit.getMinutes() % 10
+                || entry < this.parse(this.options.policy.entryMin)
+                || exit > this.parse(this.options.policy.exitMax)
+                || exit - entry < 7200000 || exit - entry > 30 * 86400000) return;
+            this.apply({entryAt: data.entryAt, exitAt: data.exitAt});
+        }
         async saveDefaults() {
             const data = this.inputs('once');
-            const saved = Object.fromEntries(['airportCode', 'parkingId', 'carNumber', 'phone', 'discountSelection', 'intervalSeconds'].map(key => [key, data[key]]));
+            const saved = Object.fromEntries(['airportCode', 'parkingId', 'carNumber', 'phone', 'discountSelection', 'intervalSeconds', 'entryAt', 'exitAt'].map(key => [key, data[key]]));
             this.saveQueue = (this.saveQueue || Promise.resolve()).catch(() => {}).then(() => this.api.call('/defaults', 'POST', saved));
             await this.saveQueue;
         }
@@ -160,9 +170,11 @@
                 };
             }
             $('reservation-form').addEventListener('submit', event => { event.preventDefault(); this.perform(() => this.start('once')); });
-            $('reservation-form').addEventListener('change', () => {
+            const saveChanges = () => {
                 if (this.connected && !this.job?.active) this.saveDefaults().catch(error => this.message(error.message));
-            });
+            };
+            $('reservation-form').addEventListener('change', saveChanges);
+            $('reservation-form').addEventListener('vp.change', saveChanges);
             $('watch').onclick = () => this.perform(() => this.start('watch'));
             for (const action of ['stop', 'prepare', 'show-browser']) $(action).onclick = () => this.perform(() => this.command(action));
             $('proceed').onclick = () => this.perform(() => this.command('proceed', {autoProceedConsent: true}));

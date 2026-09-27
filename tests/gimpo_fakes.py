@@ -68,6 +68,11 @@ class FixtureBrowser(PlaywrightGimpoClient):
         self.quote_requests = []
         self.availability_forms = []
         self.bootstrap_form = None
+        self.pacing_stages = []
+
+    async def _pace(self, stage):
+        self.pacing_stages.append(stage)
+
     async def _start(self):
         if self.context:
             return
