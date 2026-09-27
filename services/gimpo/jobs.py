@@ -6,6 +6,8 @@ import os
 import threading
 import uuid
 
+from playwright.async_api import Error as PlaywrightError
+
 from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
 from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
 from services.gimpo.validation import InputError, validate
@@ -14,6 +16,13 @@ from services.notifications.telegram import TelegramNotifier
 from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
 
 PREPAYMENT = frozenset({"DRAFT", "CHECKING", "WAITING_AVAILABLE", "AVAILABLE", "PREPARING", "PREPARED", "RECHECKING", READY})
+
+
+def _is_target_closed(error):
+    # playwright.async_api does not export TargetClosedError publicly (1.62); avoid importing
+    # the private playwright._impl._errors module and instead match the public Error type plus
+    # the message Playwright raises when the target (page/context/browser) closed mid-call.
+    return isinstance(error, PlaywrightError) and "has been closed" in str(error)
 
 
 class RuntimeUnavailable(Exception):
@@ -279,7 +288,7 @@ class GimpoRuntime:
                 self.inputs.pop(job_id, None)
                 job = self.store.get(job_id)
                 if job["state"] == "CLOSED_BY_USER":
-                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘기록 후 종료’를 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
+                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘결과 기록’을 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
                 else:
                     self.store.transition(job_id, "ERROR", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.",
                                           expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
@@ -333,7 +342,15 @@ class GimpoRuntime:
             if client is not None and not await client.alive():
                 await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
                 return False
-            valid = client is not None and await client.inspect()
+            target_closed = False
+            try:
+                valid = client is not None and await client.inspect()
+            except Exception as error:
+                valid = False
+                target_closed = _is_target_closed(error)
+            if not valid and client is not None and (target_closed or not await client.alive()):
+                await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
+                return False
         except Exception:
             valid = False
         if not valid:

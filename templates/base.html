@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}공항 주차 예약 서비스{% endblock %}</title>
+    <meta name="description" content="{% block description %}공항 주차 자동 예약 도우미{% endblock %}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23000B60'/><g fill='white'><path d='M12 38v6a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2h24v2a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-6l-2-2v-8l-6-12H22l-6 12v8z'/></g><g fill='%23000B60'><path d='M22 18h20l5 10H17z'/><circle cx='20' cy='38' r='3'/><circle cx='44' cy='38' r='3'/></g></svg>">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" integrity="sha384-SN6A48CJQjx946+DRb8wsoifC4a8ur9ZS6R+HCTgnBHOKCa6GLXAR3Qn8d1jztxg" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" />
+    {%- for name in ['tokens', 'layout', 'form', 'log', 'overlay', 'dialog'] %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ name ~ '.css') }}">
+    {%- endfor %}
+    {% block styles %}{% endblock %}
+    {%- for name in ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'log_panel', 'notification_status', 'settings_dialog'] %}
+    <script defer src="{{ url_for('static', filename='js/ui/' ~ name ~ '.js') }}"></script>
+    {%- endfor %}
+    {% block scripts %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <nav class="app-header" aria-label="주 메뉴">
+        <div class="app-header-left">
+            {% block header_back %}<a class="header-back" href="{{ url_for('landing') }}" aria-label="서비스 선택으로 돌아가기"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span><span class="header-back-text">서비스 선택</span></a>{% endblock %}
+            <span class="title-main">{% block header_title %}공항 주차 예약 서비스{% endblock %}</span>
+            {% block status_badge %}{% endblock %}
+        </div>
+        {% block header_actions %}{% include 'partials/settings_button.html' %}{% endblock %}
+    </nav>
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+    {% block content %}{% endblock %}
+    {% include 'partials/completion_overlay.html' %}
+    {% block layers %}{% include 'partials/settings_dialog.html' %}{% endblock %}
+</body>
+</html>

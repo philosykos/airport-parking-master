@@ -1,330 +1,65 @@
+{% extends 'service_base.html' %}
 {% from 'partials/date_input.html' import date_input %}
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>인천공항 제2터미널 발렛파킹</title>
-    <meta name="description" content="인천공항 발렛파킹 자동 예약 도우미">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23000B60'/><g fill='white'><path d='M12 38v6a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2h24v2a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-6l-2-2v-8l-6-12H22l-6 12v8z'/></g><g fill='%23000B60'><path d='M22 18h20l5 10H17z'/><circle cx='20' cy='38' r='3'/><circle cx='44' cy='38' r='3'/></g></svg>">
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" integrity="sha384-SN6A48CJQjx946+DRb8wsoifC4a8ur9ZS6R+HCTgnBHOKCa6GLXAR3Qn8d1jztxg" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/log.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/overlay.css') }}">
-</head>
-<body>
-    <!-- Success Overlay -->
-    <div class="success-overlay hidden" id="success-overlay">
-        <div class="confetti-container">
-            <div class="confetti-piece" style="left: 10%; animation-delay: 0s; background: #FFD700;"></div>
-            <div class="confetti-piece" style="left: 20%; animation-delay: 0.5s; background: #8390F2;"></div>
-            <div class="confetti-piece" style="left: 35%; animation-delay: 1.2s; background: #FFD700;"></div>
-            <div class="confetti-piece" style="left: 50%; animation-delay: 0.2s; background: #FFFFFF;"></div>
-            <div class="confetti-piece" style="left: 65%; animation-delay: 1.8s; background: #8390F2;"></div>
-            <div class="confetti-piece" style="left: 80%; animation-delay: 0.7s; background: #FFD700;"></div>
-            <div class="confetti-piece" style="left: 90%; animation-delay: 1.5s; background: #FFFFFF;"></div>
-            <div class="confetti-piece" style="left: 5%; animation-delay: 0.3s; background: #8390F2;"></div>
-            <div class="confetti-piece" style="left: 15%; animation-delay: 1.0s; background: #FFFFFF;"></div>
-            <div class="confetti-piece" style="left: 25%; animation-delay: 1.6s; background: #FFD700;"></div>
-            <div class="confetti-piece" style="left: 40%; animation-delay: 0.8s; background: #8390F2;"></div>
-            <div class="confetti-piece" style="left: 55%; animation-delay: 1.3s; background: #FFD700;"></div>
-            <div class="confetti-piece" style="left: 70%; animation-delay: 0.4s; background: #FFFFFF;"></div>
-            <div class="confetti-piece" style="left: 85%; animation-delay: 1.1s; background: #8390F2;"></div>
-            <div class="confetti-piece" style="left: 95%; animation-delay: 0.6s; background: #FFD700;"></div>
-        </div>
-        <div class="success-content">
-            <div class="success-circle">
-                <span class="material-symbols-outlined success-check">check_circle</span>
-            </div>
-            <h1 class="success-title">예약이<br><span class="success-highlight">완료되었습니다</span></h1>
-            <p class="success-subtitle">공항 사이트에서 예약 내역을 확인해주세요.</p>
-            <button class="success-close-btn">
-                확인
-            </button>
-        </div>
+{% from 'partials/ui.html' import field, action_button %}
+{% block title %}인천공항 제2터미널 발렛파킹{% endblock %}
+{% block description %}인천공항 발렛파킹 자동 예약 도우미{% endblock %}
+{% block body_class %}service t2{% endblock %}
+{% block header_title %}인천공항 제2터미널 발렛파킹{% endblock %}
+{% block scripts %}
+    <script defer src="{{ url_for('static', filename='js/datepicker.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
+{% block log_title %}실행 로그{% endblock %}
+{% block log_empty %}아직 예약 요청 내역이 없습니다{% endblock %}
+{% block form_fields %}
+<div class="form-section">
+    <div class="field-row">
+        {% call field('name', '예약자명', '이름을 입력해주세요') %}<input type="text" id="name" placeholder="홍길동">{% endcall %}
+        {% call field('phone', '휴대전화 번호', '휴대전화 번호를 입력해주세요') %}<input type="tel" id="phone" placeholder="01012345678">{% endcall %}
     </div>
-
-    <!-- Header -->
-    <nav class="app-header">
-        <div class="app-header-left">
-            <a class="header-back" href="{{ url_for('landing') }}" aria-label="서비스 선택으로 돌아가기">
-                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-                <span class="header-back-text">서비스 선택</span>
-            </a>
-            <span class="title-main">인천공항 제2터미널 발렛파킹</span>
-            <div class="status-badge" id="header-status">
-                <span class="ping-container">
-                    <span class="ping-ring" id="header-dot"></span>
-                    <span class="ping-dot"></span>
-                </span>
-                <span id="header-status-text">대기 중</span>
-            </div>
-        </div>
-        {% include 'partials/settings_link.html' %}
-    </nav>
-
-    <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
-
-    <!-- Detail Slide-Over -->
-    <div class="detail-overlay" id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-title">
-        <div class="detail-panel">
-            <div class="detail-panel-header">
-                <div>
-                    <h3 id="detail-title">요청 상세</h3>
-                    <div class="detail-panel-meta" id="detail-meta"></div>
-                </div>
-                <button class="detail-close" aria-label="닫기">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
-            </div>
-            <div class="detail-panel-body">
-                <div class="detail-json" id="detail-json"></div>
-            </div>
-        </div>
+    <div class="field-row">
+        {% call field('carNumber', '차량번호', '차량번호를 입력해주세요') %}<input type="text" id="carNumber" placeholder="00가0000">{% endcall %}
+        {% call field('carModel', '차종', '차종을 입력해주세요') %}<input type="text" id="carModel" placeholder="그랜저">{% endcall %}
     </div>
-
-    <!-- Main Layout -->
-    <main class="app-layout">
-        <!-- Form Panel -->
-        <section class="form-panel">
-            <div class="form-body custom-scrollbar">
-                <div class="form-section">
-                        <div class="field-row">
-                            <div class="field-group">
-                                <label for="name">예약자명</label>
-                                <input type="text" id="name" placeholder="홍길동">
-                                <div class="field-error">이름을 입력해주세요</div>
-                            </div>
-                            <div class="field-group">
-                                <label for="phone">휴대전화 번호</label>
-                                <input type="tel" id="phone" placeholder="01012345678">
-                                <div class="field-error">휴대전화 번호를 입력해주세요</div>
-                            </div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-group">
-                                <label for="carNumber">차량번호</label>
-                                <input type="text" id="carNumber" placeholder="00가0000">
-                                <div class="field-error">차량번호를 입력해주세요</div>
-                            </div>
-                            <div class="field-group">
-                                <label for="carModel">차종</label>
-                                <input type="text" id="carModel" placeholder="그랜저">
-                            </div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-group">
-                                <label for="carBrand">제조사</label>
-                                <select id="carBrand">
-                                    <option value="">선택</option>
-                                    <option value="HY">현대</option>
-                                    <option value="KI">기아</option>
-                                    <option value="CH">쉐보레</option>
-                                    <option value="RE">르노삼성</option>
-                                    <option value="KG">쌍용</option>
-                                    <option value="GE">제네시스</option>
-                                    <option value="VE">벤츠</option>
-                                    <option value="BMW">BMW</option>
-                                    <option value="AU">아우디</option>
-                                    <option value="VW">폭스바겐</option>
-                                    <option value="TO">도요타</option>
-                                    <option value="LE">렉서스</option>
-                                    <option value="HO">혼다</option>
-                                    <option value="MI">미니</option>
-                                    <option value="FO">포드</option>
-                                    <option value="FU">푸조</option>
-                                    <option value="VO">볼보</option>
-                                    <option value="PO">포르쉐</option>
-                                    <option value="CA">캐딜락</option>
-                                    <option value="ZE">지프</option>
-                                    <option value="LI">링컨</option>
-                                    <option value="CY">크라이슬러</option>
-                                    <option value="NI">닛산</option>
-                                    <option value="IN">인피니티</option>
-                                    <option value="JA">재규어</option>
-                                    <option value="LA">랜드로버</option>
-                                    <option value="CI">시트로엥</option>
-                                    <option value="FE">페라리</option>
-                                    <option value="FI">피아트</option>
-                                    <option value="RO">롤스로이스</option>
-                                    <option value="MA">마세라티</option>
-                                    <option value="TE">테슬라</option>
-                                    <option value="LAM">람보르기니</option>
-                                    <option value="VEN">벤틀리</option>
-                                    <option value="ETC">기타</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label for="carColor">색상</label>
-                                <select id="carColor">
-                                    <option value="">선택</option>
-                                    <option value="BLACK">검정</option>
-                                    <option value="WHITE">흰색</option>
-                                    <option value="SILVER">은색</option>
-                                    <option value="GRAY">회색</option>
-                                    <option value="BROWN">갈색</option>
-                                    <option value="GREEN">녹색</option>
-                                    <option value="RED">빨강</option>
-                                    <option value="BLUE">파랑</option>
-                                    <option value="YELLOW">노랑</option>
-                                    <option value="PURPLE">보라</option>
-                                    <option value="WINE">자주</option>
-                                    <option value="ETC">기타</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-group">
-                                <label for="departingAt">출발일시</label>
-                                {{ date_input('departingAt', 'departingAtPicker', '출발일시') }}
-                                <div class="field-error">출발 일시를 입력해주세요</div>
-                            </div>
-                            <div class="field-group">
-                                <label for="arrivedAt">도착일시</label>
-                                {{ date_input('arrivedAt', 'arrivedAtPicker', '도착일시') }}
-                                <div class="field-error">도착 일시를 입력해주세요</div>
-                            </div>
-                        </div>
-                        <div class="field-row">
-                            <div class="field-group">
-                                <label for="departingAir">출발 항공사</label>
-                                <select id="departingAir">
-                                    <option value="">선택</option>
-                                    <option value="KE" selected>대한항공</option>
-                                    <option value="LJ">진에어</option>
-                                    <option value="RS">에어서울</option>
-                                    <option value="BX">에어부산</option>
-                                    <option value="GA">가루다인도네시아</option>
-                                    <option value="DL">델타항공</option>
-                                    <option value="MF">샤먼항공</option>
-                                    <option value="AF">에어프랑스</option>
-                                    <option value="KL">KLM네덜란드항공</option>
-                                    <option value="CI">중화항공</option>
-                                    <option value="SK">스칸디나비아항공</option>
-                                    <option value="OZ">아시아나항공</option>
-                                </select>
-                                <div class="field-error">출발 항공사를 선택해주세요</div>
-                            </div>
-                            <div class="field-group">
-                                <label for="interval">예약 요청 간격(초)</label>
-                                <input type="number" id="interval" placeholder="30" min="1" step="1" value="30">
-                            </div>
-                        </div>
-                </div>
-
-                <div id="error-msg" class="error-msg" style="display:none;" aria-live="polite"></div>
-
-                <div class="action-bar">
-                    <div class="action-grid">
-                        <button class="btn-start" id="btn-start">
-                            <span class="material-symbols-outlined btn-icon">play_arrow</span> 자동 예약 시작
-                        </button>
-                        <button class="btn-stop" id="btn-stop" disabled>
-                            <span class="material-symbols-outlined btn-icon">stop</span> 중지
-                        </button>
-                        <button class="btn-test" id="btn-test">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> 1회 예약 요청
-                        </button>
-                        <button class="btn-clear">
-                            <span class="material-symbols-outlined btn-icon">restart_alt</span> 로그 초기화
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Log Panel -->
-        <section class="log-panel">
-            <div class="log-header">
-                <h1 class="log-title">실행 로그</h1>
-                <div class="log-stats">
-                    <span class="log-status" id="status-badge" role="status">
-                        <span class="status-dot"></span>
-                        <span class="status-label">대기</span>
-                    </span>
-                    <span class="log-stats-divider"></span>
-                    <span class="log-count-text">
-                        <span class="log-count-value" id="log-count" aria-live="polite">0</span>
-                        <span class="log-count-label">건</span>
-                    </span>
-                </div>
-            </div>
-
-            <div class="log-scroll custom-scrollbar">
-                <div class="log-table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="col-time">시간</th>
-                                <th class="col-type">구분</th>
-                                <th class="col-status">상태</th>
-                                <th>응답 내용</th>
-                            </tr>
-                        </thead>
-                        <tbody id="log-body">
-                            <tr><td colspan="4" class="empty-msg">
-                                <div class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
-                                아직 예약 요청 내역이 없습니다
-                            </td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Mobile Log FAB -->
-        <button class="log-fab" id="log-fab" aria-label="실행 로그 보기">
-            <span class="material-symbols-outlined">description</span>
-            <span class="log-fab-badge" id="log-fab-badge"></span>
-        </button>
-
-        <!-- Mobile Log Bottom Sheet -->
-        <div class="log-sheet-overlay" id="log-sheet-overlay">
-            <div class="log-sheet" id="log-sheet">
-                <div class="log-sheet-handle"></div>
-                <div class="log-sheet-header">
-                    <h3>실행 로그</h3>
-                    <div class="log-stats">
-                        <span class="log-status" id="mobile-status-badge" role="status">
-                            <span class="status-dot"></span>
-                            <span class="status-label">대기</span>
-                        </span>
-                        <span class="log-stats-divider"></span>
-                        <span class="log-count-text">
-                            <span class="log-count-value" id="mobile-log-count">0</span>
-                            <span class="log-count-label">건</span>
-                        </span>
-                    </div>
-                    <button class="log-sheet-close" aria-label="닫기">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <div class="log-sheet-body custom-scrollbar" id="mobile-log-body"></div>
-            </div>
-        </div>
-        <!-- Mobile Select Picker -->
-        <div class="select-picker-overlay" id="select-picker-overlay">
-            <div class="select-picker" id="select-picker">
-                <div class="select-picker-handle"></div>
-                <div class="select-picker-header">
-                    <h3 id="select-picker-title">선택</h3>
-                    <button class="select-picker-close" aria-label="닫기">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <div class="select-picker-body custom-scrollbar" id="select-picker-body"></div>
-            </div>
-        </div>
-    </main>
-
-    <script src="{{ url_for('static', filename='js/datepicker.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-</body>
-</html>
+    <div class="field-row">
+        {% call field('carBrand', '제조사', '제조사를 선택해주세요') %}
+        <select id="carBrand">
+            <option value="">선택</option>
+            {%- for value, label in [('HY','현대'),('KI','기아'),('CH','쉐보레'),('RE','르노삼성'),('KG','쌍용'),('GE','제네시스'),('VE','벤츠'),('BMW','BMW'),('AU','아우디'),('VW','폭스바겐'),('TO','도요타'),('LE','렉서스'),('HO','혼다'),('MI','미니'),('FO','포드'),('FU','푸조'),('VO','볼보'),('PO','포르쉐'),('CA','캐딜락'),('ZE','지프'),('LI','링컨'),('CY','크라이슬러'),('NI','닛산'),('IN','인피니티'),('JA','재규어'),('LA','랜드로버'),('CI','시트로엥'),('FE','페라리'),('FI','피아트'),('RO','롤스로이스'),('MA','마세라티'),('TE','테슬라'),('LAM','람보르기니'),('VEN','벤틀리'),('ETC','기타')] %}
+            <option value="{{ value }}">{{ label }}</option>
+            {%- endfor %}
+        </select>
+        {% endcall %}
+        {% call field('carColor', '색상', '색상을 선택해주세요') %}
+        <select id="carColor">
+            <option value="">선택</option>
+            {%- for value, label in [('BLACK','검정'),('WHITE','흰색'),('SILVER','은색'),('GRAY','회색'),('BROWN','갈색'),('GREEN','녹색'),('RED','빨강'),('BLUE','파랑'),('YELLOW','노랑'),('PURPLE','보라'),('WINE','자주'),('ETC','기타')] %}
+            <option value="{{ value }}">{{ label }}</option>
+            {%- endfor %}
+        </select>
+        {% endcall %}
+    </div>
+    <div class="field-row">
+        {% call field('departingAt', '출발일시', '출발 일시를 입력해주세요') %}{{ date_input('departingAt', 'departingAtPicker', '출발일시') }}{% endcall %}
+        {% call field('arrivedAt', '도착일시', '도착 일시를 입력해주세요') %}{{ date_input('arrivedAt', 'arrivedAtPicker', '도착일시') }}{% endcall %}
+    </div>
+    <div class="field-row">
+        {% call field('departingAir', '출발 항공사', '출발 항공사를 선택해주세요') %}
+        <select id="departingAir">
+            <option value="">선택</option>
+            {%- for value, label in [('KE','대한항공'),('LJ','진에어'),('RS','에어서울'),('BX','에어부산'),('GA','가루다인도네시아'),('DL','델타항공'),('MF','샤먼항공'),('AF','에어프랑스'),('KL','KLM네덜란드항공'),('CI','중화항공'),('SK','스칸디나비아항공'),('OZ','아시아나항공')] %}
+            <option value="{{ value }}"{% if value == 'KE' %} selected{% endif %}>{{ label }}</option>
+            {%- endfor %}
+        </select>
+        {% endcall %}
+        {% call field('interval', '예약 요청 간격(초)') %}<input type="number" id="interval" placeholder="30" min="1" step="1" value="30">{% endcall %}
+    </div>
+</div>
+{% endblock %}
+{% block form_actions %}
+    {{ action_button('btn-start', '자동 예약 시작', 'play_arrow', 'start') }}
+    {{ action_button('btn-stop', '중지', 'stop', 'stop', disabled=true) }}
+    {{ action_button('btn-test', '1회 예약 요청', 'bolt', 'test') }}
+    {{ action_button('btn-clear', '로그 초기화', 'restart_alt', 'clear') }}
+{% endblock %}

@@ -22,7 +22,7 @@
     min-width: 0;
 }
 .app-header .title-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.header-settings { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 16px; padding: 8px 10px; border-radius: var(--radius-md); color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; }
+.header-settings { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 16px; padding: 8px 10px; border-radius: var(--radius-md); color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; background: transparent; border: 0; font-family: inherit; cursor: pointer; }
 .header-settings:hover, .header-settings[aria-current=page] { background: var(--secondary-fixed); }
 .header-settings:focus-visible { outline: 3px solid var(--secondary-container); outline-offset: 3px; }
 .title-main {
@@ -85,8 +85,7 @@
     height: 100%;
     border-radius: var(--radius-full);
     background: var(--secondary);
-    opacity: 0.75;
-    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+    opacity: 0;
 }
 .status-badge .ping-dot {
     position: relative;
@@ -95,6 +94,22 @@
     height: 8px;
     border-radius: var(--radius-full);
     background: var(--secondary);
+}
+.status-badge[data-tone="running"] .ping-ring {
+    opacity: 0.75;
+    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.status-badge[data-tone="idle"] .ping-dot { background: var(--text-muted); }
+.status-badge[data-tone="success"] { background: var(--success-bg); color: #047857; }
+.status-badge[data-tone="success"] .ping-dot { background: var(--success); }
+.status-badge[data-tone="warning"] { background: var(--warning-bg); color: #B45309; }
+.status-badge[data-tone="warning"] .ping-dot { background: var(--warning); }
+.status-badge[data-tone="error"] { background: var(--danger-bg); color: var(--danger); }
+.status-badge[data-tone="error"] .ping-dot { background: var(--danger); }
+#header-status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .header-status {
@@ -120,7 +135,11 @@
         font-size: 16px;
     }
     .status-badge {
-        display: none;
+        flex-shrink: 0;
+        max-width: 40vw;
+        margin-left: var(--space-1);
+        padding: 2px 8px;
+        font-size: 11px;
     }
 }
 

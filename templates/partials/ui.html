@@ -1,0 +1,41 @@
+{% macro field(id, label, error=None, class='') -%}
+<div class="field-group{% if class %} {{ class }}{% endif %}">
+    <label for="{{ id }}">{{ label }}</label>
+    {{ caller() }}
+    {%- if error %}
+    <div class="field-error">{{ error }}</div>
+    {%- endif %}
+</div>
+{%- endmacro %}
+
+{% macro action_button(id, label, icon, variant, type='button', disabled=false, form=None) -%}
+<button type="{{ type }}" id="{{ id }}" class="btn-{{ variant }}"{% if form %} form="{{ form }}"{% endif %}{% if disabled %} disabled{% endif %}>
+    <span class="material-symbols-outlined btn-icon" aria-hidden="true">{{ icon }}</span><span class="btn-label">{{ label }}</span>
+</button>
+{%- endmacro %}
+
+{% macro log_sheet_bar() -%}
+<div class="log-sheet-bar">
+    <div class="log-sheet-handle" aria-hidden="true"></div>
+    <button type="button" class="log-sheet-close" aria-label="닫기"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+</div>
+{%- endmacro %}
+
+{% macro log_panel(title, empty_text) -%}
+<div class="log-header">
+    <h2 class="log-title">{{ title }}</h2>
+    <div class="log-stats">
+        <span class="log-status" id="status-badge" role="status" data-tone="idle"><span class="status-dot"></span><span class="status-label">대기</span></span>
+        <span class="log-stats-divider"></span>
+        <span class="log-count-text"><span class="log-count-value" id="log-count" aria-live="polite">0</span><span class="log-count-label">건</span></span>
+    </div>
+</div>
+<div class="log-scroll custom-scrollbar">
+    <div class="log-table-container">
+        <table>
+            <thead><tr><th class="col-time">시간</th><th class="col-type">구분</th><th class="col-status">상태</th><th>내용</th></tr></thead>
+            <tbody id="log-body" data-empty-text="{{ empty_text }}"></tbody>
+        </table>
+    </div>
+</div>
+{%- endmacro %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from 'partials/ui.html' import log_sheet_bar, log_panel %}
+{% block status_badge %}<div class="status-badge" id="header-status" data-tone="idle" role="status"><span class="ping-container" aria-hidden="true"><span class="ping-ring"></span><span class="ping-dot"></span></span><span id="header-status-text">대기 중</span></div>{% endblock %}
+{% block content %}
+<main class="app-layout">
+    <section class="form-panel" aria-label="예약 정보">
+        <div class="form-body custom-scrollbar">
+            {% block form_intro %}{% endblock %}
+            {% block form_fields %}{% endblock %}
+            <div class="action-bar"><div class="action-grid">{% block form_actions %}{% endblock %}</div></div>
+            {% block form_footer %}{% endblock %}
+        </div>
+    </section>
+    <section class="log-panel" id="log-panel" aria-label="{{ self.log_title() }}">
+        {{ log_sheet_bar() }}
+        {% block progress %}{% endblock %}
+        {{ log_panel(self.log_title(), self.log_empty()) }}
+    </section>
+    {% include 'partials/log_mobile.html' %}
+</main>
+{% include 'partials/log_detail.html' %}
+{% include 'partials/select_picker.html' %}
+{% endblock %}
+{% block log_title %}실행 로그{% endblock %}
+{% block log_empty %}아직 기록이 없습니다{% endblock %}

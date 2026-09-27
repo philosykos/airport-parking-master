@@ -2,7 +2,7 @@ import threading
 from dataclasses import replace
 
 import pytest
-from werkzeug.serving import make_server
+from playwright.sync_api import sync_playwright
 
 from app import app
 from services.t2 import valet as t2_valet
@@ -12,9 +12,9 @@ from services.gimpo.parking import GimpoService
 from services.notifications.config import TelegramSettings
 from services.notifications.messages import ReservationMessages
 from services.notifications.telegram import Delivery
+from tests.conftest import open_page, run_app_server
 from tests.test_gimpo_jobs import eventually
 from tests.test_notifications import TransportNotifier
-from tests.ui_cleanup import cleanup_ui_server
 
 ENDPOINTS = ('/t2-valet/api/notifications', '/gimpo-parking/api/notifications')
 
@@ -46,7 +46,9 @@ def settings_services(client, tmp_path, monkeypatch):
 @pytest.mark.parametrize('enabled', [False, True])
 def test_settings_reads_never_start_workers_or_expose_credentials(client, settings_services, enabled):
     service, senders, notifiers = settings_services(enabled)
-    for path in ('/settings/', *(prefix + '/status' for prefix in ENDPOINTS)):
+    landing = client.get('/')
+    assert landing.status_code == 200 and 'PRIVATE_' not in landing.get_data(as_text=True)
+    for path in (prefix + '/status' for prefix in ENDPOINTS):
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers['Cache-Control'] == 'no-store'
@@ -134,98 +136,166 @@ def test_gimpo_notification_settings_require_restart(monkeypatch, tmp_path):
         service.close()
 
 
-@pytest.mark.parametrize('path,new_tab', [('/', False), ('/t2-valet/', True), ('/gimpo-parking/', True)])
-def test_settings_navigation_preserves_reservation_inputs(client, path, new_tab):
-    from html.parser import HTMLParser
-    class Links(HTMLParser):
-        settings = None
-        def handle_starttag(self, tag, attrs):
-            attrs = dict(attrs)
-            if tag == 'a' and attrs.get('href') == '/settings/':
-                self.settings = attrs
-    parser = Links()
-    parser.feed(client.get(path).get_data(as_text=True))
-    assert parser.settings is not None
-    assert (parser.settings.get('target') == '_blank') is new_tab
+def test_settings_route_opens_dialog_on_landing(client):
+    response = client.get('/settings/')
+    assert response.status_code == 302
+    assert response.headers['Location'] == '/?settings=1'
 
 
-def test_settings_browser_states_and_mobile(settings_services, tmp_path, monkeypatch, ui_context):
-    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
+@pytest.mark.parametrize('path', ['/', '/t2-valet/', '/gimpo-parking/'])
+def test_every_page_offers_settings_dialog(client, path):
+    html = client.get(path).get_data(as_text=True)
+    assert 'id="open-settings"' in html
+    assert '<dialog class="settings-dialog" id="settings-dialog"' in html
+    assert 'href="/settings/"' not in html
+
+
+@pytest.fixture
+def live_server(settings_services):
+    # settings_services는 client(T2 격리)와 tmp_path 김포 서비스에 의존하므로, 이를 통해서만
+    # live_server를 만들 수 있게 해 이 서버가 격리 없이 뜨는 일이 없게 한다.
+    with run_app_server(app) as base:
+        yield base
+
+
+def wait_tests_enabled(page):
+    page.wait_for_function("[...document.querySelectorAll('#settings-dialog [data-test]')].every(button => !button.disabled)")
+
+
+def test_settings_dialog_states_and_mobile(settings_services, live_server):
     service, _, notifiers = settings_services(True)
-    server = make_server('127.0.0.1', 0, app, threaded=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    base = f'http://127.0.0.1:{server.server_port}'
-    try:
-        with ui_context(viewport={'width':1280, 'height':1000}) as context:
-            page = context.new_page()
-            page.context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-            errors = []
-            page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(base + '/settings/')
-            page.wait_for_function("[...document.querySelectorAll('[data-test]')].every(button => !button.disabled)")
-            assert all(not notifier.calls for notifier in notifiers)
-            assert page.locator('#telegram-state').inner_text() == '켜짐'
-            page.locator('[data-service=t2] [data-test]').click()
-            page.locator('[data-service=t2] [data-test-result]').filter(has_text='전송 완료').wait_for()
-            assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
-            page.screenshot(path=str(tmp_path / 'settings-desktop.png'), full_page=True)
-            page.set_viewport_size({'width':390, 'height':844})
-            page.get_by_text('봇·수신자 설정', exact=True).click()
-            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-            assert 'PRIVATE_' not in page.locator('body').inner_text()
-            page.screenshot(path=str(tmp_path / 'settings-mobile.png'), full_page=True)
-            for notifier in notifiers:
-                notifier.settings = replace(notifier.settings, enabled=False)
-            page.reload()
-            page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '설정 완료')")
-            assert page.locator('#telegram-state').inner_text() == '꺼짐'
-            assert page.locator('[data-service=t2] [data-test]').is_disabled()
-            assert page.locator('[data-service=gimpo] [data-test]').is_disabled()
-            for notifier in notifiers:
-                notifier.settings = replace(notifier.settings, enabled=True, token='')
-            page.reload()
-            page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '미설정')")
-            assert page.locator('[data-service=t2] [data-test]').is_disabled()
-            assert page.locator('[data-service=gimpo] [data-test]').is_disabled()
-            page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error':'unavailable'}))
-            page.reload()
-            page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
-            assert page.locator('[data-service=t2] [data-test]').is_disabled()
-            assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
-            assert not errors and service._runtime is None
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.goto(base + '/')
+        dialog = page.locator('#settings-dialog')
+        assert not dialog.is_visible()
+        page.click('#open-settings')
+        wait_tests_enabled(page)
+        assert page.url == base + '/'
+        assert all(not notifier.calls for notifier in notifiers)
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        page.locator('[data-service=t2] [data-test]').click()
+        page.locator('[data-service=t2] [data-test-result]').filter(has_text='전송 완료').wait_for()
+        assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
+        page.set_viewport_size({'width': 390, 'height': 844})
+        page.get_by_text('봇·수신자 설정', exact=True).click()
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert dialog.bounding_box()['width'] >= 389
+        assert 'PRIVATE_' not in page.locator('body').inner_text()
+        page.keyboard.press('Escape')
+        assert not dialog.is_visible()
+        assert page.evaluate('document.activeElement.id') == 'open-settings'
+        polled = []
+        page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
+        page.wait_for_timeout(3500)
+        assert polled == []
 
-            # Click the real navigation: opening settings must preserve unsaved inputs.
-            page.route('**/gimpo-parking/api/defaults', lambda route: route.fulfill(json={}))
-            page.route('**/gimpo-parking/api/jobs/active', lambda route: route.fulfill(json={'job': None, 'recent': None}))
-            for path in ('/t2-valet/', '/gimpo-parking/'):
-                page.goto(base + path)
-                page.wait_for_load_state('networkidle')
-                page.fill('#carNumber', '123가4567')
-                page.fill('#phone', '01012345678')
-                if path == '/gimpo-parking/':
-                    page.wait_for_function("document.getElementById('reservationPassword').value === 'PrivatePass44'")
-                    assert page.locator('#reservationPassword').get_attribute('readonly') is not None
-                with page.expect_popup() as opened:
-                    page.locator('.header-settings').click()
-                settings_page = opened.value
-                settings_page.wait_for_load_state('networkidle')
-                assert settings_page.url == base + '/settings/'
-                assert settings_page.evaluate('window.opener === null')
-                settings_page.close()
-                assert page.url == base + path
-                assert page.input_value('#carNumber') == '123가4567'
-                assert page.input_value('#phone') == '01012345678'
-                if path == '/gimpo-parking/':
-                    assert page.input_value('#reservationPassword') == 'PrivatePass44'
-                for width in (320, 390, 1280):
-                    page.set_viewport_size({'width': width, 'height': 900})
-                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (path, width)
-                page.screenshot(path=str(tmp_path / (path.strip('/') + '-navigation.png')), full_page=True)
-            page.goto(base + '/')
-            page.locator('.header-settings').click()
-            page.wait_for_url(base + '/settings/')
-            assert len(page.context.pages) == 1
-            assert not errors and service._runtime is None
-    finally:
-        cleanup_ui_server(server, thread, service)
+        for notifier in notifiers:
+            notifier.settings = replace(notifier.settings, enabled=False)
+        page.goto(base + '/?settings=1')
+        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '설정 완료')")
+        assert dialog.is_visible()
+        assert page.url == base + '/'
+        assert page.locator('#telegram-state').inner_text() == '꺼짐'
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert page.locator('[data-service=gimpo] [data-test]').is_disabled()
+
+        for notifier in notifiers:
+            notifier.settings = replace(notifier.settings, enabled=True, token='')
+        page.goto(base + '/?settings=1')
+        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '미설정')")
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
+        assert not errors and service._runtime is None
+        browser.close()
+
+
+def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.goto(base + '/')
+        page.evaluate("""() => {
+            window.telegramWrites = 0;
+            new MutationObserver(() => { window.telegramWrites += 1; })
+                .observe(document.getElementById('telegram-state'), {childList: true, attributes: true});
+        }""")
+        page.click('#open-settings')
+        wait_tests_enabled(page)
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        assert page.evaluate('window.telegramWrites') == 1
+        # 상태가 바뀌지 않으면 두 번(3초 간격) 이상의 새로고침 주기 동안에도 다시 쓰지 않는다.
+        page.wait_for_timeout(6500)
+        assert page.evaluate('window.telegramWrites') == 1
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        # 한 서비스의 상태가 실제로 바뀌면 집계도 바뀌어 정확히 한 번 더 쓴다.
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(
+            status=200, content_type='application/json',
+            json={'enabled': False, 'configured': False, 'credentialsConfigured': True,
+                  'testPending': False, 'lastTest': None, 'lastDelivery': None}))
+        page.wait_for_function('() => window.telegramWrites === 2')
+        assert page.locator('#telegram-state').inner_text() == '꺼짐'
+        assert not errors
+        browser.close()
+
+
+def test_telegram_state_reflects_reporting_service_when_one_fails(settings_services, live_server):
+    # t2 상태 조회가 계속 실패해도, 성공하는 김포 서비스의 값으로 집계가 나와야 한다("확인 중"에 갇히지 않는다).
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
+        page.wait_for_function("!document.querySelector('[data-service=gimpo] [data-test]').disabled")
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        assert not errors
+        browser.close()
+
+
+def test_send_test_failure_reenables_button_before_next_refresh(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.route('**/t2-valet/api/notifications/test', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        wait_tests_enabled(page)
+        page.locator('[data-service=t2] [data-test]').click()
+        page.locator('[data-service=t2] [data-error]').filter(has_text='수신 여부').wait_for()
+        assert not page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert not errors
+        browser.close()
+
+
+def test_closing_dialog_during_test_send_stops_status_requests(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        held = []
+        page.route('**/t2-valet/api/notifications/test', lambda route: held.append(route))
+        page.goto(base + '/?settings=1')
+        wait_tests_enabled(page)
+        page.locator('[data-service=t2] [data-test]').click()
+        for _ in range(50):
+            if held:
+                break
+            page.wait_for_timeout(50)
+        assert held
+        page.keyboard.press('Escape')
+        polled = []
+        page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
+        held[0].continue_()
+        page.wait_for_timeout(1500)
+        assert polled == []
+        assert not errors
+        browser.close()

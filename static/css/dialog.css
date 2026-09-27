@@ -1,0 +1,48 @@
+/* 설정 레이어 팝업(<dialog>). 모바일(≤480px)에서는 전체 화면으로 뜬다. */
+.settings-dialog {
+    width: min(880px, calc(100vw - 32px));
+    max-height: calc(100dvh - 64px);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xl);
+    background: var(--surface-base);
+    color: var(--on-surface);
+    box-shadow: 0 24px 64px rgba(0, 11, 96, 0.24);
+    overflow: hidden;
+}
+.settings-dialog[open] { display: flex; flex-direction: column; }
+.settings-dialog::backdrop { background: rgba(0, 11, 96, 0.35); backdrop-filter: blur(4px); }
+.settings-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; background: var(--surface-container-lowest); border-bottom: 1px solid var(--border-subtle); }
+.settings-dialog-header h2 { font-size: 20px; letter-spacing: -0.03em; }
+.settings-dialog-body { overflow-y: auto; padding: 0 24px 24px; }
+.settings-dialog .settings-close { width: 40px; height: 40px; padding: 0; border: 0; background: transparent; color: var(--on-surface-variant); }
+.settings-card { margin-top: 24px; padding: 28px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); background: var(--surface-container-lowest); }
+.settings-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.settings-dialog h3 { font-size: 17px; }
+.settings-dialog h4 { font-size: 14px; }
+.settings-badge { flex-shrink: 0; padding: 4px 9px; background: var(--surface-container-low); color: var(--text-muted); font-size: 12px; border-radius: var(--radius-full); }
+.settings-badge.is-on { color: #047857; background: var(--success-bg); }
+.settings-help { color: var(--text-muted); font-size: 13px; margin-top: 10px; }
+.settings-dialog details { border-top: 1px solid var(--border-subtle); margin-top: 24px; padding-top: 18px; font-size: 13px; }
+.settings-dialog summary { cursor: pointer; color: var(--secondary); font-weight: 600; }
+.settings-dialog details p { margin-top: 16px; }
+.settings-dialog code { display: block; margin-top: 12px; padding: 12px; border-radius: var(--radius-md); background: var(--surface-container-low); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.settings-dialog code.inline-code { display: inline; padding: 2px 5px; }
+.notification-service { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-subtle); }
+.notification-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 20px; }
+.notification-actions p { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.notification-actions [data-error] { color: var(--danger); margin-top: 6px; }
+.settings-dialog .notification-actions button { flex-shrink: 0; border: 1px solid var(--outline-variant); border-radius: var(--radius-md); background: white; padding: 9px 14px; color: var(--primary); font: inherit; font-size: 13px; }
+.settings-dialog .notification-actions button:disabled { background: var(--surface-container-low); color: var(--text-muted); }
+.settings-dialog .notification-actions button:hover:not(:disabled) { background: var(--primary-fixed); }
+.settings-dialog :is(a, button, summary):focus-visible { outline: 3px solid var(--secondary-container); outline-offset: 3px; }
+.test-help { font-size: 12px; }
+.settings-dialog [hidden] { display: none !important; }
+@media (max-width: 480px) {
+    .settings-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    .settings-dialog-header { padding: 14px 16px; }
+    .settings-dialog-body { padding: 0 16px 24px; }
+    .settings-card { padding: 20px; }
+    .notification-actions { align-items: flex-start; flex-wrap: wrap; }
+}
