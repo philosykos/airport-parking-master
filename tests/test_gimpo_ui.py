@@ -658,9 +658,17 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server):
         page.wait_for_function("document.getElementById('state').textContent === '연결 끊김'")
         assert page.locator('#state').get_attribute('data-tone') == 'error'
         assert page.locator('#header-status-text').inner_text() == '연결 끊김'
+        # 폴링이 아닌 렌더(명령 처리 등)도 다음 폴링이 성공하기 전까지는 연결 끊김을 유지한다.
+        page.evaluate('gimpoScreen.render()')
+        assert page.locator('#state').inner_text() == '연결 끊김'
+        assert page.locator('#state').get_attribute('data-tone') == 'error'
+        assert page.locator('#header-status-text').inner_text() == '연결 끊김'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         page.unroute(status_url)
         page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
         assert page.locator('#state').get_attribute('data-tone') == 'warning'
+        assert page.locator('#header-status-text').inner_text() == '결제 대기'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert not errors
         browser.close()
 
@@ -679,8 +687,24 @@ def test_import_t2_failure_without_server_message_shows_fallback_text(ui_server)
         browser.close()
 
 
-@pytest.mark.parametrize('job_ends', [False, True])
-def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, job_ends):
+def test_import_t2_failure_prefers_server_message(ui_server):
+    base, runtime = ui_server
+    message = 'T2 설정 파일을 읽을 수 없습니다.'
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base)
+        page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, json={'error': message}))
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.click('#import-t2')
+        page.locator('.toast-error').first.wait_for()
+        text = page.locator('.toast-error').first.inner_text()
+        assert message in text and 'T2 저장 정보를 불러오지 못했습니다.' not in text
+        assert not errors
+        browser.close()
+
+
+@pytest.mark.parametrize('change', [None, 'ends', 'hides_record_result'])
+def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change):
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     runtime.store.dispatch_payment(job['id'], runtime.store.get(job['id']))
@@ -699,14 +723,19 @@ def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, job_en
         page.locator('.toast-info').first.wait_for()
         assert overlay_variant(page) is None
         assert not any(key.endswith('.result') for key in page.evaluate('Object.keys(localStorage)'))
-        if job_ends:
+        if change == 'ends':
             runtime.resolve(job['id'], runtime.store.get(job['id']), 'not_reserved', True)
             eventually(lambda: not runtime.store.get(job['id'])['active'])
+        elif change == 'hides_record_result':
+            # 활성인 채로 결과 기록 버튼이 숨는 상태로 옮긴다.
+            runtime.store.transition(job['id'], 'REVIEW_REQUIRED', 'test', expected={'PAYMENT_RESULT_UNKNOWN'})
+            page.wait_for_function("document.getElementById('record-result').hidden")
+            assert runtime.store.get(job['id'])['active'] is True
         wait_polls(page)
         assert overlay_variant(page) is None  # busy인 동안에는 다시 열지 않는다
         page.evaluate('gimpoScreen.busy = false')
         wait_polls(page)
-        if job_ends:
+        if change:
             assert overlay_variant(page) is None
         else:
             assert overlay_variant(page) == 'action'

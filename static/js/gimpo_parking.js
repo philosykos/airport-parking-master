@@ -270,14 +270,15 @@
             $('check').disabled = $('watch').disabled = !this.connected || active || this.busy;
             $('import-t2').disabled = active || this.busy;
             $('stop').disabled = this.busy || !(active && !protectedStates.has(state) && !['STOPPING', 'CLOSED_BY_USER'].includes(state));
-            const label = job ? labels[state] || '상태 확인 필요' : (this.connected ? '대기 중' : '연결 중');
-            const tone = job ? toneOf(state, job.userReportedOutcome) : 'idle';
+            // 폴링이 실패한 뒤로는 다음 폴링이 성공할 때까지 어느 렌더든 연결 끊김을 보인다.
+            const label = this.pollFailed ? '연결 끊김' : job ? labels[state] || '상태 확인 필요' : (this.connected ? '대기 중' : '연결 중');
+            const tone = this.pollFailed ? 'error' : job ? toneOf(state, job.userReportedOutcome) : 'idle';
             $('state').textContent = label;
             $('state').dataset.tone = tone;
             UI.statusBadge.set({label, tone});
             document.querySelector('.form-panel').classList.toggle('form-panel--active', active);
             for (const [id, show] of Object.entries({prepare: state === 'AVAILABLE', proceed: state === 'PREPARED',
-                'show-browser': active && this.browserAvailable, 'record-result': protectedStates.has(state) || (active && state === 'CLOSED_BY_USER')})) $(id).hidden = !show;
+                'show-browser': active && this.browserAvailable, 'record-result': this.canRecordResult(job)})) $(id).hidden = !show;
             document.querySelectorAll('#job-actions button').forEach(b => b.disabled = this.busy);
             $('job-actions').hidden = !Array.from($('job-actions').children).some(button => !button.hidden);
             $('summary').replaceChildren();
@@ -306,6 +307,10 @@
                 summary: log.message,
                 detail: [{title: '상태', kind: 'text', body: `${name} (${log.state})`}, {title: '메시지', kind: 'text', body: log.message}]};
         }
+        // 결과 기록 버튼(#record-result)을 보이는 조건. busy 뒤 결과 창을 다시 열 때도 같은 조건을 쓴다.
+        canRecordResult(job) {
+            return !!job && (protectedStates.has(job.state) || (job.active && job.state === 'CLOSED_BY_USER'));
+        }
         completionStep(job) {
             if (!job.active) return job.state === 'CLOSED_BY_USER' && job.userReportedOutcome === 'reserved' ? 'success' : null;
             if (job.state === 'PAYMENT_CONFIRM_READY') return 'action';
@@ -319,7 +324,7 @@
             if (job.active) this.activeJobIds.add(job.id);
             if (this.retryResultJobId) {
                 // busy로 거절된, 사용자가 연 결과 기록 창을 busy가 풀린 뒤 다시 연다. 작업이 바뀌었거나 끝났으면 버린다.
-                const retry = this.retryResultJobId === job.id && job.active && !UI.completion.isOpen();
+                const retry = this.retryResultJobId === job.id && job.active && this.canRecordResult(job) && !UI.completion.isOpen();
                 this.retryResultJobId = null;
                 if (retry) { this.openResultPrompt(job, false); return; }
             }
@@ -400,10 +405,12 @@
                         this.browserAvailable = status.browserAvailable;
                     }
                 }
+                this.pollFailed = false;
                 this.render();
                 this.lastPollError = null;
             } catch (error) {
-                // 진행 카드도 헤더와 같이 보인다. 다음 성공 render()가 원래 상태로 되돌린다.
+                // 진행 카드와 헤더가 같이 연결 끊김을 보인다. 다음 폴링이 성공해야 풀린다(render()가 이 표시를 따른다).
+                this.pollFailed = true;
                 $('state').textContent = '연결 끊김';
                 $('state').dataset.tone = 'error';
                 UI.statusBadge.set({label: '연결 끊김', tone: 'error'});
