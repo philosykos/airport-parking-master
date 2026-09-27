@@ -641,5 +641,126 @@ def test_completion_overlay_works_when_storage_is_blocked(ui_server):
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         wait_polls(page)
         assert overlay_variant(page) is None
+        assert page.locator('#header-status-text').inner_text() != '연결 끊김'
+        assert not errors
+        browser.close()
+
+
+def test_progress_card_shows_disconnection_and_recovers(ui_server):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base)
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        status_url = '**/api/jobs/' + job['id']
+        page.route(status_url, lambda route: route.fulfill(status=503, body=''))
+        page.wait_for_function("document.getElementById('state').textContent === '연결 끊김'")
+        assert page.locator('#state').get_attribute('data-tone') == 'error'
+        assert page.locator('#header-status-text').inner_text() == '연결 끊김'
+        # 폴링이 아닌 렌더(명령 처리 등)도 다음 폴링이 성공하기 전까지는 연결 끊김을 유지한다.
+        page.evaluate('gimpoScreen.render()')
+        assert page.locator('#state').inner_text() == '연결 끊김'
+        assert page.locator('#state').get_attribute('data-tone') == 'error'
+        assert page.locator('#header-status-text').inner_text() == '연결 끊김'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'error'
+        page.unroute(status_url)
+        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        assert page.locator('#state').get_attribute('data-tone') == 'warning'
+        assert page.locator('#header-status-text').inner_text() == '결제 대기'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
+        assert not errors
+        browser.close()
+
+
+def test_import_t2_failure_without_server_message_shows_fallback_text(ui_server):
+    base, runtime = ui_server
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base)
+        page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, body=''))
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.click('#import-t2')
+        page.locator('.toast-error').first.wait_for()
+        assert 'T2 저장 정보를 불러오지 못했습니다.' in page.locator('.toast-error').first.inner_text()
+        assert not errors
+        browser.close()
+
+
+def test_import_t2_failure_prefers_server_message(ui_server):
+    base, runtime = ui_server
+    message = 'T2 설정 파일을 읽을 수 없습니다.'
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base)
+        page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, json={'error': message}))
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.click('#import-t2')
+        page.locator('.toast-error').first.wait_for()
+        text = page.locator('.toast-error').first.inner_text()
+        assert message in text and 'T2 저장 정보를 불러오지 못했습니다.' not in text
+        assert not errors
+        browser.close()
+
+
+@pytest.mark.parametrize('change', [None, 'ends', 'hides_record_result'])
+def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    runtime.store.dispatch_payment(job['id'], runtime.store.get(job['id']))
+    runtime.store.transition(job['id'], 'PAYMENT_RESULT_UNKNOWN', 'test', expected={'PAYMENT_DISPATCHING'})
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base)
+        resolves = []
+        page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("document.getElementById('state').textContent === '예약 결과 확인 필요'")
+        assert overlay_variant(page) is None
+        page.click('#record-result')
+        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.evaluate('gimpoScreen.busy = true')
+        page.locator('#completion-overlay').get_by_role('button', name='예약 완료').click()
+        page.locator('.toast-info').first.wait_for()
+        assert overlay_variant(page) is None
+        assert not any(key.endswith('.result') for key in page.evaluate('Object.keys(localStorage)'))
+        if change == 'ends':
+            runtime.resolve(job['id'], runtime.store.get(job['id']), 'not_reserved', True)
+            eventually(lambda: not runtime.store.get(job['id'])['active'])
+        elif change == 'hides_record_result':
+            # 활성인 채로 결과 기록 버튼이 숨는 상태로 옮긴다.
+            runtime.store.transition(job['id'], 'REVIEW_REQUIRED', 'test', expected={'PAYMENT_RESULT_UNKNOWN'})
+            page.wait_for_function("document.getElementById('record-result').hidden")
+            assert runtime.store.get(job['id'])['active'] is True
+        wait_polls(page)
+        assert overlay_variant(page) is None  # busy인 동안에는 다시 열지 않는다
+        page.evaluate('gimpoScreen.busy = false')
+        wait_polls(page)
+        if change:
+            assert overlay_variant(page) is None
+        else:
+            assert overlay_variant(page) == 'action'
+            assert '예약 결과를 기록해주세요' in page.locator('#completion-overlay').inner_text()
+        assert resolves == []
+        assert not errors
+        browser.close()
+
+
+def test_completion_keys_of_other_jobs_are_pruned(ui_server):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    current = f"gimpo.completion.{job['id']}.{job['generation']}.{job['handoffEpoch']}.action"
+    seeded = [current, 'gimpo.completion.GMP-old.1.1.success',
+              f"gimpo.completion.{job['id']}.{job['generation'] - 1}.{job['handoffEpoch']}.result",
+              f"gimpo.completion.{job['id']}.{job['generation']}.{job['handoffEpoch'] - 1}.action"]
+    # 페이지를 열 때 한 번만 심는다(다시 불러와도 되살아나지 않게 sessionStorage로 표시).
+    seed = ("if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); "
+            f"for (const key of {json.dumps(seeded)}) localStorage.setItem(key, '1'); localStorage.setItem('other.key', 'x'); }}")
+    with sync_playwright() as p:
+        browser, page, errors = open_gimpo(p, base, init_script=seed)
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        wait_polls(page)
+        assert sorted(page.evaluate('Object.keys(localStorage)')) == sorted([current, 'other.key'])
+        assert overlay_variant(page) is None  # 현재 작업 기록은 남아 결제 안내를 다시 띄우지 않는다
         assert not errors
         browser.close()
