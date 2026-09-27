@@ -15,6 +15,8 @@ STYLE_PROBES = {
     '.log-title': ['fontSize', 'fontWeight'],
     '#header-status': ['fontSize', 'borderRadius'],
     '.form-panel': ['width'],
+    '.log-clear': ['height', 'fontSize'],
+    '.form-title': ['fontSize', 'fontWeight'],
 }
 
 
@@ -38,6 +40,35 @@ def test_t2_and_gimpo_share_component_styles(client, t2_server, ui_context):
             results[path] = computed(page)
     assert not errors
     assert results['/t2-valet/'] == results['/gimpo-parking/']
+
+
+PC_VALUES = {
+    '.app-header': {'height': '56px'},
+    '.title-main': {'fontSize': '17px', 'color': 'rgb(25, 28, 29)'},
+    '.field-group label': {'fontSize': '13px', 'textTransform': 'none', 'letterSpacing': 'normal'},
+    '#carNumber': {'height': '40px', 'fontSize': '15px', 'borderTopColor': 'rgb(213, 215, 224)', 'backgroundColor': 'rgb(255, 255, 255)'},
+    '.action-grid .btn-start': {'height': '40px', 'fontSize': '14px', 'backgroundColor': 'rgb(0, 11, 96)'},
+    '.log-card': {'backgroundColor': 'rgb(255, 255, 255)', 'borderTopLeftRadius': '12px'},
+}
+
+
+@pytest.mark.parametrize('path,ready', [('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),
+                                        ('/gimpo-parking/', "() => !document.getElementById('check').disabled")])
+def test_pc_visual_values(client, t2_server, ui_context, path, ready):
+    base = t2_server
+    with open_page(ui_context, base, width=1280, height=900) as (page, errors):
+        page.goto(base + path)
+        page.wait_for_function(ready)
+        for selector, expected in PC_VALUES.items():
+            actual = page.evaluate("([s, keys]) => { const st = getComputedStyle(document.querySelector(s)); return Object.fromEntries(keys.map(k => [k, st[k]])); }",
+                                   [selector, list(expected)])
+            assert actual == expected, selector
+        assert page.locator('.header-back-text').is_hidden()
+        visible = page.evaluate("[...document.querySelectorAll('.action-grid > button')].filter(b => !b.hidden).map(b => Math.round(b.getBoundingClientRect().width))")
+        assert len(set(visible)) == 1 and len(visible) == (2 if 't2' in path else 3)
+        rows = page.evaluate("[...document.querySelectorAll('.action-grid > button')].filter(b => !b.hidden).map(b => Math.round(b.getBoundingClientRect().top))")
+        assert len(set(rows)) == 1
+        assert not errors
 
 
 @pytest.mark.parametrize('path,ready', [

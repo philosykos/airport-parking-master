@@ -8,8 +8,8 @@
 </div>
 {%- endmacro %}
 
-{% macro action_button(id, label, icon, variant, type='button', disabled=false, form=None) -%}
-<button type="{{ type }}" id="{{ id }}" class="btn-{{ variant }}"{% if form %} form="{{ form }}"{% endif %}{% if disabled %} disabled{% endif %}>
+{% macro action_button(id, label, icon, variant, type='button', disabled=false, form=None, hidden=false) -%}
+<button type="{{ type }}" id="{{ id }}" class="btn-{{ variant }}"{% if form %} form="{{ form }}"{% endif %}{% if disabled %} disabled{% endif %}{% if hidden %} hidden{% endif %}>
     <span class="material-symbols-outlined btn-icon" aria-hidden="true">{{ icon }}</span><span class="btn-label">{{ label }}</span>
 </button>
 {%- endmacro %}
@@ -22,10 +22,12 @@
 {%- endmacro %}
 
 {% macro log_panel(title, empty_text) -%}
+<div class="log-card">
 <div class="log-header">
     <h2 class="log-title">{{ title }}</h2>
     <div class="log-stats">
         <span class="log-count-text"><span class="log-count-value" id="log-count" aria-live="polite">0</span><span class="log-count-label">건</span></span>
+        <button type="button" id="log-clear" class="log-clear" disabled><span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>로그 초기화</button>
     </div>
 </div>
 <div class="log-scroll custom-scrollbar">
@@ -35,5 +37,6 @@
             <tbody id="log-body" data-empty-text="{{ empty_text }}"></tbody>
         </table>
     </div>
+</div>
 </div>
 {%- endmacro %}

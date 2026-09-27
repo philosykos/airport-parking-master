@@ -25,7 +25,29 @@
 .log-stats {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: 12px;
+}
+.log-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+.log-clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--on-surface-variant);
+    background: #FFFFFF;
+    border: 1px solid #E4E5EA;
+}
+.log-clear .material-symbols-outlined {
+    font-size: 16px;
 }
 
 .log-count-text {
@@ -351,3 +373,18 @@ tr.log-row:hover .tag {
     .log-panel .cell-status { white-space: normal; }
 }
 
+/* ── PC: 로그를 흰 카드 하나로 ── */
+@media (min-width: 961px) {
+    .log-panel { padding: 20px; gap: 16px; }
+    .log-card { background: #FFFFFF; border: 1px solid #E4E5EA; border-radius: 12px; overflow: hidden; }
+    .log-header { padding: 14px 20px; border-bottom: 1px solid #EEF0F3; }
+    .log-title { font-size: 16px; }
+    .log-scroll { padding: 0; }
+    .log-table-container { border: 0; border-radius: 0; box-shadow: none; }
+    th { background: #FFFFFF; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: none; letter-spacing: normal; padding: 10px 20px; border-bottom: 1px solid #EEF0F3; }
+    td { height: 44px; padding: 0 20px; white-space: nowrap; text-overflow: ellipsis; border-bottom: 1px solid #F3F4F6; }
+    tr.log-row:hover, tr.row-event:hover { background: #F7F8FA; transform: none; box-shadow: none; }
+    tr.log-row:hover .tag { transform: none; }
+    tr.row-event { background: transparent; }
+    .tag, .tag-test, .tag-schedule, .tag-event { background: #EEF0F3; color: #454652; font-size: 12px; font-weight: 600; }
+}

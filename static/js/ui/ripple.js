@@ -1,7 +1,7 @@
 // 버튼 누른 자리 물결 효과(form.css .btn-ripple). 액션 버튼에만 준다.
 (() => {
     'use strict';
-    const TARGET = '.btn-start, .btn-stop, .btn-test, .btn-clear';
+    const TARGET = '.btn-start, .btn-stop, .btn-test, .btn-secondary';
     document.addEventListener('click', event => {
         const button = event.target.closest(TARGET);
         if (!button || button.disabled) return;

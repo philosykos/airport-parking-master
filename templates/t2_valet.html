@@ -59,7 +59,6 @@
 {% endblock %}
 {% block form_actions %}
     {{ action_button('btn-start', '자동 예약 시작', 'play_arrow', 'start') }}
-    {{ action_button('btn-stop', '중지', 'stop', 'stop', disabled=true) }}
+    {{ action_button('btn-stop', '중지', 'stop', 'stop', disabled=true, hidden=true) }}
     {{ action_button('btn-test', '1회 예약 요청', 'bolt', 'test') }}
-    {{ action_button('btn-clear', '로그 초기화', 'restart_alt', 'clear') }}
 {% endblock %}

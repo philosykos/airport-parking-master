@@ -6,7 +6,7 @@ from playwright.sync_api import expect
 from app import app
 
 ROOT = Path(__file__).resolve().parents[2]
-UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'log_panel']
+UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'run_toggle', 'log_panel']
 STYLES = ['tokens', 'layout', 'form', 'log', 'overlay']
 ORIGIN = 'http://ui.test'
 
@@ -349,4 +349,24 @@ def test_completion_overlay_stacks_above_open_log_sheet(ui_page):
     assert hit
     page.evaluate('panel.openSheet()')  # 완료 안내가 떠 있으면 시트를 다시 올리지 않는다
     assert page.evaluate("UI.layers.top() === document.getElementById('completion-overlay')")
+    assert not errors
+
+
+RUN_BUTTONS = '<div class="action-grid"><button id="start">시작</button><button id="stop" hidden>중지</button><button id="other">조회</button></div>'
+
+
+def test_run_toggle_shows_one_button_and_moves_focus(ui_page):
+    load, errors = ui_page
+    page = load(RUN_BUTTONS)
+    page.evaluate("window.toggle = new UI.RunToggle(document.getElementById('start'), document.getElementById('stop'))")
+    page.click('#start')
+    page.evaluate("document.getElementById('stop').disabled = true; toggle.set(true)")
+    assert page.locator('#start').is_hidden() and page.locator('#stop').is_visible()
+    page.evaluate("document.getElementById('stop').disabled = false; toggle.set(true)")
+    assert page.evaluate("document.activeElement.id") == 'stop'
+    page.click('#other')
+    page.evaluate("toggle.set(false)")
+    assert page.evaluate("document.activeElement.id") == 'other'
+    widths = page.evaluate("[...document.querySelectorAll('.action-grid > button:not([hidden])')].map(b => b.getBoundingClientRect().width)")
+    assert len(widths) == 2 and abs(widths[0] - widths[1]) < 1
     assert not errors

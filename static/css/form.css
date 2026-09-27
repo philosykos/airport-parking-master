@@ -508,10 +508,15 @@ select {
     padding: 0;
     margin-top: auto;
 }
+/* 보이는 버튼 수와 상관없이 한 줄에 같은 폭으로 놓는다(시작·중지는 한 칸을 번갈아 쓴다) */
 .action-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-2);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 8px;
+}
+.action-grid > [hidden] {
+    display: none;
 }
 
 /* ── Buttons Base ── */
@@ -610,14 +615,15 @@ button svg {
     background: rgba(0, 11, 96, 0.15);
 }
 
-/* ── Clear Button ── */
-.btn-clear {
-    background: var(--neutral);
-    color: #fff;
+/* ── Secondary Button ── */
+.btn-secondary {
+    background: #FFFFFF;
+    color: var(--on-surface);
+    border: 1px solid #D5D7E0;
+    font-weight: 600;
 }
-.btn-clear:hover:not(:disabled) {
-    background: var(--neutral-hover);
-    transform: translateY(-1px);
+.btn-secondary .btn-ripple {
+    background: rgba(0, 11, 96, 0.15);
 }
 
 /* ── Loading State ── */
@@ -682,9 +688,6 @@ button svg {
     .field-row {
         grid-template-columns: 1fr;
     }
-    .action-grid {
-        grid-template-columns: 1fr 1fr;
-    }
     button {
         padding: 10px var(--space-2);
         font-size: 14px;
@@ -696,4 +699,32 @@ button svg {
     .field-group label {
         font-size: 13px;
     }
+}
+
+/* ── PC: 입력칸·버튼을 가볍게 ── */
+.form-title {
+    display: none;
+}
+@media (min-width: 961px) {
+    .form-body { padding: 24px; }
+    .form-title { display: block; font-family: var(--font-headline); font-size: 15px; font-weight: 800; color: var(--on-surface); margin: 0 0 16px; }
+    .field-row + .field-row { margin-top: 14px; }
+    label { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: normal; }
+    input[type="text"], input[type="number"], input[type="tel"], input[type="password"],
+    input[type="date"], input[type="time"], select, input[data-td-target] {
+        height: 40px; padding-top: 0; padding-bottom: 0; background-color: #FFFFFF; border: 1px solid #D5D7E0; border-radius: 8px; font-size: 15px;
+    }
+    .action-grid button { height: 40px; padding: 0 12px; font-size: 14px; border-radius: 8px; box-shadow: none; }
+    .action-grid .btn-icon { font-size: 18px; width: 18px; height: 18px; }
+    .btn-start { background: var(--primary); color: var(--on-primary); }
+    .btn-start:hover:not(:disabled) { background: var(--primary-container); transform: none; box-shadow: none; }
+    .btn-stop { background: #FEF2F2; color: var(--danger); border: 1px solid #F1B5B5; }
+    .btn-stop:hover:not(:disabled) { background: #FDE4E4; transform: none; box-shadow: none; }
+    .btn-stop .btn-ripple { background: rgba(186, 26, 26, 0.15); }
+    .btn-test, .btn-secondary { background: #FFFFFF; color: var(--on-surface); border: 1px solid #D5D7E0; font-weight: 600; }
+    .btn-test:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { background: var(--surface-container-low); color: var(--on-surface); }
+    /* 위 입력칸 규칙이 뒤에 와서 이기므로, 날짜 입력의 오른쪽 모서리·포커스 테두리·달력 버튼을 다시 맞춘다 */
+    .td-input-group input { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    input:focus, select:focus { border-color: var(--surface-tint); }
+    .td-input-group .td-toggle { height: 40px; background: #FFFFFF; border: 1px solid #D5D7E0; border-left: 0; border-radius: 0 8px 8px 0; }
 }

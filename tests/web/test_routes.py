@@ -377,3 +377,12 @@ def test_settings_button_uses_gear_symbol(client, path):
     button = re.search(r'<button[^>]*id="open-settings".*?</button>', html, re.S).group(0)
     assert re.search(r'<span class="material-symbols-outlined"[^>]*>settings</span>', button)
     assert "<svg" not in button
+
+
+@pytest.mark.parametrize("path", ["/t2-valet/", "/gimpo-parking/"])
+def test_form_has_title_and_log_clear_in_log_header(client, path):
+    html = client.get(path).get_data(as_text=True)
+    assert '<h2 class="form-title">예약 정보</h2>' in html
+    assert html.count('id="log-clear"') == 1 and 'id="btn-clear"' not in html
+    header = html[html.index('class="log-header"'):html.index('class="log-scroll')]
+    assert 'id="log-clear"' in header

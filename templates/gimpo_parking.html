@@ -49,7 +49,7 @@
 {% endblock %}
 {% block form_actions %}
     {{ action_button('watch', '자동 예약 시작', 'play_arrow', 'start', disabled=true) }}
-    {{ action_button('stop', '중지', 'stop', 'stop', disabled=true) }}
+    {{ action_button('stop', '중지', 'stop', 'stop', disabled=true, hidden=true) }}
     {{ action_button('check', '빈자리 조회', 'search', 'test', type='submit', disabled=true, form='reservation-form') }}
     {{ action_button('import-t2', 'T2 정보 가져오기', 'download', 'clear') }}
 {% endblock %}

@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ name ~ '.css') }}">
     {%- endfor %}
     {% block styles %}{% endblock %}
-    {%- for name in ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'log_panel', 'notification_status', 'settings_dialog'] %}
+    {%- for name in ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'run_toggle', 'log_panel', 'notification_status', 'settings_dialog'] %}
     <script defer src="{{ url_for('static', filename='js/ui/' ~ name ~ '.js') }}"></script>
     {%- endfor %}
     {% block scripts %}{% endblock %}

@@ -156,3 +156,10 @@
         font-size: 15px;
     }
 }
+
+@media (min-width: 961px) {
+    .app-header { height: 56px; }
+    .app-layout { margin-top: 56px; }
+    .title-main { font-size: 17px; color: var(--on-surface); letter-spacing: -0.02em; }
+    .header-back-text { display: none; }
+}

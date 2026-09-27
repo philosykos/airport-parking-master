@@ -48,13 +48,14 @@
             this.lastSuccessId = null;
             this.initialLogsFetched = false;
             this.logPanel = new UI.LogPanel($('log-panel'));
+            this.runToggle = new UI.RunToggle($('btn-start'), $('btn-stop'));
             new UI.SelectPicker($('select-picker-overlay')).attach(document.querySelector('.form-panel'));
             this.initPickers();
             this.bindFields();
             $('btn-start').addEventListener('click', () => this.start());
             $('btn-stop').addEventListener('click', () => this.stop());
             $('btn-test').addEventListener('click', () => this.testCall());
-            $('btn-clear').addEventListener('click', () => this.clearLogs());
+            $('log-clear').addEventListener('click', () => this.clearLogs());
             this.updateUI(false);
             this.loadDefaults();
             this.fetchLogs();
@@ -148,6 +149,7 @@
             this.running = running;
             $('btn-start').disabled = running;
             $('btn-stop').disabled = !running;
+            this.runToggle.set(running);
             UI.statusBadge.set(running ? {label: '스케줄 실행 중', tone: 'running'} : {label: '대기 중', tone: 'idle'});
             document.querySelector('.form-panel').classList.toggle('form-panel--active', running);
         }
@@ -167,6 +169,7 @@
                 if (seq !== this.fetchSeq) return;
                 const logs = data.logs || [];
                 this.logPanel.render(logs.map(toEntry));
+                $('log-clear').disabled = logs.length === 0;
                 this.updateUI(data.running);
                 this.notifyNewSuccess(logs);
             } catch (_) {
@@ -241,6 +244,7 @@
                 await UI.api(API + '/logs/clear', {method: 'POST'});
                 this.fetchSeq++;  // 초기화 전에 보낸 로그 요청의 응답은 버린다
                 this.logPanel.render([]);
+                $('log-clear').disabled = true;
                 this.lastSuccessId = null;
                 this.schedulePoll();
             } catch (error) { UI.toast(error.message, 'error'); }

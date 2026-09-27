@@ -187,7 +187,7 @@ def test_clear_logs_ignores_stale_log_response(t2_server, ui_context):
         with page.expect_request('**/t2-valet/api/logs'):
             page.goto(t2_server + '/t2-valet/')
         assert held, '초기 로그 요청이 붙잡히지 않았습니다'
-        page.click('#btn-clear')
+        page.evaluate("() => t2Screen.clearLogs()")
         page.wait_for_function("() => document.getElementById('log-body').children.length === 1 "
                                 "&& document.getElementById('log-body').querySelector('.empty-msg')")
         held[0].fulfill(json={'running': False, 'logs': [
@@ -196,4 +196,15 @@ def test_clear_logs_ignores_stale_log_response(t2_server, ui_context):
         ]})
         page.wait_for_function("() => window.__t2LogsFetchDone >= 1")
         assert page.locator('#log-body tr.log-row').count() == 0
+        assert not errors
+
+
+def test_start_stop_share_one_slot_and_clear_disables_without_logs(t2_server, ui_context):
+    with open_page(ui_context, t2_server) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => !document.getElementById('btn-start').disabled")
+        assert page.locator('#btn-stop').is_hidden()
+        page.wait_for_function("() => document.getElementById('log-clear').disabled === (document.querySelectorAll('#log-body tr.log-row').length === 0)")
+        page.evaluate("t2Screen.updateUI(true)")
+        assert page.locator('#btn-start').is_hidden() and page.locator('#btn-stop').is_visible()
         assert not errors
