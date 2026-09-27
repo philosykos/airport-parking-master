@@ -1,6 +1,6 @@
+import functools
 import json
 import os
-import threading
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -9,6 +9,7 @@ import requests as http_requests
 from flask import Blueprint, jsonify, render_template, request
 
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
+from services.t2_scheduler import Scheduler
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -89,10 +90,8 @@ LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, "api_call.log")
 
-# 상태 관리
-stop_event = threading.Event()
-worker_thread = None
-is_running = False
+# 워커 수명 관리
+scheduler = Scheduler()
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -166,25 +165,20 @@ def do_single_call(url, payload):
         }
 
 
-def call_worker(url, payload, interval_sec):
-    global is_running
-    while not stop_event.is_set():
-        entry = do_single_call(url, payload)
-        entry["type"] = "schedule"
-        add_log(entry)
-
-        if entry["status"] == 200:
-            add_log({
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "type": "event",
-                "status": "SUCCESS",
-                "body": "예약 성공! 스케줄러를 자동 종료합니다.",
-            })
-            stop_event.set()
-            break
-
-        stop_event.wait(interval_sec)
-    is_running = False
+def poll_once(url, payload):
+    """예약 API를 한 번 호출해 기록한다. 예약에 성공(HTTP 200)하면 True를 돌려 스케줄을 끝낸다."""
+    entry = do_single_call(url, payload)
+    entry["type"] = "schedule"
+    add_log(entry)
+    if entry["status"] != 200:
+        return False
+    add_log({
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "event",
+        "status": "SUCCESS",
+        "body": "예약 성공! 스케줄러를 자동 종료합니다.",
+    })
+    return True
 
 
 @bp.route("/")
@@ -239,9 +233,7 @@ def test_call():
 
 @bp.route("/api/start", methods=["POST"])
 def start():
-    global worker_thread, is_running
-
-    if is_running:
+    if scheduler.running:
         return jsonify({"error": "이미 실행 중입니다."}), 400
 
     data = request.get_json()
@@ -254,30 +246,23 @@ def start():
     if interval_sec < 10:
         return jsonify({"error": "호출 주기는 최소 10초 이상이어야 합니다."}), 400
 
-    add_log({
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "type": "event",
-        "status": "START",
-        "body": f"스케줄 시작 (주기: {interval_sec}초)",
-    })
+    def log_start():
+        add_log({
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "type": "event",
+            "status": "START",
+            "body": f"스케줄 시작 (주기: {interval_sec}초)",
+        })
 
-    stop_event.clear()
-    is_running = True
-    worker_thread = threading.Thread(target=call_worker, args=(CONFIG.url, payload, interval_sec), daemon=True)
-    worker_thread.start()
-
+    if not scheduler.start(functools.partial(poll_once, CONFIG.url, payload), interval_sec, on_start=log_start):
+        return jsonify({"error": "이미 실행 중입니다."}), 400
     return jsonify({"message": "호출을 시작합니다."})
 
 
 @bp.route("/api/stop", methods=["POST"])
 def stop():
-    global is_running
-
-    if not is_running:
+    if not scheduler.stop():
         return jsonify({"error": "실행 중이 아닙니다."}), 400
-
-    stop_event.set()
-    is_running = False
 
     add_log({
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -285,13 +270,12 @@ def stop():
         "status": "STOP",
         "body": "스케줄 중지",
     })
-
     return jsonify({"message": "호출을 중지합니다."})
 
 
 @bp.route("/api/logs")
 def logs():
-    return jsonify({"logs": load_logs_from_file(), "running": is_running})
+    return jsonify({"logs": load_logs_from_file(), "running": scheduler.running})
 
 
 @bp.route("/api/logs/clear", methods=["POST"])

@@ -1,5 +1,6 @@
 import dataclasses
 import re
+import threading
 from pathlib import Path
 
 import app as app_module
@@ -93,8 +94,8 @@ def test_start_then_stop_cycle(client, monkeypatch):
     stop = client.post("/t2-valet/api/stop")
     assert stop.status_code == 200
     # 워커가 끝나기 전에 monkeypatch가 풀리면 실제 logs/에 쓸 수 있으므로 기다린다
-    t2_valet.worker_thread.join(timeout=2)
-    assert not t2_valet.worker_thread.is_alive()
+    t2_valet.scheduler.thread.join(timeout=2)
+    assert not t2_valet.scheduler.thread.is_alive()
     data = client.get("/t2-valet/api/logs").get_json()
     assert data["running"] is False
     statuses = [log["status"] for log in data["logs"]]
@@ -215,3 +216,31 @@ def test_warn_legacy_env_silent_without_legacy_keys(tmp_path, capsys):
     env.write_text("OTHER=1\n", encoding="utf-8")
     app_module.warn_legacy_env(env)
     assert capsys.readouterr().out == ""
+
+
+def test_restart_during_inflight_call_keeps_one_worker(client, monkeypatch):
+    entered, release, names = threading.Event(), threading.Event(), []
+
+    def fake_call(url, payload):
+        names.append(payload["name"])
+        entered.set()
+        release.wait(5)
+        return {"time": "t", "type": "call", "status": 500, "body": "fake", "url": url, "payload": payload}
+    monkeypatch.setattr(t2_valet, "do_single_call", fake_call)
+
+    body = {"phone": "01012345678", "interval": 10}
+    try:
+        assert client.post("/t2-valet/api/start", json={**body, "name": "이전"}).status_code == 200
+        assert entered.wait(2)
+        old = t2_valet.scheduler.thread
+        assert client.post("/t2-valet/api/stop").status_code == 200
+        entered.clear()
+        assert client.post("/t2-valet/api/start", json={**body, "name": "새로"}).status_code == 200
+        assert entered.wait(2)
+        release.set()
+        old.join(timeout=2)
+        assert not old.is_alive()
+        assert names == ["이전", "새로"]
+        assert client.get("/t2-valet/api/logs").get_json()["running"] is True
+    finally:
+        release.set()  # 중간에 실패해도 워커를 풀어 픽스처 정리 전에 끝나게 한다

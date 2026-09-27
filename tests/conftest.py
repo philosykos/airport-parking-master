@@ -4,6 +4,7 @@ import pytest
 
 from app import app as flask_app
 from services import t2_valet
+from services.t2_scheduler import Scheduler
 
 TEST_URL = "https://example.invalid/reserve"
 
@@ -19,8 +20,11 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(t2_valet.http_requests, "post", _block_network)
     monkeypatch.setattr(t2_valet, "LOG_FILE", str(tmp_path / "api_call.log"))
     monkeypatch.setattr(t2_valet, "USER_DATA_FILE", str(tmp_path / "user_data.json"))
+    monkeypatch.setattr(t2_valet, "scheduler", Scheduler())
     flask_app.config["TESTING"] = True
     with flask_app.test_client() as c:
         yield c
-    t2_valet.stop_event.set()
-    t2_valet.is_running = False
+    # 워커가 끝나기 전에 monkeypatch가 풀리면 실제 logs/에 쓸 수 있으므로 기다린다
+    t2_valet.scheduler.stop()
+    if t2_valet.scheduler.thread is not None:
+        t2_valet.scheduler.thread.join(timeout=2)
