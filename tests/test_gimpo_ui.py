@@ -44,6 +44,8 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path):
         job_id=runtime.store.active()['id']
         page.reload()
         page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        assert page.locator('#header-status-text').inner_text() == '결제 대기'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert runtime.store.active()['id']==job_id
         assert len(runtime.store.events())==1
         assert page.locator('#reservationPassword').get_attribute('type') == 'password'
@@ -59,6 +61,10 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path):
         assert not errors
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert page.locator('#header-status').is_visible()
+        page.click('#log-fab')
+        page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+        assert page.locator('#progress-card').is_visible()
         browser.close()
 
 
@@ -159,7 +165,7 @@ def test_shared_time_picker_uses_wall_time_and_minute_step(zone):
         browser.close()
 
 
-def test_defaults_restore_and_shared_calendar_controls(ui_server):
+def test_defaults_restore_and_shared_calendar_controls(client, ui_server):
     base, runtime = ui_server
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -238,15 +244,15 @@ def test_once_full_displays_one_result_row(ui_server):
         page.fill('#phone', '01012345678')
         page.click('#check')
         page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
-        assert page.locator('#logs li').count() == 1
-        assert '1회 조회 결과: 만차입니다.' in page.locator('#logs li').inner_text()
+        assert page.locator('#log-body tr.log-row').count() == 1
+        assert '1회 조회 결과: 만차입니다.' in page.locator('#log-body tr.log-row .body-cell').inner_text()
         assert page.get_by_text('1회 조회 결과: 만차입니다.', exact=False).count() == 1
         assert page.locator('#reason, #job-id, #reprepare').count() == 0
         assert page.locator('#job-actions').is_hidden()
         assert page.locator('#freshness').is_hidden()
         page.reload()
         page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
-        assert page.locator('#logs li').count() == 1
+        assert page.locator('#log-body tr.log-row').count() == 1
         browser.close()
 
 
@@ -334,4 +340,54 @@ def test_expired_saved_dates_use_current_booking_range(ui_server):
         assert not page.input_value('#entryAt').startswith('2000-')
         assert not page.input_value('#exitAt').startswith('2000-')
         assert page.input_value('#intervalSeconds') == '60'
+        browser.close()
+
+
+def test_password_fields_share_input_style(ui_server):
+    base, runtime = ui_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('toggle-password').disabled")
+        style = "el => { const s = getComputedStyle(el); return [s.height, s.backgroundColor, s.borderRadius]; }"
+        assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
+        page.click('#toggle-password')
+        assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
+        browser.close()
+
+
+def test_settings_dialog_keeps_gimpo_inputs(ui_server):
+    base, runtime = ui_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.fill('#carNumber', '123가4567')
+        page.click('#open-settings')
+        assert page.locator('#settings-dialog').is_visible()
+        page.keyboard.press('Escape')
+        assert not page.locator('#settings-dialog').is_visible()
+        assert page.evaluate('document.activeElement.id') == 'open-settings'
+        assert page.input_value('#carNumber') == '123가4567'
+        assert page.url == base + '/gimpo-parking/'
+        browser.close()
+
+
+def test_missing_fields_show_field_errors_without_starting(ui_server):
+    base, runtime = ui_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.fill('#carNumber', '')
+        page.click('#watch')
+        page.locator('.toast-error').first.wait_for()
+        assert page.locator('#carNumber').evaluate("el => el.closest('.field-group').classList.contains('has-error')")
+        assert runtime.store.active() is None
         browser.close()

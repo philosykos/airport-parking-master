@@ -10,18 +10,26 @@
         PAYMENT_RESULT_UNKNOWN: '예약 결과 확인 필요', STOPPING: '중지 중', STOPPED: '중지됨', REVIEW_REQUIRED: '확인 필요',
         HANDOFF_CANCELLED: '결제 진행 취소', HANDOFF_EXPIRED: '결제 대기 시간 초과', SESSION_EXPIRED: '예약창 연결 종료',
         INTERRUPTED: '실행 중단', ERROR: '오류', CLOSED_BY_USER: '종료됨'};
+    const TONES = {
+        running: ['CHECKING', 'PREPARING', 'RECHECKING', 'PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'STOPPING'],
+        idle: ['WAITING_AVAILABLE', 'STOPPED'],
+        success: ['AVAILABLE', 'RESERVED'],
+        warning: ['PREPARED', 'PAYMENT_CONFIRM_READY', 'PAYMENT_RESULT_UNKNOWN', 'REVIEW_REQUIRED', 'HANDOFF_CANCELLED',
+            'HANDOFF_EXPIRED', 'SESSION_EXPIRED', 'INTERRUPTED'],
+        error: ['ERROR', 'PAYMENT_FAILED'],
+    };
+    const toneOf = (state, outcome) => state === 'CLOSED_BY_USER' ? (outcome === 'reserved' ? 'success' : 'idle')
+        : Object.keys(TONES).find(tone => TONES[tone].includes(state)) || 'idle';
+    const formatTime = timestamp => new Date(timestamp * 1000).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'});
     class GimpoApi {
-        async call(path, method = 'GET', data) {
-            const response = await fetch('/gimpo-parking/api' + path, {method,
-                headers: data === undefined ? {} : {'Content-Type': 'application/json'},
-                body: data === undefined ? undefined : JSON.stringify(data), cache: 'no-store'});
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || '요청을 처리하지 못했습니다.');
-            return result;
+        call(path, method = 'GET', data) {
+            return UI.api('/gimpo-parking/api' + path, {method, data});
         }
     }
     class ReservationScreen {
-        constructor() { this.api = new GimpoApi(); this.job = null; this.connected = false; this.busy = false; this.events = []; this.pickers = {}; }
+        constructor() { this.api = new GimpoApi(); this.job = null; this.connected = false; this.busy = false; this.events = []; this.pickers = {};
+            this.logPanel = new UI.LogPanel($('log-panel'));
+            new UI.SelectPicker($('select-picker-overlay')).attach(document.querySelector('.form-panel')); }
         async init() {
             this.bind();
             this.api.call('/reservation-password', 'POST', {}).then(data => {
@@ -92,7 +100,7 @@
             const d = new WallDate(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
             return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] && d.getHours() === +m[4] && d.getMinutes() === +m[5] ? d : null;
         }
-        message(text) { $('message').textContent = text; }
+        message(text, type = 'error') { if (text) UI.toast(text, type); }
         inputs(mode) {
             const data = Object.fromEntries(new FormData($('reservation-form')));
             data.intervalSeconds = Number(data.intervalSeconds);
@@ -137,26 +145,35 @@
         async perform(action) {
             if (this.busy) return;
             this.busy = true; this.render();
-            try { const result = await action(); this.message(result?.message || ''); }
+            try { const result = await action(); this.message(result?.message || '', 'success'); }
             catch (error) { this.message(error.message); }
             finally { this.busy = false; this.render(); }
+        }
+        validateFields() {
+            const invalid = [...$('reservation-form').querySelectorAll('input[required], select[required]')].filter(input => !input.checkValidity());
+            document.querySelectorAll('#reservation-form .field-group.has-error').forEach(group => group.classList.remove('has-error'));
+            invalid.forEach(input => input.closest('.field-group')?.classList.add('has-error'));
+            if (!invalid.length) return true;
+            invalid[0].focus();
+            UI.toast(`${invalid.length}개 항목을 확인해주세요`, 'error');
+            return false;
         }
         async start(mode) {
             const options = await this.api.call('/options');
             this.updatePolicy(options.policy);
-            if (!$('reservation-form').reportValidity()) return;
+            if (!this.validateFields()) return;
             await this.saveDefaults();
             const inputs = this.inputs(mode);
             const result = await this.api.call('/jobs', 'POST', inputs);
             this.setJob(result.job);
+            this.logPanel.openSheet();
         }
         async command(action, extra = {}) {
             const result = await this.api.call(`/jobs/${this.job.id}/${action}`, 'POST', {...this.version(), ...extra});
             if (result.job) this.setJob(result.job);
+            return result;
         }
         bind() {
-            // Remove obsolete controls from templates cached by a running server.
-            for (const id of ['job-id', 'reason', 'reprepare']) $(id)?.remove();
             for (const [buttonId, inputId, label] of [
                 ['toggle-password', 'reservationPassword', '비밀번호'],
                 ['toggle-password-confirmation', 'passwordConfirmation', '확인 비밀번호']
@@ -173,6 +190,7 @@
             const saveChanges = () => {
                 if (this.connected && !this.job?.active) this.saveDefaults().catch(error => this.message(error.message));
             };
+            $('reservation-form').addEventListener('input', event => event.target.closest('.field-group')?.classList.remove('has-error'));
             $('reservation-form').addEventListener('change', saveChanges);
             $('reservation-form').addEventListener('vp.change', saveChanges);
             $('watch').onclick = () => this.perform(() => this.start('watch'));
@@ -184,9 +202,8 @@
                 await this.api.call(`/jobs/${this.job.id}/notifications/resend`, 'POST', {...this.version(), eventId: event.id, round: event.round});
             });
             $('import-t2').onclick = () => this.perform(async () => {
-                const response = await fetch('/t2-valet/api/defaults', {cache: 'no-store'});
-                if (!response.ok) throw new Error('T2 저장 정보를 불러오지 못했습니다.');
-                const data = await response.json(); this.apply({carNumber: data.carNumber || '', phone: data.phone || ''});
+                const data = await UI.api('/t2-valet/api/defaults');
+                this.apply({carNumber: data.carNumber || '', phone: data.phone || ''});
                 await this.saveDefaults();
             });
             document.addEventListener('click', e => {
@@ -204,28 +221,41 @@
             $('input-fields').disabled = !this.connected || active;
             $('check').disabled = $('watch').disabled = !this.connected || active || this.busy;
             $('import-t2').disabled = active || this.busy;
-            $('state').textContent = job ? labels[state] || '상태 확인 필요' : (this.connected ? '대기 중' : '연결 중');
+            $('stop').disabled = this.busy || !(active && !protectedStates.has(state) && !['STOPPING', 'CLOSED_BY_USER'].includes(state));
+            const label = job ? labels[state] || '상태 확인 필요' : (this.connected ? '대기 중' : '연결 중');
+            const tone = job ? toneOf(state, job.userReportedOutcome) : 'idle';
+            $('state').textContent = label;
+            $('state').dataset.tone = tone;
+            UI.statusBadge.set({label, tone});
+            document.querySelector('.form-panel').classList.toggle('form-panel--active', active);
             for (const [id, show] of Object.entries({prepare: state === 'AVAILABLE', proceed: state === 'PREPARED',
-                stop: active && !protectedStates.has(state) && !['STOPPING', 'CLOSED_BY_USER'].includes(state),
                 'show-browser': active && this.browserAvailable, resolution: protectedStates.has(state) || (active && state === 'CLOSED_BY_USER')})) $(id).hidden = !show;
             document.querySelectorAll('#job-actions button, #resolve').forEach(b => b.disabled = this.busy);
             $('job-actions').hidden = !Array.from($('job-actions').children).some(button => !button.hidden);
             $('summary').replaceChildren();
             $('summary').hidden = !job?.summary;
+            // 예상 주차요금은 할인 후 금액이다(기존 동작 유지, test_summary_displays_discounted_price).
             const values = job?.summary ? {...job.summary, estimatedAmt: job.summary.calculateAmt - (job.summary.discountAmt || 0)} : null;
-            if (values) for (const [key, label] of [['parkingName', '주차장'], ['entryAt', '입차'], ['exitAt', '출차'], ['estimatedAmt', '예상 주차요금'], ['depositAmt', '예약 보증금']]) {
+            if (values) for (const [key, name] of [['parkingName', '주차장'], ['entryAt', '입차'], ['exitAt', '출차'], ['estimatedAmt', '예상 주차요금'], ['depositAmt', '예약 보증금']]) {
                 const dt = document.createElement('dt'), dd = document.createElement('dd');
-                dt.textContent = label; dd.textContent = typeof values[key] === 'number' ? values[key].toLocaleString() + '원' : values[key];
+                dt.textContent = name; dd.textContent = typeof values[key] === 'number' ? values[key].toLocaleString() + '원' : values[key];
                 $('summary').append(dt, dd);
             }
-            const formatTime = timestamp => new Date(timestamp * 1000).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'});
             $('freshness').hidden = state !== 'PAYMENT_CONFIRM_READY';
             $('freshness').textContent = state === 'PAYMENT_CONFIRM_READY' ? `${formatTime(job.handoffDeadline)}까지 결제를 진행해주세요. 자리는 확보되지 않았습니다.` : '';
             const logKey = job ? `${job.id}:${job.stateVersion}` : '';
             if (logKey !== this.logKey) {
                 this.logKey = logKey;
-                $('logs').replaceChildren(...(job?.logs || []).slice().reverse().map(log => { const li = document.createElement('li'); li.textContent = `${formatTime(log.time)} · ${log.message}`; return li; }));
+                this.logPanel.render((job?.logs || []).map(log => this.toEntry(log, job)));
             }
+        }
+        toEntry(log, job) {
+            const name = labels[log.state] || log.state;
+            return {time: formatTime(log.time),
+                type: job.inputs?.mode === 'watch' ? {label: '자동 예약', variant: 'schedule'} : {label: '1회 조회', variant: 'test'},
+                status: {label: name, tone: toneOf(log.state, job.userReportedOutcome)},
+                summary: log.message,
+                detail: [{title: '상태', kind: 'text', body: `${name} (${log.state})`}, {title: '메시지', kind: 'text', body: log.message}]};
         }
         async poll() {
             try {
@@ -242,7 +272,14 @@
                     }
                 }
                 this.render();
-            } catch (error) { this.message(error.message); }
+                this.lastPollError = null;
+            } catch (error) {
+                UI.statusBadge.set({label: '연결 끊김', tone: 'error'});
+                if (error.message !== this.lastPollError) {
+                    this.lastPollError = error.message;
+                    this.message(error.message);
+                }
+            }
             setTimeout(() => this.poll(), 1500);
         }
     }

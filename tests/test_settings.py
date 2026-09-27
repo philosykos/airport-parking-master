@@ -142,7 +142,7 @@ def test_settings_route_opens_dialog_on_landing(client):
     assert response.headers['Location'] == '/?settings=1'
 
 
-@pytest.mark.parametrize('path', ['/'])
+@pytest.mark.parametrize('path', ['/', '/t2-valet/', '/gimpo-parking/'])
 def test_every_page_offers_settings_dialog(client, path):
     html = client.get(path).get_data(as_text=True)
     assert 'id="open-settings"' in html
