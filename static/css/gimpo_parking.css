@@ -41,12 +41,15 @@
     #input-fields + .field-row { margin-top: 14px; }
     .progress-card { margin: 0; padding: 20px; border: 1px solid #E4E5EA; border-radius: 12px; background: #FFFFFF; }
     .progress-card h2 { font-size: 16px; }
-    /* 각 칸은 제 글자 폭만큼만 차지하고, 칸 사이 간격은 모두 같게 카드 안쪽 폭에 양 끝을 맞춘다(최소 16px).
-       폭이 모자라면 첫 칸(주차장)부터 줄어들어 말줄임한다. */
+    /* 각 칸은 제 글자 폭만큼만 차지하고, 칸 사이 간격은 모두 같게 카드 안쪽 폭에 양 끝을 맞춘다(최소 16px, 폭이
+       넉넉한 1280px 이상에서는 줄어들 필요가 없어 그대로 제 글자 폭이다). 폭이 모자라면 첫 칸(주차장)부터
+       줄어들어 말줄임하고, 그래도 모자라면 나머지 칸도 순서대로 줄어들어 말줄임한다(넘친 채 잘리지 않는다). */
     #summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 14px; }
-    .summary-item { flex: 0 0 auto; }
-    .summary-item:first-child { flex-shrink: 1; min-width: 0; }
-    .summary-item dt { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .summary-item { flex: 0 1 auto; min-width: 0; }
+    /* 주차장 칸은 가장 먼저·많이 줄어들지만, 라벨("주차장")까지 통째로 사라지지 않도록 최소 폭을 둔다.
+       그래도 모자라면 나머지 칸이 이어서 줄어든다. */
+    .summary-item:first-child { flex-shrink: 30; min-width: 56px; }
+    .summary-item dt { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .summary-item dd { font-size: 14px; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .job-actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
     .job-actions > [hidden] { display: none; }

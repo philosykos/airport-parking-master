@@ -167,6 +167,64 @@ def test_gimpo_log_rows_and_summary_render_correctly_on_pc(ui_server, ui_context
         assert not errors
 
 
+@pytest.mark.parametrize('width', [1200, 1000, 961])
+def test_gimpo_summary_shrinks_without_clipping_and_parking_first(ui_server, ui_context, width):
+    # 좁은 PC 폭(961~1100px)에서도 요약 칸이 카드 밖으로 잘려 나가면 안 된다. 주차장 칸이 먼저 줄어들어
+    # 말줄임하고, 그래도 모자라면 나머지 칸도 순서대로 줄어들어 말줄임한다(조용히 잘리지 않는다).
+    base, runtime = ui_server
+    wait_state(runtime, runtime.create(inputs())['id'], READY)
+    with open_page(ui_context, base, width=width, height=900) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.querySelectorAll('#summary .summary-item').length === 5")
+        rows = page.evaluate("""() => {
+            const card = document.querySelector('.progress-card');
+            const cardRect = card.getBoundingClientRect();
+            const style = getComputedStyle(card);
+            const innerRight = cardRect.right - parseFloat(style.paddingRight);
+            return [...document.querySelectorAll('#summary .summary-item')].map(el => {
+                const dd = el.querySelector('dd');
+                return {right: el.getBoundingClientRect().right, innerRight,
+                        cut: dd.scrollWidth - dd.clientWidth};
+            });
+        }""")
+        assert len(rows) == 5
+        # 카드 밖(오른쪽)으로 잘려 나간 칸이 없다(그 전에는 뒤 네 칸이 overflow:hidden에 잘렸다).
+        for row in rows:
+            assert row['right'] <= row['innerRight'] + 1, row
+        # 주차장(첫 칸)이 이 폭들에서 이미 뚜렷하게 말줄임된 상태이고(글자 몇 개가 아니라 한 뭉치가 잘림),
+        # 다른 어느 칸보다 더 많이(먼저) 줄어들어 있다. 나머지 칸도 1px 안팎의 미세한 반올림 차이 정도는
+        # 있을 수 있지만(레이아웃 배분 오차), 주차장만큼 뚜렷하게 잘리지는 않는다.
+        assert rows[0]['cut'] > 10, rows
+        assert rows[0]['cut'] >= max(row['cut'] for row in rows[1:]), rows
+        assert not errors
+
+
+@pytest.mark.parametrize('path,ready', [('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),
+                                        ('/gimpo-parking/', "() => !document.getElementById('check').disabled")])
+def test_action_grid_button_labels_stay_on_one_line(client, t2_server, ui_context, path, ready):
+    # 카드가 좁아진 뒤에도 폼 버튼 라벨("T2 정보 가져오기" 등)이 두 줄로 꺾이거나 잘리면 안 된다.
+    base = t2_server
+    with open_page(ui_context, base, width=1280, height=900) as (page, errors):
+        page.goto(base + path)
+        page.wait_for_function(ready)
+        rows = page.evaluate("""() => [...document.querySelectorAll('.action-grid > button')].filter(b => !b.hidden).map(b => {
+            const label = b.querySelector('.btn-label');
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            const lineRects = [...range.getClientRects()];
+            return {id: b.id, text: label.textContent, numLines: lineRects.length,
+                    scrollWidth: label.scrollWidth, clientWidth: label.clientWidth};
+        })""")
+        assert len(rows) == (2 if 't2' in path else 3)
+        for row in rows:
+            # 글자 자체가 차지하는 줄 상자(Range.getClientRects)가 하나뿐이면 한 줄이다.
+            # (글꼴에 따라 line-height가 달라 label 상자의 bounding height만으로는 줄바꿈을 못 가른다.)
+            assert row['numLines'] == 1, row  # 한 줄(두 줄로 꺾이지 않음)
+            assert row['scrollWidth'] <= row['clientWidth'] + 0.5, row  # 잘리지 않음
+        assert not errors
+
+
 @pytest.mark.parametrize('path,ready', [
     ('/', None),
     ('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),

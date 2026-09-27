@@ -724,10 +724,13 @@ button svg {
     input[type="date"], input[type="time"], select, input[data-td-target] {
         height: 40px; padding-top: 0; padding-bottom: 0; background-color: #FFFFFF; border: 1px solid #D5D7E0; border-radius: 8px; font-size: 15px;
     }
-    /* PC에서는 보이는 버튼 수와 상관없이 한 줄에 같은 폭으로 놓는다 */
+    /* PC에서는 보이는 버튼 수와 상관없이 한 줄에 같은 폭으로 놓는다.
+       카드가 좁아진 만큼(폼 칸 안쪽 폭 458px) 안쪽 여백·아이콘·간격을 줄여 라벨이 한 줄에 다 들어가게 한다
+       ("T2 정보 가져오기"가 두 줄로 꺾이지 않아야 한다). */
     .action-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
-    .action-grid button { height: 40px; padding: 0 12px; font-size: 14px; border-radius: 8px; box-shadow: none; }
-    .action-grid .btn-icon { font-size: 18px; width: 18px; height: 18px; }
+    .action-grid button { height: 40px; padding: 0 8px; font-size: 14px; border-radius: 8px; box-shadow: none; gap: 4px; white-space: nowrap; }
+    .action-grid .btn-icon { font-size: 16px; width: 16px; height: 16px; }
+    .action-grid .btn-label { white-space: nowrap; }
     .btn-start { background: var(--primary); color: var(--on-primary); }
     .btn-start:hover:not(:disabled) { background: var(--primary-container); transform: none; box-shadow: none; }
     .btn-stop { background: #FEF2F2; color: var(--danger); border: 1px solid #F1B5B5; }
