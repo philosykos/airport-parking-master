@@ -206,6 +206,21 @@ def test_clear_logs_ignores_stale_log_response(t2_server):
                                'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}})
     with sync_playwright() as p:
         browser, page, errors = open_page(p, t2_server)
+        # app.js는 건드리지 않고, 붙잡아 둔 응답을 푼 뒤 그 fetch가 실제로 settle됐는지
+        # 확인하기 위해 페이지가 로드되기 전에 window.fetch를 감싸 둔다.
+        page.add_init_script("""
+            window.__t2LogsFetchDone = 0;
+            const originalFetch = window.fetch;
+            window.fetch = function (...args) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+                const method = (args[1] && args[1].method) || 'GET';
+                const promise = originalFetch.apply(this, args);
+                if (url.endsWith('/t2-valet/api/logs') && method === 'GET') {
+                    promise.finally(() => { window.__t2LogsFetchDone += 1; });
+                }
+                return promise;
+            };
+        """)
         held = []
 
         def hold_or_continue(route):
@@ -215,11 +230,8 @@ def test_clear_logs_ignores_stale_log_response(t2_server):
                 route.continue_()
 
         page.route('**/t2-valet/api/logs', hold_or_continue)
-        page.goto(t2_server + '/t2-valet/')
-        for _ in range(100):
-            if held:
-                break
-            page.wait_for_timeout(20)
+        with page.expect_request('**/t2-valet/api/logs'):
+            page.goto(t2_server + '/t2-valet/')
         assert held, '초기 로그 요청이 붙잡히지 않았습니다'
         page.click('#btn-clear')
         page.wait_for_function("() => document.getElementById('log-body').children.length === 1 "
@@ -228,7 +240,7 @@ def test_clear_logs_ignores_stale_log_response(t2_server):
             {'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
              'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}},
         ]})
-        page.wait_for_timeout(300)
+        page.wait_for_function("() => window.__t2LogsFetchDone >= 1")
         assert page.locator('#log-body tr.log-row').count() == 0
         assert not errors
         browser.close()
