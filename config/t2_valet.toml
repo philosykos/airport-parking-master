@@ -1,4 +1,4 @@
-# 인천공항 제2터미널 발렛파킹 설정. 규칙은 README의 "설정" 절 참고.
+# 인천공항 제2터미널 발렛파킹 설정. 규칙은 docs/configuration.md 참고.
 
 [request]
 url = "https://api.amanopark.co.kr/api/web/booking/reservation"

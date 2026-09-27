@@ -1,5 +1,7 @@
 # 감독되는 테스트 실행
 
+테스트는 pytest를 직접 부르지 않고 `scripts/run_tests.py`로 실행하며, 결과를 보고할 때 run_id를 적는다.
+
 업무별 폴더·파일명·공용 fixture 규칙은 [테스트 구조](../tests/README.md)를 따른다.
 
 macOS/POSIX에서 순차 pytest를 실행한다. Python 3.11 이상과 개발 의존성이 필요하다.
