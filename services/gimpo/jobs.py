@@ -352,20 +352,23 @@ class GimpoRuntime:
             pass
 
     async def _finish_reserved(self, job_id):
-        deadline = self.loop.time() + self.completion_hold_sec
+        started = self.loop.time()
         client = self.clients.get(job_id)
-        while client is not None and self.loop.time() < deadline and await client.alive():
-            await asyncio.sleep(min(0.25, max(0.0, deadline - self.loop.time())))
+        # 대기 시간은 매 회차 다시 읽는다(테스트가 대기 중에 줄여 끝낼 수 있다).
+        while client is not None and (left := started + self.completion_hold_sec - self.loop.time()) > 0 and await client.alive():
+            await asyncio.sleep(min(0.25, left))
         await self._release_reserved(job_id)
 
     async def _release_reserved(self, job_id):
-        client = self.clients.pop(job_id, None)
+        client = self.clients.get(job_id)
         self.inputs.pop(job_id, None)
         if client is not None:
             try:
                 await asyncio.wait_for(client.close(), self.config.browser_timeout_sec)
             except Exception:
                 pass  # 예약은 이미 끝났다. 남은 창은 사용자가 닫는다.
+            # 닫는 도중 종료로 취소되면 여기 오지 않아 창이 목록에 남고, 종료 처리가 다시 닫는다.
+            self.clients.pop(job_id, None)
         job = self.store.get(job_id)
         try:
             self.store.release(job_id, "RESERVED", job["reason"], {"RESERVED"})
@@ -459,6 +462,8 @@ class GimpoRuntime:
                 self.payment_unknown(job["id"])
             elif job["state"] == READY:
                 await self._finish_pre(job["id"], "INTERRUPTED", "프로그램이 종료되어 결제 대기를 끝냈습니다.", {READY})
+                if self.store.get(job["id"])["paymentMayHaveBeenSent"]:
+                    self.payment_unknown(job["id"])  # 종료 직전에 사용자가 결제를 시작했다
             elif job["state"] in PREPAYMENT | RESTARTABLE | {"STOPPING"}:
                 self.store.transition(job["id"], "STOPPING", "프로그램이 종료되고 있습니다.", expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
                 await self._stop(job["id"])

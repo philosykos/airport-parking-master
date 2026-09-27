@@ -41,7 +41,7 @@ def paying(runtime, state='PAYMENT_IN_PROGRESS'):
 
 @pytest.mark.parametrize('state', ['PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
 def test_reserved_holds_window_then_releases(tmp_path, state):
-    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier(), completion_hold_sec=0.6)
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier(), completion_hold_sec=30)
     try:
         job = paying(runtime, state)
         browser = runtime.clients[job['id']]
@@ -51,6 +51,8 @@ def test_reserved_holds_window_then_releases(tmp_path, state):
         assert held['active'] and held['reservationNo'] == '1234AB5678' and held['reason'] == REASON and not browser.closed
         with pytest.raises(Conflict): runtime.stop(job['id'], held)
         with pytest.raises(Conflict): runtime.create(inputs())
+        assert runtime.store.get(job['id'])['active'] and not browser.closed  # 창이 살아 있는 동안은 대기가 끝나야 닫는다
+        runtime.completion_hold_sec = 0
         eventually(lambda: not runtime.store.get(job['id'])['active'])
         final = runtime.store.get(job['id'])
         assert browser.closed and final['state'] == 'RESERVED' and final['reason'] == REASON
@@ -99,6 +101,28 @@ def test_shutdown_during_hold_keeps_reserved(tmp_path):
         store.close()
 
 
+def test_shutdown_while_closing_reserved_window_still_closes_it(tmp_path):
+    class SlowClose(FakeBrowser):
+        calls = 0
+        async def close(self):
+            self.calls += 1
+            if self.calls == 1:
+                await asyncio.sleep(30)  # 첫 닫기가 끝나기 전에 종료가 이 태스크를 취소한다
+            await super().close()
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), SlowClose, notifier=FakeNotifier(), completion_hold_sec=0)
+    job = paying(runtime)
+    browser = runtime.clients[job['id']]
+    runtime.loop.call_soon_threadsafe(runtime.reserved, job['id'], '1234AB5678')
+    eventually(lambda: browser.calls == 1)
+    runtime.close()
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert browser.closed and (final['state'], final['active']) == ('RESERVED', False)
+    finally:
+        store.close()
+
+
 def test_unverified_completion_keeps_state_and_logs_once(runtime):
     job = paying(runtime)
     runtime.loop.call_soon_threadsafe(runtime.completion_unverified, job['id'])
@@ -119,6 +143,10 @@ def test_close_payment_on_released_job_does_not_overwrite_reason(runtime):
         async def close(self): raise RuntimeError('close failed')
     runtime.clients[job['id']] = Stuck(runtime, final, {})
     runtime._submit(runtime._close_payment(job['id'])).result(timeout=3)
+    assert runtime.store.get(job['id'])['reason'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
+    # _close_payment 가드를 지나 닫기에 실패해도(_close_client 단독) 끝난 작업의 사유는 그대로다.
+    with pytest.raises(Conflict):
+        runtime._submit(runtime._close_client(job['id'])).result(timeout=3)
     assert runtime.store.get(job['id'])['reason'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
 
 
@@ -177,6 +205,7 @@ def test_payment_stop_close_failure_can_be_retried(runtime):
     runtime.stop(job['id'], job)
     eventually(lambda: runtime.store.get(job['id'])['reason'] == '예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.')
     assert runtime.store.get(job['id'])['active'] and runtime.store.get(job['id'])['state'] == 'CLOSED_BY_USER'
+    with pytest.raises(Conflict): runtime.stop(job['id'], runtime.store.get(job['id']), inputs())  # PATCH
     Stuck.fail = False
     runtime.stop(job['id'], runtime.store.get(job['id']))
     eventually(lambda: not runtime.store.get(job['id'])['active'])
@@ -202,14 +231,13 @@ def test_recovered_payment_job_without_browser_stops_at_once(tmp_path):
         second.close()
 
 
-@pytest.mark.parametrize('state', ['PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
+@pytest.mark.parametrize('state', ['PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
 def test_user_closing_window_during_payment_ends_job(runtime, state):
-    job = ready(runtime)
-    runtime.store.dispatch_payment(job['id'], job)
-    runtime.store.transition(job['id'], state, 'test')
+    job = paying(runtime, state)
     runtime._submit(runtime.clients[job['id']].close()).result(timeout=3)
     eventually(lambda: not runtime.store.get(job['id'])['active'])
-    assert runtime.store.get(job['id'])['state'] == 'CLOSED_BY_USER'
+    final = runtime.store.get(job['id'])
+    assert (final['state'], final['reason']) == ('CLOSED_BY_USER', '예약 완료를 확인하지 못하고 작업을 끝냈습니다.')
 
 
 def test_user_closing_window_in_handoff_is_cancel_without_correction(runtime):
@@ -227,11 +255,31 @@ def test_user_closing_window_in_handoff_is_cancel_without_correction(runtime):
 def test_shutdown_in_handoff_interrupts(tmp_path):
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
     job = ready(runtime)
+    eventually(lambda: [e['status'] for e in runtime.store.events() if e['kind'] == 'READY'] == ['SENT'])
     runtime.close()
     store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
     try:
         final = store.get(job['id'])
         assert (final['state'], final['active'], final['reason']) == ('INTERRUPTED', False, '프로그램이 종료되어 결제 대기를 끝냈습니다.')
+        assert [e['cause'] for e in store.events() if e['kind'] == 'CORRECTION'] == ['INTERRUPTED']
+    finally:
+        store.close()
+
+
+def test_shutdown_racing_payment_start_marks_result_unknown(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    job = ready(runtime)
+    finish_pre = runtime._finish_pre
+    async def payment_first(job_id, *args):
+        # 종료가 결제 대기를 읽은 직후 사용자가 결제를 시작한 순서를 재현한다.
+        runtime.store.dispatch_payment(job_id, runtime.store.get(job_id))
+        await finish_pre(job_id, *args)
+    runtime._finish_pre = payment_first
+    runtime.close()
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert (final['state'], final['active']) == ('PAYMENT_RESULT_UNKNOWN', True)
     finally:
         store.close()
 
