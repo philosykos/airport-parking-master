@@ -48,19 +48,34 @@
             this.detail = $('detail-overlay');
             this.emptyText = this.body.dataset.emptyText || '아직 기록이 없습니다';
             this.entries = [];
+            this.fab = $('log-fab');
             this.sheet = new UI.Sheet(root, {
                 handle: root.querySelector('.log-sheet-handle'),
                 closeButtons: [...root.querySelectorAll('.log-sheet-close')],
                 backdrop: $('log-backdrop'),
+                onClose: () => this.fab?.setAttribute('aria-expanded', 'false'),
             });
-            $('log-fab')?.addEventListener('click', () => this.sheet.toggle());
+            this.fab?.addEventListener('click', () => {
+                this.sheet.toggle();
+                this.fab.setAttribute('aria-expanded', String(this.sheet.isOpen));
+            });
+            // 모바일 폭에서 시트를 연 채 데스크톱 폭으로 넓히면 시트가 레이어 스택에 남아
+            // body 스크롤 잠금과 Esc가 보이지 않는 레이어에 걸리므로, 데스크톱으로 바뀌면 닫는다.
+            window.matchMedia('(max-width: 960px)').addEventListener('change', event => {
+                if (!event.matches && this.sheet.isOpen) this.sheet.close();
+            });
             this.body.addEventListener('click', event => {
                 const row = event.target.closest('tr.log-row');
                 if (row) this.openDetail(this.entries[Number(row.dataset.index)]);
             });
             this.body.addEventListener('keydown', event => {
                 const row = event.target.closest('tr.log-row');
-                if (row && event.key === 'Enter') this.openDetail(this.entries[Number(row.dataset.index)]);
+                if (!row) return;
+                if (event.key === 'Enter') this.openDetail(this.entries[Number(row.dataset.index)]);
+                else if (event.key === ' ') {
+                    event.preventDefault();
+                    this.openDetail(this.entries[Number(row.dataset.index)]);
+                }
             });
             this.detail?.querySelector('.detail-close')?.addEventListener('click', () => UI.layers.close(this.detail));
             this.detail?.addEventListener('click', event => {
@@ -74,7 +89,10 @@
 
         openSheet() {
             // 완료 안내가 떠 있을 때 시트가 그 위로 올라와 안내를 가리지 않게 한다.
-            if (UI.isMobile() && !UI.completion?.isOpen()) this.sheet.open();
+            if (UI.isMobile() && !UI.completion?.isOpen()) {
+                this.sheet.open();
+                this.fab?.setAttribute('aria-expanded', 'true');
+            }
         }
 
         render(entries) {

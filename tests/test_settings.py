@@ -227,6 +227,40 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server):
         browser.close()
 
 
+def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_browser(p, base)
+        page.goto(base + '/')
+        page.evaluate("""() => {
+            window.telegramWrites = 0;
+            new MutationObserver(() => { window.telegramWrites += 1; })
+                .observe(document.getElementById('telegram-state'), {childList: true, attributes: true});
+        }""")
+        page.click('#open-settings')
+        wait_tests_enabled(page)
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        assert page.evaluate('window.telegramWrites') == 1
+        assert not errors
+        browser.close()
+
+
+def test_send_test_failure_reenables_button_before_next_refresh(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_browser(p, base)
+        page.route('**/t2-valet/api/notifications/test', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        wait_tests_enabled(page)
+        page.locator('[data-service=t2] [data-test]').click()
+        page.locator('[data-service=t2] [data-error]').filter(has_text='수신 여부').wait_for()
+        assert not page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert not errors
+        browser.close()
+
+
 def test_closing_dialog_during_test_send_stops_status_requests(settings_services, live_server):
     settings_services(True)
     base = live_server

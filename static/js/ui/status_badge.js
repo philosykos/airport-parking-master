@@ -7,12 +7,14 @@
             const header = document.getElementById('header-status');
             if (header) {
                 header.dataset.tone = tone;
-                document.getElementById('header-status-text').textContent = label;
+                const headerText = document.getElementById('header-status-text');
+                if (headerText) headerText.textContent = label;
             }
             const log = document.getElementById('status-badge');
             if (log) {
                 log.dataset.tone = tone;
-                log.querySelector('.status-label').textContent = short || label;
+                const badgeLabel = log.querySelector('.status-label');
+                if (badgeLabel) badgeLabel.textContent = short || label;
             }
         },
     };

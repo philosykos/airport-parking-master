@@ -6,11 +6,14 @@
     z-index: 200;
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--duration-normal) ease;
+    visibility: hidden;
+    transition: opacity var(--duration-normal) ease, visibility 0s linear var(--duration-normal);
 }
 .detail-overlay.open {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition: opacity var(--duration-normal) ease, visibility 0s;
 }
 .detail-panel {
     position: fixed;
@@ -551,11 +554,14 @@
         z-index: 300;
         opacity: 0;
         pointer-events: none;
-        transition: opacity var(--duration-normal) ease;
+        visibility: hidden;
+        transition: opacity var(--duration-normal) ease, visibility 0s linear var(--duration-normal);
     }
     .select-picker-overlay.open {
         opacity: 1;
         pointer-events: auto;
+        visibility: visible;
+        transition: opacity var(--duration-normal) ease, visibility 0s;
     }
     .select-picker {
         position: fixed;

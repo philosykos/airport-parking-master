@@ -190,17 +190,46 @@ def test_log_panel_is_bottom_sheet_on_mobile_and_escape_closes_top_layer_only(ui
     expect(page.locator('#log-panel')).to_be_hidden()
     assert page.locator('#log-fab').is_visible()
     assert page.locator('#log-fab-badge').inner_text() == '2'
+    assert page.locator('#log-fab').get_attribute('aria-expanded') == 'false'
     page.click('#log-fab')
     page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
-    page.locator('#log-body tr.log-row').first.click()
+    assert page.locator('#log-fab').get_attribute('aria-expanded') == 'true'
+    panel_z = page.evaluate("document.getElementById('log-panel').style.zIndex")
+    assert is_open(page, 'log-backdrop')
+    assert page.evaluate("document.getElementById('log-backdrop').style.zIndex") == str(int(panel_z) - 1)
+    page.locator('#log-body tr.log-row').first.focus()
+    page.keyboard.press('Space')  # 행에서 Space도 Enter처럼 상세를 열고 스크롤은 막는다
     page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
     page.keyboard.press('Escape')
     assert not is_open(page, 'detail-overlay')
     assert is_open(page, 'log-panel')
+    # 배경막 클릭으로도 시트가 닫히고, 배경막 자신의 열림 상태도 함께 해제된다.
+    page.evaluate("document.getElementById('log-backdrop').click()")
+    assert not is_open(page, 'log-panel')
+    assert not is_open(page, 'log-backdrop')
+    assert page.evaluate("document.getElementById('log-backdrop').style.zIndex") == ''
+    assert page.locator('#log-fab').get_attribute('aria-expanded') == 'false'
+    assert page.evaluate('document.body.style.overflow') == ''
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
     page.locator('#log-panel .log-sheet-close').click()
     assert not is_open(page, 'log-panel')
     assert page.evaluate('document.body.style.overflow') == ''
-    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    assert not errors
+
+
+def test_log_panel_sheet_closes_when_resized_from_mobile_to_desktop(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.set_viewport_size({'width': 1280, 'height': 900})
+    page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('log-panel'))")
+    assert page.evaluate('document.body.style.overflow') == ''
+    assert page.locator('#log-fab').get_attribute('aria-expanded') == 'false'
     assert not errors
 
 
@@ -214,6 +243,43 @@ def test_status_badge_updates_header_and_log_status(ui_page):
     assert page.locator('#status-badge .status-label').inner_text() == '실행 중'
     page.set_viewport_size({'width': 390, 'height': 844})
     assert page.locator('#header-status').is_visible()
+    assert not errors
+
+
+def test_status_badge_tolerates_missing_child_nodes(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate("document.getElementById('header-status-text').remove()")
+    page.evaluate("document.querySelector('#status-badge .status-label').remove()")
+    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', short: '실행 중', tone: 'warning'})")
+    assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
+    assert page.locator('#status-badge').get_attribute('data-tone') == 'warning'
+    assert not errors
+
+
+def test_closed_overlays_are_hidden_from_accessibility_tree(ui_page):
+    load, errors = ui_page
+    page = load(render('partials/log_detail.html') + render('partials/select_picker.html'))
+    page.set_viewport_size({'width': 390, 'height': 844})
+    # 스타일시트를 DOM 렌더 뒤에 주입하는 테스트 하니스 특성상, visibility 지연 전환이 끝날 때까지 기다린다.
+    # (자식의 상속된 visibility 전환은 부모 오버레이 자체보다 한 스타일 재계산 뒤에 반영된다.)
+    page.wait_for_function("() => getComputedStyle(document.querySelector('#detail-overlay .detail-close')).visibility === 'hidden'")
+    page.wait_for_function("() => getComputedStyle(document.querySelector('#select-picker-overlay .select-picker-close')).visibility === 'hidden'")
+    focused_detail_close = page.evaluate("""() => {
+        const btn = document.querySelector('#detail-overlay .detail-close');
+        btn.focus();
+        return document.activeElement === btn;
+    }""")
+    assert focused_detail_close is False
+    focused_picker_close = page.evaluate("""() => {
+        const btn = document.querySelector('#select-picker-overlay .select-picker-close');
+        btn.focus();
+        return document.activeElement === btn;
+    }""")
+    assert focused_picker_close is False
+    page.evaluate("UI.layers.open(document.getElementById('detail-overlay'))")
+    assert page.evaluate("getComputedStyle(document.getElementById('detail-overlay')).visibility") == 'visible'
+    page.evaluate("UI.layers.close(document.getElementById('detail-overlay'))")
     assert not errors
 
 
