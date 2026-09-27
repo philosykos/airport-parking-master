@@ -50,7 +50,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, shutdown)
     try:
-        app.run(debug=False, use_reloader=False, port=8080)
+        app.run(debug=False, use_reloader=False, port=8081)
     finally:
         app.extensions["gimpo"].close()
         t2_valet.NOTIFICATIONS.close()
