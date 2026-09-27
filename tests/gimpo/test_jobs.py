@@ -481,3 +481,25 @@ def test_password_display_endpoint_is_uncached_and_separate(gimpo_client):
     assert response.headers['Cache-Control'] == 'no-store'
     assert 'PrivatePass44' not in gimpo_client.get('/gimpo-parking/api/defaults').get_data(as_text=True)
     assert 'PrivatePass44' not in gimpo_client.get('/gimpo-parking/').get_data(as_text=True)
+
+
+def test_clear_logs_bumps_state_version(gimpo_client, runtime):
+    c = gimpo_client
+    job = ready(runtime)
+    url = f'/gimpo-parking/api/jobs/{job["id"]}/logs/clear'
+    busy = c.post(url, json={})
+    assert busy.status_code == 409 and busy.json == {'error': '진행 중인 작업의 로그는 지울 수 없습니다.'}
+    runtime.stop(job['id'], job)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    before = runtime.store.get(job['id'])
+    done = c.post(url, json={})
+    assert done.status_code == 202 and done.json['job']['logs'] == []
+    assert done.json['job']['stateVersion'] == before['stateVersion'] + 1
+    assert c.post('/gimpo-parking/api/jobs/GMP-missing/logs/clear', json={}).status_code == 404
+    assert c.post(url, data='x', content_type='text/plain').status_code == 400
+
+
+def test_resolve_command_is_gone(gimpo_client, runtime):
+    job = ready(runtime)
+    response = gimpo_client.post(f'/gimpo-parking/api/jobs/{job["id"]}/resolve', json={**job, 'outcome': 'reserved', 'acknowledged': True})
+    assert response.status_code == 404

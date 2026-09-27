@@ -177,6 +177,12 @@ def update(job_id):
     return accepted(service().runtime().stop(job_id, data, replacement=inputs))
 
 
+@bp.post("/api/jobs/<job_id>/logs/clear")
+def clear_logs(job_id):
+    body()
+    return accepted(service().runtime().store.clear_logs(job_id))
+
+
 @bp.post("/api/jobs/<job_id>/<action>")
 def command(job_id, action):
     data, runtime = body(), service().runtime()
@@ -191,8 +197,6 @@ def command(job_id, action):
         job = runtime.restart(job_id, data, inputs)
     elif action == "show-browser":
         job = runtime.show(job_id, data)
-    elif action == "resolve":
-        job = runtime.resolve(job_id, data, data.get("outcome"), data.get("acknowledged"))
     else:
         return jsonify(error="지원하지 않는 명령입니다."), 404
     return accepted(job)
