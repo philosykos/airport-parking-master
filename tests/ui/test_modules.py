@@ -370,3 +370,14 @@ def test_run_toggle_shows_one_button_and_moves_focus(ui_page):
     widths = page.evaluate("[...document.querySelectorAll('.action-grid > button:not([hidden])')].map(b => b.getBoundingClientRect().width)")
     assert len(widths) == 2 and abs(widths[0] - widths[1]) < 1
     assert not errors
+
+
+def test_run_toggle_forgets_press_of_failed_command(ui_page):
+    # 실패한 시작 뒤 다른 경로(다른 탭, 폴링)로 실행 상태가 바뀌어도 포커스를 끌어가지 않는다.
+    load, errors = ui_page
+    page = load(RUN_BUTTONS)
+    page.evaluate("window.toggle = new UI.RunToggle(document.getElementById('start'), document.getElementById('stop'))")
+    page.click('#start')
+    page.evaluate("toggle.release(); toggle.set(false); toggle.set(true)")
+    assert page.evaluate("document.activeElement.id") != 'stop'
+    assert not errors

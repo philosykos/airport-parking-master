@@ -196,13 +196,13 @@
 
         async start() {
             const data = this.inputData();
-            if (!this.validate(data)) return;
+            if (!this.validate(data)) { this.runToggle.release(); return; }
             try {
                 await UI.api(API + '/start', {method: 'POST', data});
                 this.updateUI(true);
                 await this.fetchLogs();
                 setTimeout(() => this.logPanel.openSheet(), 600);
-            } catch (error) { UI.toast(error.message, 'error'); }
+            } catch (error) { this.runToggle.release(); UI.toast(error.message, 'error'); }
         }
 
         async stop() {
@@ -210,7 +210,7 @@
                 await UI.api(API + '/stop', {method: 'POST'});
                 this.updateUI(false);
                 await this.fetchLogs();
-            } catch (error) { UI.toast(error.message, 'error'); }
+            } catch (error) { this.runToggle.release(); UI.toast(error.message, 'error'); }
         }
 
         async testCall() {

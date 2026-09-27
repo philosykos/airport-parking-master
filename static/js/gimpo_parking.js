@@ -208,7 +208,7 @@
                 this.pollFailed = false;
                 this.message(result?.message || '', 'success');
             }
-            catch (error) { this.message(error.message); }
+            catch (error) { this.runToggle.release(); this.message(error.message); }
             finally { this.busy = false; this.render(); }
         }
         validateFields() {
@@ -223,7 +223,7 @@
         async start(mode) {
             const options = await this.api.call('/options');
             this.updatePolicy(options.policy);
-            if (!this.validateFields()) return;
+            if (!this.validateFields()) { this.runToggle.release(); return; }
             await this.saveDefaults();
             const inputs = this.inputs(mode);
             const result = await this.api.call('/jobs', 'POST', inputs);
@@ -264,7 +264,10 @@
             for (const action of ['prepare', 'show-browser']) $(action).onclick = () => this.perform(() => this.command(action));
             $('stop').onclick = () => {
                 // 결제 단계의 중지는 예약창을 닫고 작업을 끝내므로 먼저 확인한다.
-                if (paymentStates.has(this.job?.state) && !confirm('공항 예약창을 닫고 작업을 끝냅니다. 결제 중이면 먼저 마쳐주세요.')) return;
+                if (paymentStates.has(this.job?.state) && !confirm('공항 예약창을 닫고 작업을 끝냅니다. 결제 중이면 먼저 마쳐주세요.')) {
+                    this.runToggle.release();
+                    return;
+                }
                 this.perform(() => this.command('stop'));
             };
             $('log-clear').onclick = () => this.perform(async () => {
