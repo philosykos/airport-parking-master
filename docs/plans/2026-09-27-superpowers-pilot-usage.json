@@ -1,0 +1,612 @@
+{
+  "source_file": "rollout-2026-09-27T22-10-29-01a0e2fd-07e2-7232-9576-d4db599d0e83.jsonl",
+  "included_bytes": 1543626,
+  "prefix_sha256": "68880a465df2c7643b1485fa2a59cdb11d1658cc52625d9f050ee0063e784a82",
+  "invalid_json_lines": 0,
+  "method": "last usage per response/message ID; first occurrence order",
+  "records": [
+    {
+      "timestamp": "2026-09-27T13:12:14.472Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1964,
+      "cache_read": 12032,
+      "cache_creation": 0,
+      "output": 145
+    },
+    {
+      "timestamp": "2026-09-27T13:12:39.099Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 9051,
+      "cache_read": 13824,
+      "cache_creation": 0,
+      "output": 130
+    },
+    {
+      "timestamp": "2026-09-27T13:12:51.498Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 9651,
+      "cache_read": 22656,
+      "cache_creation": 0,
+      "output": 259
+    },
+    {
+      "timestamp": "2026-09-27T13:14:25.535Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 7329,
+      "cache_read": 32128,
+      "cache_creation": 0,
+      "output": 2389
+    },
+    {
+      "timestamp": "2026-09-27T13:16:43.022Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2775,
+      "cache_read": 39296,
+      "cache_creation": 0,
+      "output": 4224
+    },
+    {
+      "timestamp": "2026-09-27T13:18:14.356Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4495,
+      "cache_read": 41856,
+      "cache_creation": 0,
+      "output": 2861
+    },
+    {
+      "timestamp": "2026-09-27T13:20:01.787Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3062,
+      "cache_read": 46208,
+      "cache_creation": 0,
+      "output": 3446
+    },
+    {
+      "timestamp": "2026-09-27T13:20:44.244Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3760,
+      "cache_read": 49152,
+      "cache_creation": 0,
+      "output": 1236
+    },
+    {
+      "timestamp": "2026-09-27T13:20:51.853Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2598,
+      "cache_read": 52736,
+      "cache_creation": 0,
+      "output": 64
+    },
+    {
+      "timestamp": "2026-09-27T13:21:17.979Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 332,
+      "cache_read": 55168,
+      "cache_creation": 0,
+      "output": 599
+    },
+    {
+      "timestamp": "2026-09-27T13:21:28.361Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1542,
+      "cache_read": 55296,
+      "cache_creation": 0,
+      "output": 263
+    },
+    {
+      "timestamp": "2026-09-27T13:21:38.049Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1277,
+      "cache_read": 56704,
+      "cache_creation": 0,
+      "output": 167
+    },
+    {
+      "timestamp": "2026-09-27T13:21:52.931Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 398,
+      "cache_read": 57856,
+      "cache_creation": 0,
+      "output": 374
+    },
+    {
+      "timestamp": "2026-09-27T13:22:09.161Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1997,
+      "cache_read": 58112,
+      "cache_creation": 0,
+      "output": 376
+    },
+    {
+      "timestamp": "2026-09-27T13:23:33.908Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 637,
+      "cache_read": 59904,
+      "cache_creation": 0,
+      "output": 2679
+    },
+    {
+      "timestamp": "2026-09-27T13:24:48.986Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3014,
+      "cache_read": 60416,
+      "cache_creation": 0,
+      "output": 2279
+    },
+    {
+      "timestamp": "2026-09-27T13:25:20.203Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2535,
+      "cache_read": 63232,
+      "cache_creation": 0,
+      "output": 900
+    },
+    {
+      "timestamp": "2026-09-27T13:25:37.092Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4536,
+      "cache_read": 65536,
+      "cache_creation": 0,
+      "output": 261
+    },
+    {
+      "timestamp": "2026-09-27T13:26:15.521Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 847,
+      "cache_read": 69888,
+      "cache_creation": 0,
+      "output": 1079
+    },
+    {
+      "timestamp": "2026-09-27T13:26:46.994Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1424,
+      "cache_read": 70528,
+      "cache_creation": 0,
+      "output": 737
+    },
+    {
+      "timestamp": "2026-09-27T13:28:04.837Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1139,
+      "cache_read": 71808,
+      "cache_creation": 0,
+      "output": 2512
+    },
+    {
+      "timestamp": "2026-09-27T13:28:15.984Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2684,
+      "cache_read": 72832,
+      "cache_creation": 0,
+      "output": 245
+    },
+    {
+      "timestamp": "2026-09-27T13:28:40.398Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1130,
+      "cache_read": 75392,
+      "cache_creation": 0,
+      "output": 599
+    },
+    {
+      "timestamp": "2026-09-27T13:28:51.880Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 996,
+      "cache_read": 76288,
+      "cache_creation": 0,
+      "output": 230
+    },
+    {
+      "timestamp": "2026-09-27T13:28:58.857Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 517,
+      "cache_read": 77056,
+      "cache_creation": 0,
+      "output": 79
+    },
+    {
+      "timestamp": "2026-09-27T13:30:25.916Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1223,
+      "cache_read": 77440,
+      "cache_creation": 0,
+      "output": 2796
+    },
+    {
+      "timestamp": "2026-09-27T13:31:05.489Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3054,
+      "cache_read": 78464,
+      "cache_creation": 0,
+      "output": 1169
+    },
+    {
+      "timestamp": "2026-09-27T13:31:25.035Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1569,
+      "cache_read": 81280,
+      "cache_creation": 0,
+      "output": 369
+    },
+    {
+      "timestamp": "2026-09-27T13:31:57.359Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 883,
+      "cache_read": 82688,
+      "cache_creation": 0,
+      "output": 969
+    },
+    {
+      "timestamp": "2026-09-27T13:32:20.042Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1160,
+      "cache_read": 83456,
+      "cache_creation": 0,
+      "output": 655
+    },
+    {
+      "timestamp": "2026-09-27T13:32:59.062Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 904,
+      "cache_read": 84480,
+      "cache_creation": 0,
+      "output": 1031
+    },
+    {
+      "timestamp": "2026-09-27T13:33:31.497Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1347,
+      "cache_read": 85248,
+      "cache_creation": 0,
+      "output": 902
+    },
+    {
+      "timestamp": "2026-09-27T13:33:55.402Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1154,
+      "cache_read": 86400,
+      "cache_creation": 0,
+      "output": 331
+    },
+    {
+      "timestamp": "2026-09-27T13:34:53.755Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 974,
+      "cache_read": 87424,
+      "cache_creation": 0,
+      "output": 1180
+    },
+    {
+      "timestamp": "2026-09-27T13:35:17.184Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1618,
+      "cache_read": 88192,
+      "cache_creation": 0,
+      "output": 451
+    },
+    {
+      "timestamp": "2026-09-27T13:35:49.464Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 746,
+      "cache_read": 89600,
+      "cache_creation": 0,
+      "output": 932
+    },
+    {
+      "timestamp": "2026-09-27T13:36:30.629Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1192,
+      "cache_read": 90112,
+      "cache_creation": 0,
+      "output": 158
+    },
+    {
+      "timestamp": "2026-09-27T13:37:24.233Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 610,
+      "cache_read": 91136,
+      "cache_creation": 0,
+      "output": 1435
+    },
+    {
+      "timestamp": "2026-09-27T13:38:02.205Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1686,
+      "cache_read": 91520,
+      "cache_creation": 0,
+      "output": 158
+    },
+    {
+      "timestamp": "2026-09-27T13:38:19.234Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 553,
+      "cache_read": 93056,
+      "cache_creation": 0,
+      "output": 285
+    },
+    {
+      "timestamp": "2026-09-27T13:38:26.100Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 619,
+      "cache_read": 93440,
+      "cache_creation": 0,
+      "output": 122
+    },
+    {
+      "timestamp": "2026-09-27T13:39:03.650Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 380,
+      "cache_read": 93824,
+      "cache_creation": 0,
+      "output": 151
+    },
+    {
+      "timestamp": "2026-09-27T13:40:09.208Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 514,
+      "cache_read": 94080,
+      "cache_creation": 0,
+      "output": 1594
+    },
+    {
+      "timestamp": "2026-09-27T13:40:45.678Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1754,
+      "cache_read": 94464,
+      "cache_creation": 0,
+      "output": 39
+    },
+    {
+      "timestamp": "2026-09-27T13:40:52.094Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1526,
+      "cache_read": 96000,
+      "cache_creation": 0,
+      "output": 132
+    },
+    {
+      "timestamp": "2026-09-27T13:41:09.535Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 8262,
+      "cache_read": 97408,
+      "cache_creation": 0,
+      "output": 413
+    },
+    {
+      "timestamp": "2026-09-27T13:41:21.097Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2166,
+      "cache_read": 105472,
+      "cache_creation": 0,
+      "output": 289
+    },
+    {
+      "timestamp": "2026-09-27T13:41:58.540Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2077,
+      "cache_read": 107520,
+      "cache_creation": 0,
+      "output": 1099
+    },
+    {
+      "timestamp": "2026-09-27T13:42:25.765Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1315,
+      "cache_read": 109440,
+      "cache_creation": 0,
+      "output": 750
+    },
+    {
+      "timestamp": "2026-09-27T13:42:38.947Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1075,
+      "cache_read": 110592,
+      "cache_creation": 0,
+      "output": 338
+    },
+    {
+      "timestamp": "2026-09-27T13:42:48.568Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 574,
+      "cache_read": 111488,
+      "cache_creation": 0,
+      "output": 169
+    },
+    {
+      "timestamp": "2026-09-27T13:43:37.679Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 382,
+      "cache_read": 111872,
+      "cache_creation": 0,
+      "output": 194
+    },
+    {
+      "timestamp": "2026-09-27T13:44:38.319Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 550,
+      "cache_read": 112128,
+      "cache_creation": 0,
+      "output": 1324
+    },
+    {
+      "timestamp": "2026-09-27T13:45:26.782Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1515,
+      "cache_read": 112512,
+      "cache_creation": 0,
+      "output": 186
+    },
+    {
+      "timestamp": "2026-09-27T13:45:39.243Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 646,
+      "cache_read": 113792,
+      "cache_creation": 0,
+      "output": 88
+    },
+    {
+      "timestamp": "2026-09-27T13:46:28.914Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 245,
+      "cache_read": 114304,
+      "cache_creation": 0,
+      "output": 186
+    },
+    {
+      "timestamp": "2026-09-27T13:46:42.871Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 494,
+      "cache_read": 114432,
+      "cache_creation": 0,
+      "output": 92
+    },
+    {
+      "timestamp": "2026-09-27T13:47:31.706Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 353,
+      "cache_read": 114688,
+      "cache_creation": 0,
+      "output": 186
+    },
+    {
+      "timestamp": "2026-09-27T13:47:59.750Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 584,
+      "cache_read": 114816,
+      "cache_creation": 0,
+      "output": 579
+    },
+    {
+      "timestamp": "2026-09-27T13:48:45.007Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 803,
+      "cache_read": 115200,
+      "cache_creation": 0,
+      "output": 39
+    },
+    {
+      "timestamp": "2026-09-27T13:49:12.635Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 727,
+      "cache_read": 115840,
+      "cache_creation": 0,
+      "output": 695
+    },
+    {
+      "timestamp": "2026-09-27T13:49:25.558Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1568,
+      "cache_read": 116352,
+      "cache_creation": 0,
+      "output": 196
+    }
+  ],
+  "total": {
+    "requests": 62,
+    "uncached_input": 116492,
+    "cache_read": 5016064,
+    "cache_creation": 0,
+    "output": 49815,
+    "total_input": 5132556,
+    "cached_input_fraction": 0.9773033163203675,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  },
+  "first_recorded_request": {
+    "requests": 1,
+    "uncached_input": 1964,
+    "cache_read": 12032,
+    "cache_creation": 0,
+    "output": 145,
+    "total_input": 13996,
+    "cached_input_fraction": 0.8596741926264647,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  },
+  "subsequent_requests": {
+    "requests": 61,
+    "uncached_input": 114528,
+    "cache_read": 5004032,
+    "cache_creation": 0,
+    "output": 49670,
+    "total_input": 5118560,
+    "cached_input_fraction": 0.9776249570191616,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  }
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "task_id": "P5-report",
+    "phase": "implementation",
+    "event": "start",
+    "utc": "2026-09-27T15:52:42.644191+00:00",
+    "monotonic": 2784472.222599041,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P5-report",
+    "phase": "implementation",
+    "event": "stop",
+    "utc": "2026-09-27T15:53:43.993058+00:00",
+    "monotonic": 2784533.570341541,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P5-report",
+    "phase": "test",
+    "event": "start",
+    "utc": "2026-09-27T15:53:44.626820+00:00",
+    "monotonic": 2784534.204030125,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P5-report",
+    "phase": "test",
+    "event": "stop",
+    "utc": "2026-09-27T15:53:57.798816+00:00",
+    "monotonic": 2784547.375678625,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P5-report",
+    "phase": "review",
+    "event": "start",
+    "utc": "2026-09-27T15:53:58.417773+00:00",
+    "monotonic": 2784547.994785958,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P5-report",
+    "phase": "review",
+    "event": "stop",
+    "utc": "2026-09-27T15:54:06.630240+00:00",
+    "monotonic": 2784556.206909958,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "implementation",
+    "event": "start",
+    "utc": "2026-09-27T15:54:07.540000+00:00",
+    "monotonic": 2784557.116698666,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "implementation",
+    "event": "stop",
+    "utc": "2026-09-27T15:55:12.663917+00:00",
+    "monotonic": 2784622.23952925,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "test",
+    "event": "start",
+    "utc": "2026-09-27T15:55:13.365053+00:00",
+    "monotonic": 2784622.9405425,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "test",
+    "event": "stop",
+    "utc": "2026-09-27T15:55:40.136739+00:00",
+    "monotonic": 2784649.711667208,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "review",
+    "event": "start",
+    "utc": "2026-09-27T15:55:40.629420+00:00",
+    "monotonic": 2784650.20425325,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P6-usage",
+    "phase": "review",
+    "event": "stop",
+    "utc": "2026-09-27T15:55:52.625043+00:00",
+    "monotonic": 2784662.199727625,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "implementation",
+    "event": "start",
+    "utc": "2026-09-27T15:55:53.094380+00:00",
+    "monotonic": 2784662.668972166,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "implementation",
+    "event": "stop",
+    "utc": "2026-09-27T15:57:02.901433+00:00",
+    "monotonic": 2784732.474575375,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "test",
+    "event": "start",
+    "utc": "2026-09-27T15:57:03.338904+00:00",
+    "monotonic": 2784732.912021916,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "test",
+    "event": "stop",
+    "utc": "2026-09-27T15:57:22.542918+00:00",
+    "monotonic": 2784752.115934041,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "review",
+    "event": "start",
+    "utc": "2026-09-27T15:57:23.084122+00:00",
+    "monotonic": 2784752.656873791,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  },
+  {
+    "task_id": "P7-acceptance",
+    "phase": "review",
+    "event": "stop",
+    "utc": "2026-09-27T15:57:39.633069+00:00",
+    "monotonic": 2784769.205916041,
+    "boot_time": 1787203058.0,
+    "boot_id": "50CBE27C-0C8C-4000-B211-81E77F6C815B"
+  }
+]

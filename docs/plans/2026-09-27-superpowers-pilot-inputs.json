@@ -1,0 +1,98 @@
+{
+  "usage_snapshots": [
+    "2026-09-27-superpowers-pilot-usage.json"
+  ],
+  "run_ids": [
+    "20260927T221816-9d83edd29d",
+    "20260927T222002-26b9e92695",
+    "20260927T222139-300a5f832e",
+    "20260927T222213-139d12c5e2",
+    "20260927T222451-9d11c87b1b",
+    "20260927T222806-603a16a2a4",
+    "20260927T223027-3c61724e27",
+    "20260927T223334-7ad4eac6e8",
+    "20260927T224159-781e837b78",
+    "20260927T224240-f2bd53e88c"
+  ],
+  "tasks": [
+    {
+      "task_id": "P1-recovery",
+      "title": "감독 사망 후 프로세스 복구 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:21:17.965Z",
+          "2026-09-27T13:22:19.047434Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T222139-300a5f832e",
+        "20260927T222213-139d12c5e2"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 2,
+      "minor_only_rounds": 0,
+      "late_regressions": [
+        "중첩 pytest 임시 디렉터리 정리 간섭"
+      ],
+      "evidence_note": "첫 장애 감지의 T1-faults는 전체 실행 목록에 포함. 창은 재현 조사부터 수정 확인까지. 두 번째 run은 UI cleanup 3개도 포함."
+    },
+    {
+      "task_id": "P2-cleanup",
+      "title": "UI fixture 정리 및 thread.start 실패 회귀 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:20:44.090Z",
+          "2026-09-27T13:20:47.063Z"
+        ],
+        [
+          "2026-09-27T13:42:25.746Z",
+          "2026-09-27T13:42:40.113Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T222213-139d12c5e2",
+        "20260927T224159-781e837b78"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 1,
+      "minor_only_rounds": 0,
+      "late_regressions": [
+        "시작하지 않은 thread.join 예외가 뒤의 runtime.close를 막음"
+      ],
+      "evidence_note": "관측 창은 cleanup 최초 쓰기 도구 실행과 마지막 수정 구간만. 코드 생성·생각 시간의 전체 길이가 아님. 공유 run 시간을 과제 단독 비용으로 사용하지 않음."
+    },
+    {
+      "task_id": "P3-settings",
+      "title": "읽기 전용 비밀번호·defaults 응답의 설정 화면 회귀 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:40:45.657Z",
+          "2026-09-27T13:42:25.746Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T224159-781e837b78"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 1,
+      "minor_only_rounds": 0,
+      "late_regressions": [],
+      "evidence_note": "실패한 전체 실행을 확인한 시각부터 대상 재검증 결과 확인까지. 현재 HEAD에 이미 존재한 readonly UI와 구형 테스트의 불일치. 공유 run에 cleanup 4개 포함."
+    }
+  ],
+  "limitations": [
+    "Retrospective pilot of three real fixes in one controller session, not three independent SDD agent trials.",
+    "Implementation/review/wait phases were not instrumented at the time; null means unmeasured, not zero.",
+    "Request usage is attributed by observed timestamp windows, not causal task ownership; mixed-task requests can contain shared work.",
+    "No separate reviewer/subagent was used in these fixes. First request is session-level, not first request per task.",
+    "No pre-change matched task sample exists, so these measurements cannot establish end-to-end workflow speedup.",
+    "Recorded cache creation zero is the local log value, not a claim about provider billing.",
+    "No-duplicate count covers captured runs only; historical non-runner invocations are outside this inventory."
+  ]
+}

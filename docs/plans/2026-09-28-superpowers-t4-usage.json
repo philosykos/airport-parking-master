@@ -1,0 +1,1444 @@
+{
+  "source_file": "rollout-2026-09-27T22-10-29-01a0e2fd-07e2-7232-9576-d4db599d0e83.jsonl",
+  "included_bytes": 4010488,
+  "prefix_sha256": "ef88b2d5bbcce91e193505ac8e47ef4652b96592cd4efb2080271a956271787b",
+  "invalid_json_lines": 0,
+  "method": "last usage per response/message ID; first occurrence order",
+  "records": [
+    {
+      "timestamp": "2026-09-27T13:12:14.472Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1964,
+      "cache_read": 12032,
+      "cache_creation": 0,
+      "output": 145,
+      "request_id_sha256": "53c9a851194f93fbece7479a9f2f3f2e57d3e47a59e052ef8da53aafb17f6a03"
+    },
+    {
+      "timestamp": "2026-09-27T13:12:39.099Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 9051,
+      "cache_read": 13824,
+      "cache_creation": 0,
+      "output": 130,
+      "request_id_sha256": "d1ada15352ef24d006716349aa851ba1894e5a74e71a1e296888d7648ad11706"
+    },
+    {
+      "timestamp": "2026-09-27T13:12:51.498Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 9651,
+      "cache_read": 22656,
+      "cache_creation": 0,
+      "output": 259,
+      "request_id_sha256": "63b5663d88862891faeb6f9b5cd9bc19ecc28da693ea1284ec307887a8dfe8a1"
+    },
+    {
+      "timestamp": "2026-09-27T13:14:25.535Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 7329,
+      "cache_read": 32128,
+      "cache_creation": 0,
+      "output": 2389,
+      "request_id_sha256": "0f391f036685b015bc981c6637f7c244cf9f82cb88efeb1e1da62e9bbbbba515"
+    },
+    {
+      "timestamp": "2026-09-27T13:16:43.022Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2775,
+      "cache_read": 39296,
+      "cache_creation": 0,
+      "output": 4224,
+      "request_id_sha256": "37e84868e173a7051aa877ea124365b12522f7b960e97a2bec311f53b68cfc08"
+    },
+    {
+      "timestamp": "2026-09-27T13:18:14.356Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4495,
+      "cache_read": 41856,
+      "cache_creation": 0,
+      "output": 2861,
+      "request_id_sha256": "8dc4ccac508c09adbe5104dcd03edf8672a4716debba34285021cc6544774c19"
+    },
+    {
+      "timestamp": "2026-09-27T13:20:01.787Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3062,
+      "cache_read": 46208,
+      "cache_creation": 0,
+      "output": 3446,
+      "request_id_sha256": "1cabd5b4f8c49e0460450e30d14d5819e13ba0daaf074024067973e50bf0cf56"
+    },
+    {
+      "timestamp": "2026-09-27T13:20:44.244Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3760,
+      "cache_read": 49152,
+      "cache_creation": 0,
+      "output": 1236,
+      "request_id_sha256": "3034b8cdd1c9a46573d0b6687bbdcbb66a1f27f553b9ae981c58ca6c0124818c"
+    },
+    {
+      "timestamp": "2026-09-27T13:20:51.853Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2598,
+      "cache_read": 52736,
+      "cache_creation": 0,
+      "output": 64,
+      "request_id_sha256": "aa88d18e683d32ef5e01ce058ad48ab08475c6f449945ca4ef345c6753fc9a1f"
+    },
+    {
+      "timestamp": "2026-09-27T13:21:17.979Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 332,
+      "cache_read": 55168,
+      "cache_creation": 0,
+      "output": 599,
+      "request_id_sha256": "b61946fe57cf3e02b0686fd0fb73be3cdc51f8865fc728cc430e1e0a4b65a92f"
+    },
+    {
+      "timestamp": "2026-09-27T13:21:28.361Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1542,
+      "cache_read": 55296,
+      "cache_creation": 0,
+      "output": 263,
+      "request_id_sha256": "9631793391fffa022f39e922d4357095f75b83f1be1c292b85c1b4d57046b256"
+    },
+    {
+      "timestamp": "2026-09-27T13:21:38.049Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1277,
+      "cache_read": 56704,
+      "cache_creation": 0,
+      "output": 167,
+      "request_id_sha256": "89e86f2b71f3969c9ae33fdfa02de79376c71f2261dae19660ea0bc2fff78072"
+    },
+    {
+      "timestamp": "2026-09-27T13:21:52.931Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 398,
+      "cache_read": 57856,
+      "cache_creation": 0,
+      "output": 374,
+      "request_id_sha256": "e746335d0494f4ad95b62e0cdbb0318340c8cfb59a47251830f45628ee759ee9"
+    },
+    {
+      "timestamp": "2026-09-27T13:22:09.161Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1997,
+      "cache_read": 58112,
+      "cache_creation": 0,
+      "output": 376,
+      "request_id_sha256": "391855aab87cdd5d882506f49ab33834ed128705e1020aff294ea49a58f326c3"
+    },
+    {
+      "timestamp": "2026-09-27T13:23:33.908Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 637,
+      "cache_read": 59904,
+      "cache_creation": 0,
+      "output": 2679,
+      "request_id_sha256": "4723f7aa189bfc7d27a75c82fa06fa38f3190df2efdf60a93e3269e11e524101"
+    },
+    {
+      "timestamp": "2026-09-27T13:24:48.986Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3014,
+      "cache_read": 60416,
+      "cache_creation": 0,
+      "output": 2279,
+      "request_id_sha256": "6a42ba2864258653f8031b33e32a25e7de77f5f462b9a4c2b3d6f97da01ba258"
+    },
+    {
+      "timestamp": "2026-09-27T13:25:20.203Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2535,
+      "cache_read": 63232,
+      "cache_creation": 0,
+      "output": 900,
+      "request_id_sha256": "6d15739a5bc0d914a544691eee961f18ea80ad9d5e4c6003a91145850440bb94"
+    },
+    {
+      "timestamp": "2026-09-27T13:25:37.092Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4536,
+      "cache_read": 65536,
+      "cache_creation": 0,
+      "output": 261,
+      "request_id_sha256": "293aacc4d72f7939dd606ac56b7b2755a1a0f9c3c72a0681608aa28a99e8b6fa"
+    },
+    {
+      "timestamp": "2026-09-27T13:26:15.521Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 847,
+      "cache_read": 69888,
+      "cache_creation": 0,
+      "output": 1079,
+      "request_id_sha256": "b905b121ad6f7953dd8e6284308f173488964ee4cea8ab4b83f890c7fedb70b2"
+    },
+    {
+      "timestamp": "2026-09-27T13:26:46.994Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1424,
+      "cache_read": 70528,
+      "cache_creation": 0,
+      "output": 737,
+      "request_id_sha256": "dc2f22f67c944bbc5ee137d6713ac078d6dbc2c1fb147782e1e6851e9c78e823"
+    },
+    {
+      "timestamp": "2026-09-27T13:28:04.837Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1139,
+      "cache_read": 71808,
+      "cache_creation": 0,
+      "output": 2512,
+      "request_id_sha256": "c699b533647253268eeb7ba1708eefde3a2ccd33b0cc4b9c3bb110b7eaf13315"
+    },
+    {
+      "timestamp": "2026-09-27T13:28:15.984Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2684,
+      "cache_read": 72832,
+      "cache_creation": 0,
+      "output": 245,
+      "request_id_sha256": "f5910ececc9e0edb8279da8f6a9125d3008b05caa862683e4f8e163d2d81bd36"
+    },
+    {
+      "timestamp": "2026-09-27T13:28:40.398Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1130,
+      "cache_read": 75392,
+      "cache_creation": 0,
+      "output": 599,
+      "request_id_sha256": "671eaa37ba070b5f9e072fbbe522aff293682c57925eb1469c2a2e7a38856d4b"
+    },
+    {
+      "timestamp": "2026-09-27T13:28:51.880Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 996,
+      "cache_read": 76288,
+      "cache_creation": 0,
+      "output": 230,
+      "request_id_sha256": "334fb70a491a15d31b873d050ddf2f1e06b5de62148983dad76ad5b457c78dc4"
+    },
+    {
+      "timestamp": "2026-09-27T13:28:58.857Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 517,
+      "cache_read": 77056,
+      "cache_creation": 0,
+      "output": 79,
+      "request_id_sha256": "43225354b98dea3677cb2c9659807db9d8330f77aeccf866cd5bf617d0633808"
+    },
+    {
+      "timestamp": "2026-09-27T13:30:25.916Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1223,
+      "cache_read": 77440,
+      "cache_creation": 0,
+      "output": 2796,
+      "request_id_sha256": "3592d3dae825f369fe2832342e85ea0dc776994f7d3a71b7ddce3f552f0948dc"
+    },
+    {
+      "timestamp": "2026-09-27T13:31:05.489Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3054,
+      "cache_read": 78464,
+      "cache_creation": 0,
+      "output": 1169,
+      "request_id_sha256": "afff7d9878087842cfdf4bbdad05406b2a753b54ef25b7bc9158d1c7628f5bd1"
+    },
+    {
+      "timestamp": "2026-09-27T13:31:25.035Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1569,
+      "cache_read": 81280,
+      "cache_creation": 0,
+      "output": 369,
+      "request_id_sha256": "ff0e69f1b14e4ce82b7f676dda2e4c94286bbd45e5599abd65807c847e5892eb"
+    },
+    {
+      "timestamp": "2026-09-27T13:31:57.359Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 883,
+      "cache_read": 82688,
+      "cache_creation": 0,
+      "output": 969,
+      "request_id_sha256": "febd7c1a3f1873820c95c4383fe5ff8c71928b4f7d72a9a924fd156d0f4c3800"
+    },
+    {
+      "timestamp": "2026-09-27T13:32:20.042Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1160,
+      "cache_read": 83456,
+      "cache_creation": 0,
+      "output": 655,
+      "request_id_sha256": "3cc26d898c9462ac45d264dfe68a5c672932dc480c83cbfbbadcd7db52bee670"
+    },
+    {
+      "timestamp": "2026-09-27T13:32:59.062Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 904,
+      "cache_read": 84480,
+      "cache_creation": 0,
+      "output": 1031,
+      "request_id_sha256": "3e78dab0b222f82652045961aaca743ede049c9a373c050dc189cbb6754d6e24"
+    },
+    {
+      "timestamp": "2026-09-27T13:33:31.497Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1347,
+      "cache_read": 85248,
+      "cache_creation": 0,
+      "output": 902,
+      "request_id_sha256": "0a70a4f52d55a4ef66b3618e66247a5f5e7f03dc322ae32d70cdaea628247acc"
+    },
+    {
+      "timestamp": "2026-09-27T13:33:55.402Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1154,
+      "cache_read": 86400,
+      "cache_creation": 0,
+      "output": 331,
+      "request_id_sha256": "c9aee7ee39844a8f96099ddbc0db86af56f7dbb51ec8b3692c9b1e2fa3029fd7"
+    },
+    {
+      "timestamp": "2026-09-27T13:34:53.755Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 974,
+      "cache_read": 87424,
+      "cache_creation": 0,
+      "output": 1180,
+      "request_id_sha256": "ba6e86c3557f0e9fb6194fab1859933de858d005db15b0f7318df24aa9ecefcd"
+    },
+    {
+      "timestamp": "2026-09-27T13:35:17.184Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1618,
+      "cache_read": 88192,
+      "cache_creation": 0,
+      "output": 451,
+      "request_id_sha256": "9baf5b1d7827a44bd93baab215ba4df0dbbf1a545c1dc04b83ed91c682084cba"
+    },
+    {
+      "timestamp": "2026-09-27T13:35:49.464Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 746,
+      "cache_read": 89600,
+      "cache_creation": 0,
+      "output": 932,
+      "request_id_sha256": "df09fdb06290a44917accde0462de9d37a4f70bd47988fe9b7c43171b9951a48"
+    },
+    {
+      "timestamp": "2026-09-27T13:36:30.629Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1192,
+      "cache_read": 90112,
+      "cache_creation": 0,
+      "output": 158,
+      "request_id_sha256": "88796d1ba8ccb946902b663d2ecb55b7345f7954435d8fc27f4f2579f2d37007"
+    },
+    {
+      "timestamp": "2026-09-27T13:37:24.233Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 610,
+      "cache_read": 91136,
+      "cache_creation": 0,
+      "output": 1435,
+      "request_id_sha256": "6189d9dc82dea4f329d330da004a51698df982c07451853ebb7d525fa1915f8b"
+    },
+    {
+      "timestamp": "2026-09-27T13:38:02.205Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1686,
+      "cache_read": 91520,
+      "cache_creation": 0,
+      "output": 158,
+      "request_id_sha256": "515e673c2a98670dec7ed6d6d0328fde274e06f9c65524f6605aac7a2f4673f7"
+    },
+    {
+      "timestamp": "2026-09-27T13:38:19.234Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 553,
+      "cache_read": 93056,
+      "cache_creation": 0,
+      "output": 285,
+      "request_id_sha256": "22fe40f2ff50fd27c46e8b9583e461be9299fa42811b0d141d2869550709dab7"
+    },
+    {
+      "timestamp": "2026-09-27T13:38:26.100Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 619,
+      "cache_read": 93440,
+      "cache_creation": 0,
+      "output": 122,
+      "request_id_sha256": "9cc3250f0bd486a9a042704d7eb55c2716a178f676dd7b418fa715d611980ef3"
+    },
+    {
+      "timestamp": "2026-09-27T13:39:03.650Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 380,
+      "cache_read": 93824,
+      "cache_creation": 0,
+      "output": 151,
+      "request_id_sha256": "bd9cc496e06dfb160f9417fc8cd2b10ce255c22412a2a93a6f71731fe49bc28b"
+    },
+    {
+      "timestamp": "2026-09-27T13:40:09.208Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 514,
+      "cache_read": 94080,
+      "cache_creation": 0,
+      "output": 1594,
+      "request_id_sha256": "b125dd8b2fac293ba9d9f95d7279b32b7a33efff4f6946e9750fd1bdcf299dd5"
+    },
+    {
+      "timestamp": "2026-09-27T13:40:45.678Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1754,
+      "cache_read": 94464,
+      "cache_creation": 0,
+      "output": 39,
+      "request_id_sha256": "c2d48708cf9c2972a1d8892ef12ae67fd82430be410b3efa2033c897f0de0f58"
+    },
+    {
+      "timestamp": "2026-09-27T13:40:52.094Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1526,
+      "cache_read": 96000,
+      "cache_creation": 0,
+      "output": 132,
+      "request_id_sha256": "e4d7bab1f1b2badf9505c41dab509339c023e9232745cb87e13584f5d93f77c6"
+    },
+    {
+      "timestamp": "2026-09-27T13:41:09.535Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 8262,
+      "cache_read": 97408,
+      "cache_creation": 0,
+      "output": 413,
+      "request_id_sha256": "09cbbf5dc20a92d5c1367b126d18700976a0e0f52041f3fddc0e2b4f37ebcea7"
+    },
+    {
+      "timestamp": "2026-09-27T13:41:21.097Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2166,
+      "cache_read": 105472,
+      "cache_creation": 0,
+      "output": 289,
+      "request_id_sha256": "c65d727dc9bc38920c60ac729d3472475c2f71422978a52aa75b2af5dc0a3f30"
+    },
+    {
+      "timestamp": "2026-09-27T13:41:58.540Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2077,
+      "cache_read": 107520,
+      "cache_creation": 0,
+      "output": 1099,
+      "request_id_sha256": "b8e6d82839c9599d8cdec1108a182dd72691fccfc54e14851a63136de7ca64ce"
+    },
+    {
+      "timestamp": "2026-09-27T13:42:25.765Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1315,
+      "cache_read": 109440,
+      "cache_creation": 0,
+      "output": 750,
+      "request_id_sha256": "390e5e0d615a4b8aca98024d431ca81582a9fdaea6ed083065e2f3fb48dee421"
+    },
+    {
+      "timestamp": "2026-09-27T13:42:38.947Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1075,
+      "cache_read": 110592,
+      "cache_creation": 0,
+      "output": 338,
+      "request_id_sha256": "b51b3bb932adc8d55b2a526f56e6f14562ba48559d9113a47af565ecaab2b357"
+    },
+    {
+      "timestamp": "2026-09-27T13:42:48.568Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 574,
+      "cache_read": 111488,
+      "cache_creation": 0,
+      "output": 169,
+      "request_id_sha256": "55bb663340b4bf6b11d931e5e26227ee7174ad5981ca20dffc720c2f8dc0c9ac"
+    },
+    {
+      "timestamp": "2026-09-27T13:43:37.679Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 382,
+      "cache_read": 111872,
+      "cache_creation": 0,
+      "output": 194,
+      "request_id_sha256": "c853434ab2960cd1ae48e14f5a48855ea22f48a256274b197d0892e7285ab1ca"
+    },
+    {
+      "timestamp": "2026-09-27T13:44:38.319Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 550,
+      "cache_read": 112128,
+      "cache_creation": 0,
+      "output": 1324,
+      "request_id_sha256": "8244e73620779c83826a29b4ef98f7b8ff87b6ad0e64a8ead4f00da4dcbb4843"
+    },
+    {
+      "timestamp": "2026-09-27T13:45:26.782Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1515,
+      "cache_read": 112512,
+      "cache_creation": 0,
+      "output": 186,
+      "request_id_sha256": "27ae8546de0d3d0a45b251536ed9783b7d55f7211361e483d52fc8d470256693"
+    },
+    {
+      "timestamp": "2026-09-27T13:45:39.243Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 646,
+      "cache_read": 113792,
+      "cache_creation": 0,
+      "output": 88,
+      "request_id_sha256": "571e16d94eaf2ed8c853978ada57be32aed192cfb40b23e6de58ab4a1288da71"
+    },
+    {
+      "timestamp": "2026-09-27T13:46:28.914Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 245,
+      "cache_read": 114304,
+      "cache_creation": 0,
+      "output": 186,
+      "request_id_sha256": "3eac7409a43667c4d24818b04f7117abfba03cb690021a2da5ba0e6cef6c3750"
+    },
+    {
+      "timestamp": "2026-09-27T13:46:42.871Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 494,
+      "cache_read": 114432,
+      "cache_creation": 0,
+      "output": 92,
+      "request_id_sha256": "d0b6d5e129a243bace3f7551868822d48a0ff145da4d328ea17bb7a86f0501bf"
+    },
+    {
+      "timestamp": "2026-09-27T13:47:31.706Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 353,
+      "cache_read": 114688,
+      "cache_creation": 0,
+      "output": 186,
+      "request_id_sha256": "8fbd52add12de5e7f2264bcabc0980c1a9668cd05abfe128f847dab397188000"
+    },
+    {
+      "timestamp": "2026-09-27T13:47:59.750Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 584,
+      "cache_read": 114816,
+      "cache_creation": 0,
+      "output": 579,
+      "request_id_sha256": "826a069ed357778997987728c78996e5f99d69314762bf6e21c64b85bfaf2b56"
+    },
+    {
+      "timestamp": "2026-09-27T13:48:45.007Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 803,
+      "cache_read": 115200,
+      "cache_creation": 0,
+      "output": 39,
+      "request_id_sha256": "a6bc610ad7940b75e1e49f2cef08686e79de0f4ccc982763993978d1b0598ed2"
+    },
+    {
+      "timestamp": "2026-09-27T13:49:12.635Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 727,
+      "cache_read": 115840,
+      "cache_creation": 0,
+      "output": 695,
+      "request_id_sha256": "f12b2fcacfd71c9e87ffad4cfe98319e77641bef85cbac56322aac8fb154a2bb"
+    },
+    {
+      "timestamp": "2026-09-27T13:49:25.558Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1568,
+      "cache_read": 116352,
+      "cache_creation": 0,
+      "output": 196,
+      "request_id_sha256": "d2608250b0874184cf6374f9d657467463449d615849b9b2dd369071287c5581"
+    },
+    {
+      "timestamp": "2026-09-27T13:52:36.250Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 376,
+      "cache_read": 117760,
+      "cache_creation": 0,
+      "output": 2786,
+      "request_id_sha256": "dec3901308b6ca4437ef66e8a48ede2f2f62d6e14c0abbf31332d4c32b28fcdc"
+    },
+    {
+      "timestamp": "2026-09-27T13:52:43.294Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4767,
+      "cache_read": 12032,
+      "cache_creation": 0,
+      "output": 163,
+      "request_id_sha256": "d2493ebe311db0c08cbd738ae42f73e9c169c8fbed861c33ad12cb0092a211be"
+    },
+    {
+      "timestamp": "2026-09-27T13:52:52.334Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2121,
+      "cache_read": 16640,
+      "cache_creation": 0,
+      "output": 183,
+      "request_id_sha256": "75cbb9e42efd56ef58dbb99fdb9ab82b70be749348e9a1636fbce88d29ef4e41"
+    },
+    {
+      "timestamp": "2026-09-27T13:53:01.436Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 11333,
+      "cache_read": 18560,
+      "cache_creation": 0,
+      "output": 201,
+      "request_id_sha256": "2f4ebca1e5f710049cae6a6f6e3df3f676d2e46bc8d51b6206f562694e2ee2b8"
+    },
+    {
+      "timestamp": "2026-09-27T13:53:11.748Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 11806,
+      "cache_read": 29696,
+      "cache_creation": 0,
+      "output": 195,
+      "request_id_sha256": "8d58a52c796a27488d48785db627906986b968eac8fce483278e8aa0a8adc14c"
+    },
+    {
+      "timestamp": "2026-09-27T13:53:23.324Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 371,
+      "cache_read": 41344,
+      "cache_creation": 0,
+      "output": 304,
+      "request_id_sha256": "6b80a0e9d62f951eb398b4ba49e7048a24bade2b22ec90a7bc884f01036c6a3e"
+    },
+    {
+      "timestamp": "2026-09-27T13:53:43.298Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 7756,
+      "cache_read": 41600,
+      "cache_creation": 0,
+      "output": 474,
+      "request_id_sha256": "0bac225d9a86559aeaf7e6ee1c5caf44bbd1d4719c6da651288dae5d94a75189"
+    },
+    {
+      "timestamp": "2026-09-27T13:53:54.055Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3982,
+      "cache_read": 49152,
+      "cache_creation": 0,
+      "output": 257,
+      "request_id_sha256": "d72ad5995b1486b3be0a4abbfa09d83c35619d63ad3cde2192457334df7ea9c3"
+    },
+    {
+      "timestamp": "2026-09-27T13:54:09.792Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4072,
+      "cache_read": 52992,
+      "cache_creation": 0,
+      "output": 365,
+      "request_id_sha256": "7fc7453713e2173f8c4aba7be70607355518589f68dff31564ebe955c0ca15f3"
+    },
+    {
+      "timestamp": "2026-09-27T13:54:27.227Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 6089,
+      "cache_read": 56832,
+      "cache_creation": 0,
+      "output": 435,
+      "request_id_sha256": "cc252f477dca09b2beaab893553b46aa28b66ce34c9f62c5265dee4773d73b1c"
+    },
+    {
+      "timestamp": "2026-09-27T13:54:55.816Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1527,
+      "cache_read": 62720,
+      "cache_creation": 0,
+      "output": 725,
+      "request_id_sha256": "b5338e3c8fbf9e8f5013c33339ed695b346215be3814e2978a31b8297fd36331"
+    },
+    {
+      "timestamp": "2026-09-27T13:55:22.749Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4363,
+      "cache_read": 64128,
+      "cache_creation": 0,
+      "output": 767,
+      "request_id_sha256": "8751fa2dd4efd4793edf0238d2bed9b5c40c557265af418e93c3e0db9abd135e"
+    },
+    {
+      "timestamp": "2026-09-27T13:55:49.495Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 965,
+      "cache_read": 68352,
+      "cache_creation": 0,
+      "output": 726,
+      "request_id_sha256": "af63d56b5abbe16b6cee3ae15f21a461171c8db45ec9d662aabab077aec04a84"
+    },
+    {
+      "timestamp": "2026-09-27T13:56:17.324Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 981,
+      "cache_read": 69120,
+      "cache_creation": 0,
+      "output": 790,
+      "request_id_sha256": "27727b4642bfa39ae4a26f54d8f1958b15a5f0f751526fe703aec4b820cd3792"
+    },
+    {
+      "timestamp": "2026-09-27T13:57:50.145Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1323,
+      "cache_read": 69888,
+      "cache_creation": 0,
+      "output": 2694,
+      "request_id_sha256": "c49cc45aff826b8fe2d78c6690e6f061abba87b2d3f14204afdbb78b5a7aee39"
+    },
+    {
+      "timestamp": "2026-09-27T13:57:54.955Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2922,
+      "cache_read": 71040,
+      "cache_creation": 0,
+      "output": 71,
+      "request_id_sha256": "5d0e429557fc1bad233e7d70257c647d9723489fa314345cf693b34d8b60bd62"
+    },
+    {
+      "timestamp": "2026-09-27T13:58:20.985Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 449,
+      "cache_read": 73728,
+      "cache_creation": 0,
+      "output": 773,
+      "request_id_sha256": "0b5284876e7f556a800c9e329f1ce908dc7e3dc4193500e308063d82b6383f64"
+    },
+    {
+      "timestamp": "2026-09-27T13:59:15.628Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1100,
+      "cache_read": 73984,
+      "cache_creation": 0,
+      "output": 1609,
+      "request_id_sha256": "6fed14e9a4db7744775c2c49497bd55969c826ed5b3a6d68803dc9b5d47a2395"
+    },
+    {
+      "timestamp": "2026-09-27T13:59:24.792Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1871,
+      "cache_read": 74880,
+      "cache_creation": 0,
+      "output": 160,
+      "request_id_sha256": "418f3f1e55767b3ce35c6d1f5757d20e49c5a4b7b2131325799013698f9e6780"
+    },
+    {
+      "timestamp": "2026-09-27T13:59:51.184Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 636,
+      "cache_read": 76544,
+      "cache_creation": 0,
+      "output": 637,
+      "request_id_sha256": "38a10001a843f9dfdbb29bef780e1bfdf64e9093a616888755c7be4932dc71e1"
+    },
+    {
+      "timestamp": "2026-09-27T14:00:03.386Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1313,
+      "cache_read": 77056,
+      "cache_creation": 0,
+      "output": 291,
+      "request_id_sha256": "6ddfe1de443b9c40bc6989e1d76f5ec46b1128ce3ebf684aecc8c4c0c134a470"
+    },
+    {
+      "timestamp": "2026-09-27T14:00:11.550Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1313,
+      "cache_read": 78208,
+      "cache_creation": 0,
+      "output": 143,
+      "request_id_sha256": "ab4cc70b376202887310a155fdf3f4467e2390dafe4f3f313a549d467c2b8097"
+    },
+    {
+      "timestamp": "2026-09-27T14:01:02.901Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 504,
+      "cache_read": 79360,
+      "cache_creation": 0,
+      "output": 1420,
+      "request_id_sha256": "0ac180c3cfee019c7db0f13274c0a0e95b024a4a2013fefce754b0bd3ae8992a"
+    },
+    {
+      "timestamp": "2026-09-27T14:01:20.871Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1779,
+      "cache_read": 79744,
+      "cache_creation": 0,
+      "output": 338,
+      "request_id_sha256": "58a10b3afb0a19b72e8ddc3f14cab6001ef72cf04f5080cc3dff07f279f8050e"
+    },
+    {
+      "timestamp": "2026-09-27T14:02:19.722Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1182,
+      "cache_read": 81408,
+      "cache_creation": 0,
+      "output": 1596,
+      "request_id_sha256": "b00137f3918b425681427598e7c071ca637aa5b443430feb497884521f530ade"
+    },
+    {
+      "timestamp": "2026-09-27T14:02:31.843Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3518,
+      "cache_read": 82432,
+      "cache_creation": 0,
+      "output": 263,
+      "request_id_sha256": "a2a0909a76c95f0358550957838816386ceba4be3f549bddab304b0ad4201027"
+    },
+    {
+      "timestamp": "2026-09-27T14:03:29.422Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1143,
+      "cache_read": 85760,
+      "cache_creation": 0,
+      "output": 1605,
+      "request_id_sha256": "131ca0a0cf5cbcde169916d8e40edb0206279fc7c6849c69f70eefd8054e888b"
+    },
+    {
+      "timestamp": "2026-09-27T14:03:54.469Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1748,
+      "cache_read": 86784,
+      "cache_creation": 0,
+      "output": 656,
+      "request_id_sha256": "5802e92ab5562f3af234e1114b880da41e90f6f7c533f3e5d6c8c557a857a662"
+    },
+    {
+      "timestamp": "2026-09-27T14:04:28.660Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1382,
+      "cache_read": 88320,
+      "cache_creation": 0,
+      "output": 803,
+      "request_id_sha256": "680781060bb5947e02e5ec8dcfd0c60efcaf98488ebdb38c965a0cd43055b9b2"
+    },
+    {
+      "timestamp": "2026-09-27T14:04:59.642Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1168,
+      "cache_read": 89472,
+      "cache_creation": 0,
+      "output": 289,
+      "request_id_sha256": "d3fde93c49ce566715704c45e63476019a77370a3460c0ced4fc945e038cfb3c"
+    },
+    {
+      "timestamp": "2026-09-27T14:06:09.815Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 836,
+      "cache_read": 90496,
+      "cache_creation": 0,
+      "output": 2305,
+      "request_id_sha256": "0b90512133ce1ed7ec7628f121dee0c57e3905491291f76b09742e7075173072"
+    },
+    {
+      "timestamp": "2026-09-27T14:06:23.543Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2556,
+      "cache_read": 91136,
+      "cache_creation": 0,
+      "output": 316,
+      "request_id_sha256": "127789c608869a201fc26f5b0b6ce1d02a877067cef369a2d036fe8cc88f77d7"
+    },
+    {
+      "timestamp": "2026-09-27T14:07:29.416Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 951,
+      "cache_read": 93568,
+      "cache_creation": 0,
+      "output": 1912,
+      "request_id_sha256": "caed48738b8929d13bdefd646b14c36b3c7ef53ff08cb9c5eb9692cdd4f5e4ec"
+    },
+    {
+      "timestamp": "2026-09-27T14:07:46.656Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2158,
+      "cache_read": 94336,
+      "cache_creation": 0,
+      "output": 453,
+      "request_id_sha256": "e706c54b29adbcc4e4380f2fb28d9406e842c053107e83c0bf4ab291eb012798"
+    },
+    {
+      "timestamp": "2026-09-27T14:08:10.965Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3587,
+      "cache_read": 96256,
+      "cache_creation": 0,
+      "output": 592,
+      "request_id_sha256": "b09ce5aafb7cad07900d891e92d24175118f36185b93a2339f3283a9c5efedc1"
+    },
+    {
+      "timestamp": "2026-09-27T14:08:43.439Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1340,
+      "cache_read": 99712,
+      "cache_creation": 0,
+      "output": 719,
+      "request_id_sha256": "8f839d8dffef8d1674ade688a8dee34cf07ae9e7bb474b70c8d0593eef1e8105"
+    },
+    {
+      "timestamp": "2026-09-27T14:09:01.106Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1101,
+      "cache_read": 100864,
+      "cache_creation": 0,
+      "output": 464,
+      "request_id_sha256": "0e3fd3c7a98eb8df8854ad6e56b225def7f72b60b5a42d874975c7234fbeb11a"
+    },
+    {
+      "timestamp": "2026-09-27T14:09:36.447Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 694,
+      "cache_read": 101760,
+      "cache_creation": 0,
+      "output": 40,
+      "request_id_sha256": "caf46a30873fd81f980f0887a5d3db8b5a8d345fc059057cdf9bc54b8381d3f9"
+    },
+    {
+      "timestamp": "2026-09-27T14:09:54.176Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 859,
+      "cache_read": 102272,
+      "cache_creation": 0,
+      "output": 391,
+      "request_id_sha256": "9912e905d65dd035cedc94e529e0feece3a05c65f80289b2833cdf1f684af7fe"
+    },
+    {
+      "timestamp": "2026-09-27T14:10:05.521Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 855,
+      "cache_read": 102912,
+      "cache_creation": 0,
+      "output": 169,
+      "request_id_sha256": "39f8af0a5501ec045d3bc8dae91b57ebf21609cba63e203ff5b50f5743a98efc"
+    },
+    {
+      "timestamp": "2026-09-27T14:10:52.110Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 545,
+      "cache_read": 103552,
+      "cache_creation": 0,
+      "output": 1403,
+      "request_id_sha256": "c73b47b032a1332d98a91dce72b40a4561ba7572bd7aca1331aaa24f641507f4"
+    },
+    {
+      "timestamp": "2026-09-27T14:11:22.798Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1661,
+      "cache_read": 103936,
+      "cache_creation": 0,
+      "output": 716,
+      "request_id_sha256": "f81c641db449d05e44e5ef4ebe557c59b1a927f95f49b837daa3d40003d75fd2"
+    },
+    {
+      "timestamp": "2026-09-27T14:11:53.664Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1036,
+      "cache_read": 105472,
+      "cache_creation": 0,
+      "output": 636,
+      "request_id_sha256": "b2804db654ce10a329fd4670ed9b3ebd40f53ee46c052be71b72d70991a0a75d"
+    },
+    {
+      "timestamp": "2026-09-27T14:12:33.488Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 803,
+      "cache_read": 106368,
+      "cache_creation": 0,
+      "output": 187,
+      "request_id_sha256": "f5503946cece624bb6216ccdf40ec73e2957a24f4d2b61f45fd5398f9a09a908"
+    },
+    {
+      "timestamp": "2026-09-27T14:12:50.466Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 457,
+      "cache_read": 107008,
+      "cache_creation": 0,
+      "output": 304,
+      "request_id_sha256": "de41539f1dc8289a7e1fa832f1fb9041eac34be7c7ee54313fdbcbccc01ab372"
+    },
+    {
+      "timestamp": "2026-09-27T14:13:18.971Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1370,
+      "cache_read": 107264,
+      "cache_creation": 0,
+      "output": 823,
+      "request_id_sha256": "4b00ed9bc27048bb75581d8779c091cce67eeab1a1c5987046e0d026d9b83d9b"
+    },
+    {
+      "timestamp": "2026-09-27T14:13:38.731Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1100,
+      "cache_read": 108416,
+      "cache_creation": 0,
+      "output": 537,
+      "request_id_sha256": "f9f7fd91240af188a244be084fcd329308e13cceb8da96e108dbc352f3e0abdd"
+    },
+    {
+      "timestamp": "2026-09-27T14:14:23.929Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 764,
+      "cache_read": 109312,
+      "cache_creation": 0,
+      "output": 221,
+      "request_id_sha256": "9647737ac0e71f8871a80fd7ff5f8c666c0ee27a0bc79f324eaab4f1c6618e58"
+    },
+    {
+      "timestamp": "2026-09-27T14:15:01.964Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 689,
+      "cache_read": 109952,
+      "cache_creation": 0,
+      "output": 970,
+      "request_id_sha256": "06f9cff5bea5cd4ffed4cb9df73066d0bfc93d4300eae0c5891d048336acd7ea"
+    },
+    {
+      "timestamp": "2026-09-27T14:15:36.873Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1172,
+      "cache_read": 110464,
+      "cache_creation": 0,
+      "output": 40,
+      "request_id_sha256": "3535d850b0d18954a077728da7ee3222f5dbff670647fa23dc07e81168d9c995"
+    },
+    {
+      "timestamp": "2026-09-27T14:15:44.074Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 686,
+      "cache_read": 111488,
+      "cache_creation": 0,
+      "output": 150,
+      "request_id_sha256": "aabe29c6d676933c3416bd35d44bbcec53725190ede0a6447e555dcf355a5b62"
+    },
+    {
+      "timestamp": "2026-09-27T14:15:57.607Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 935,
+      "cache_read": 112000,
+      "cache_creation": 0,
+      "output": 457,
+      "request_id_sha256": "702bc28a6d0d28d6c4e13a02962b6e7db21215146b04ecffc69a3879014069a3"
+    },
+    {
+      "timestamp": "2026-09-27T15:48:35.395Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 644,
+      "cache_read": 112768,
+      "cache_creation": 0,
+      "output": 4144,
+      "request_id_sha256": "09a58770f17850781a859840c4f09463a9aa26d4ff1e664a22c1762fb1f92365"
+    },
+    {
+      "timestamp": "2026-09-27T15:48:42.202Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 6151,
+      "cache_read": 12032,
+      "cache_creation": 0,
+      "output": 124,
+      "request_id_sha256": "660bf2990f4e8d5b6fb7daa4edd04c280f5b4ec285cd03dfc9a6e0ca8a1c37c1"
+    },
+    {
+      "timestamp": "2026-09-27T15:48:50.171Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 526,
+      "cache_read": 18048,
+      "cache_creation": 0,
+      "output": 189,
+      "request_id_sha256": "82c5c4fcf8c0a7a929662d34708450d49781d8810b5b90b2c0e96c55d90063e9"
+    },
+    {
+      "timestamp": "2026-09-27T15:48:57.520Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 10581,
+      "cache_read": 18432,
+      "cache_creation": 0,
+      "output": 131,
+      "request_id_sha256": "176631071744ab246eae117f0c3926cb58136ec557f4f2558da64838973089aa"
+    },
+    {
+      "timestamp": "2026-09-27T15:49:07.662Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 11217,
+      "cache_read": 28800,
+      "cache_creation": 0,
+      "output": 258,
+      "request_id_sha256": "0fa190d63f8bb1151b9f8f520085f107420917d7b320dc8f1e1d6520cd8a4d4c"
+    },
+    {
+      "timestamp": "2026-09-27T15:49:53.949Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 4360,
+      "cache_read": 39808,
+      "cache_creation": 0,
+      "output": 992,
+      "request_id_sha256": "c69cdcd1e64af1e152dbd875d7095dd0710f977b78e5a16aeee46b3babfc6e95"
+    },
+    {
+      "timestamp": "2026-09-27T15:50:06.437Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1294,
+      "cache_read": 44032,
+      "cache_creation": 0,
+      "output": 290,
+      "request_id_sha256": "4736ee9e82ca268ce63c8ad511cfc8ed784bb29ed483cb63f8144400366f2089"
+    },
+    {
+      "timestamp": "2026-09-27T15:50:25.633Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 622,
+      "cache_read": 45184,
+      "cache_creation": 0,
+      "output": 163,
+      "request_id_sha256": "2cbe02513292ecb304d499baf38e69d6d3648b7a2fe106b20730c7c1463c5d5a"
+    },
+    {
+      "timestamp": "2026-09-27T15:50:40.554Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1633,
+      "cache_read": 45568,
+      "cache_creation": 0,
+      "output": 276,
+      "request_id_sha256": "d2f413101ff64b882aa39fe282c401a025c3cb9afec2ad1e72d5958869864c14"
+    },
+    {
+      "timestamp": "2026-09-27T15:51:54.947Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 831,
+      "cache_read": 46976,
+      "cache_creation": 0,
+      "output": 2331,
+      "request_id_sha256": "0efd66eec3181300365d7ddf68c15401d70ec58214c764b9a0f25e932be765b2"
+    },
+    {
+      "timestamp": "2026-09-27T15:52:04.948Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 2716,
+      "cache_read": 47616,
+      "cache_creation": 0,
+      "output": 142,
+      "request_id_sha256": "964827561c1de92422ccc2a515e4df32d3058037cf8486f25ed493bbeffacde3"
+    },
+    {
+      "timestamp": "2026-09-27T15:52:26.354Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 896,
+      "cache_read": 50176,
+      "cache_creation": 0,
+      "output": 442,
+      "request_id_sha256": "746c37f866bf87426cdaf0142ac38eb5e657cb28310463de1f73c8b9a9ebdfc2"
+    },
+    {
+      "timestamp": "2026-09-27T15:52:41.266Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1779,
+      "cache_read": 50944,
+      "cache_creation": 0,
+      "output": 336,
+      "request_id_sha256": "b8cfc1875e24936c6a4d0b49eaf53ddd87170e59320f534a7e62006b8c4901cc"
+    },
+    {
+      "timestamp": "2026-09-27T15:53:31.688Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 712,
+      "cache_read": 52608,
+      "cache_creation": 0,
+      "output": 1545,
+      "request_id_sha256": "a2d4a6ce8859cd82a32a60d639a69862c54d58bf9719a8f12046a056db1cad26"
+    },
+    {
+      "timestamp": "2026-09-27T15:53:43.562Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1769,
+      "cache_read": 53120,
+      "cache_creation": 0,
+      "output": 292,
+      "request_id_sha256": "c9ab3e1c447724f3a3be59d573aff1a46265c3b8e90bc599e7669d4479863624"
+    },
+    {
+      "timestamp": "2026-09-27T15:53:56.962Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 788,
+      "cache_read": 54656,
+      "cache_creation": 0,
+      "output": 327,
+      "request_id_sha256": "85f6426223957dbcab00051e47395843ca2deab05e800c15ad1accb696f85c33"
+    },
+    {
+      "timestamp": "2026-09-27T15:54:06.080Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1623,
+      "cache_read": 55296,
+      "cache_creation": 0,
+      "output": 132,
+      "request_id_sha256": "d8c9f58ce25f19e12a25d0a2ba0a02fe4f6e5cca49ab06c7c4b1d7ee65d5dffd"
+    },
+    {
+      "timestamp": "2026-09-27T15:54:58.326Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 610,
+      "cache_read": 56704,
+      "cache_creation": 0,
+      "output": 1571,
+      "request_id_sha256": "54c8854868c8cadf7c464c922494b11ece6af9dcaac1e79a6266ecea8fcb0892"
+    },
+    {
+      "timestamp": "2026-09-27T15:55:11.866Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1821,
+      "cache_read": 57088,
+      "cache_creation": 0,
+      "output": 340,
+      "request_id_sha256": "71e427d594fa60e8b8107d8ec84a8a81b94d1439d1b7be6f31a0ddc345338cce"
+    },
+    {
+      "timestamp": "2026-09-27T15:55:39.689Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 657,
+      "cache_read": 58752,
+      "cache_creation": 0,
+      "output": 786,
+      "request_id_sha256": "743ac7e4ecdf91870187ab7cbcb448faa11eceb1d6087a7ad979670d5a92ce21"
+    },
+    {
+      "timestamp": "2026-09-27T15:55:52.076Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 3036,
+      "cache_read": 59264,
+      "cache_creation": 0,
+      "output": 214,
+      "request_id_sha256": "32a96204c0396623466125f35d2b7acf01f8eafb25d0332a9e4276947064747e"
+    },
+    {
+      "timestamp": "2026-09-27T15:56:14.758Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 699,
+      "cache_read": 62080,
+      "cache_creation": 0,
+      "output": 651,
+      "request_id_sha256": "c1a6fb978d30044587daa2f9b1fc31c33d17c9b4d4234eef788648f5e215362a"
+    },
+    {
+      "timestamp": "2026-09-27T15:57:02.293Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 988,
+      "cache_read": 62592,
+      "cache_creation": 0,
+      "output": 1461,
+      "request_id_sha256": "49eb9332b3a2fc062cdafaec4d8dd9b297d3fdd814bd691619a025c2ff5e9c5c"
+    },
+    {
+      "timestamp": "2026-09-27T15:57:21.573Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1947,
+      "cache_read": 63360,
+      "cache_creation": 0,
+      "output": 217,
+      "request_id_sha256": "55c148a607aa3c5b36eacbe0a5263d187301f9049e3fafa61a3d98c75aa5f096"
+    },
+    {
+      "timestamp": "2026-09-27T15:57:38.771Z",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "uncached_input": 1607,
+      "cache_read": 65152,
+      "cache_creation": 0,
+      "output": 408,
+      "request_id_sha256": "73dba2a86e0f4beba3e096832e1dc447a918fb749e54363911d6667af0f2a586"
+    }
+  ],
+  "total": {
+    "requests": 139,
+    "uncached_input": 286014,
+    "cache_read": 10515200,
+    "cache_creation": 0,
+    "output": 103101,
+    "total_input": 10801214,
+    "cached_input_fraction": 0.9735201987480296,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  },
+  "first_recorded_request": {
+    "requests": 1,
+    "uncached_input": 1964,
+    "cache_read": 12032,
+    "cache_creation": 0,
+    "output": 145,
+    "total_input": 13996,
+    "cached_input_fraction": 0.8596741926264647,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  },
+  "subsequent_requests": {
+    "requests": 138,
+    "uncached_input": 284050,
+    "cache_read": 10503168,
+    "cache_creation": 0,
+    "output": 102956,
+    "total_input": 10787218,
+    "cached_input_fraction": 0.973667909557404,
+    "models": [
+      "gpt-6-astra"
+    ],
+    "efforts": [
+      "high"
+    ]
+  }
+}

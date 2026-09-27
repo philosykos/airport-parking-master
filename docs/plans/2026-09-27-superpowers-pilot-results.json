@@ -1,0 +1,447 @@
+{
+  "schema_version": 1,
+  "runs": [
+    {
+      "run_id": "20260927T221816-9d83edd29d",
+      "task_id": "T1-smoke",
+      "fingerprint": "9af380ffc77c371cc3f1e6c482e469fa586a4342ab681c8869b751709c8cbe5f",
+      "comparison_key": "87413679437f2724bbed9453c7852522c084d17d1876beefda66598871dbbbbb",
+      "started_at": "2026-09-27T13:18:17.059408+00:00",
+      "finished_at": "2026-09-27T13:18:18.293420+00:00",
+      "elapsed_seconds": null,
+      "test_seconds": null,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 17,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": null,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T222002-26b9e92695",
+      "task_id": "T1-faults",
+      "fingerprint": "a369e2f3a30c23d0e54f41930222f2f26e3d183dd1cfacc95dd85dc5b0152334",
+      "comparison_key": "6b1b12402c8e63c8146c802d8453dda904eaeb278da75646b37bc6387134755f",
+      "started_at": "2026-09-27T13:20:03.991498+00:00",
+      "finished_at": "2026-09-27T13:21:10.692288+00:00",
+      "elapsed_seconds": null,
+      "test_seconds": null,
+      "outcome": "FAILED",
+      "counts": {
+        "errors": 0,
+        "failed": 1,
+        "passed": 28,
+        "skipped": 1,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": false,
+      "environment_unchanged": null,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T222139-300a5f832e",
+      "task_id": "T1-recovery",
+      "fingerprint": "02d33360deef7915afd95f371b346b06be93a5b93f1e3d92808feb55d0353137",
+      "comparison_key": "769f2fe80efccadcdc3763f64e5af949042c29d29b5c63a2a27d0e2c23d3c3ed",
+      "started_at": "2026-09-27T13:21:40.120132+00:00",
+      "finished_at": "2026-09-27T13:21:42.826023+00:00",
+      "elapsed_seconds": null,
+      "test_seconds": null,
+      "outcome": "FAILED",
+      "counts": {
+        "errors": 0,
+        "failed": 1,
+        "passed": 0,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": null,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T222213-139d12c5e2",
+      "task_id": "T1-recovery-fix",
+      "fingerprint": "9b262ab9af9e150401ca380b37f3b396a869e73241db7ff56f38ded3fc935eac",
+      "comparison_key": "2c1ab3358c5c0c190f08b591b1cb2c1b90e1cccf885c90889e39affb360cd77d",
+      "started_at": "2026-09-27T13:22:13.943203+00:00",
+      "finished_at": "2026-09-27T13:22:19.047434+00:00",
+      "elapsed_seconds": null,
+      "test_seconds": null,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 4,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": null,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T222451-9d11c87b1b",
+      "task_id": "T1-T2-acceptance",
+      "fingerprint": "7fda9e87c7c25fd6b2a08d1184a0ca108c5b6d60806e45f661b2048e61fc0c7a",
+      "comparison_key": "46ba50510110f907a8f01a7da0f253218bdb8e6045b78a2311ff843c98210ea1",
+      "started_at": "2026-09-27T13:24:51.906327+00:00",
+      "finished_at": "2026-09-27T13:26:44.544382+00:00",
+      "elapsed_seconds": 112.63703891681507,
+      "test_seconds": 110.7891146671027,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 42,
+        "skipped": 1,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": null,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T222806-603a16a2a4",
+      "task_id": "T1-evidence-regression",
+      "fingerprint": "6449fa81bf1d9782ef2863b566ba32bb8c759d09f62aba673315859f2affcb0c",
+      "comparison_key": "e3fe6d2174b10b3c372c4d640f57dcaca8157df651ca4e41a966985b784618d2",
+      "started_at": "2026-09-27T13:28:06.620320+00:00",
+      "finished_at": "2026-09-27T13:28:23.529879+00:00",
+      "elapsed_seconds": 16.907781708054245,
+      "test_seconds": 15.06389820901677,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 8,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": true,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T223027-3c61724e27",
+      "task_id": "DEFAULT120",
+      "fingerprint": "b9c2f7c788d0025a7b50ef62bd0d1aa43116c87ea139982fc608067d218ecc50",
+      "comparison_key": "f15592ee44053e06b868f2cfa234d2dded786f3b463b297b5d6e8daf5985bc99",
+      "started_at": "2026-09-27T13:30:28.453835+00:00",
+      "finished_at": "2026-09-27T13:32:30.699646+00:00",
+      "elapsed_seconds": 122.2442522495985,
+      "test_seconds": 121.29808091837913,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 1,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": true,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": [
+        {
+          "kind": "phase",
+          "phase": "call",
+          "requested_monotonic": 2776024.771624041,
+          "status": "requested"
+        },
+        {
+          "kind": "test",
+          "phase": "call",
+          "requested_monotonic": 2776024.771624041,
+          "status": "requested"
+        }
+      ]
+    },
+    {
+      "run_id": "20260927T223334-7ad4eac6e8",
+      "task_id": "FINAL",
+      "fingerprint": "455876f80e4b1a059aa4709046b0fa7f99e0b25b61079b0a30a99d31e03ff0ba",
+      "comparison_key": "569a3bd03f0a58da427d9bb5fd37f3995d74eb77ba1f25d6798094029587d8c1",
+      "started_at": "2026-09-27T13:33:34.488407+00:00",
+      "finished_at": "2026-09-27T13:40:10.190987+00:00",
+      "elapsed_seconds": 395.7000724589452,
+      "test_seconds": 393.9366188426502,
+      "outcome": "FAILED",
+      "counts": {
+        "errors": 0,
+        "failed": 1,
+        "passed": 380,
+        "skipped": 1,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": true,
+      "evidence_errors": [],
+      "rerun_reason": null,
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T224159-781e837b78",
+      "task_id": "WF-TEST-01",
+      "fingerprint": "4c7785cb9f1c6229a6aa9f4254cbc001b23229fc352d68da23bc9773ac3fa6dd",
+      "comparison_key": "2c5c45d9c5a70538070b513e4e292f84ef8ca0517a76cffbf1bbb4bf51ab586b",
+      "started_at": "2026-09-27T13:42:00.357658+00:00",
+      "finished_at": "2026-09-27T13:42:13.751808+00:00",
+      "elapsed_seconds": 13.391756792087108,
+      "test_seconds": 11.803141750395298,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 5,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": true,
+      "evidence_errors": [],
+      "rerun_reason": "Readonly password contract and isolated defaults fixture",
+      "diagnostic_requests": []
+    },
+    {
+      "run_id": "20260927T224240-f2bd53e88c",
+      "task_id": "FINAL",
+      "fingerprint": "575d31bbc0ffe3ff4ffc4b6c41e27b14fd662da4f9b5f93c345b07cf2dc44f51",
+      "comparison_key": "561c7fdb2aafc1de0840d671ebb20da324940d83a33a3cadf865e8466abde43d",
+      "started_at": "2026-09-27T13:42:40.634593+00:00",
+      "finished_at": "2026-09-27T13:48:15.926739+00:00",
+      "elapsed_seconds": 335.3357477923855,
+      "test_seconds": 333.2165065272711,
+      "outcome": "PASSED",
+      "counts": {
+        "errors": 0,
+        "failed": 0,
+        "passed": 383,
+        "skipped": 1,
+        "xfailed": 0,
+        "xpassed": 0
+      },
+      "cleanup": {
+        "errors": [],
+        "ok": true,
+        "remaining": []
+      },
+      "inputs_unchanged": true,
+      "environment_unchanged": true,
+      "evidence_errors": [],
+      "rerun_reason": "WF-TEST-01 fix and cleanup exception-path regression",
+      "diagnostic_requests": []
+    }
+  ],
+  "duplicates": [],
+  "tasks": [
+    {
+      "task_id": "P1-recovery",
+      "title": "감독 사망 후 프로세스 복구 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:21:17.965Z",
+          "2026-09-27T13:22:19.047434Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T222139-300a5f832e",
+        "20260927T222213-139d12c5e2"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 2,
+      "minor_only_rounds": 0,
+      "late_regressions": [
+        "중첩 pytest 임시 디렉터리 정리 간섭"
+      ],
+      "evidence_note": "첫 장애 감지의 T1-faults는 전체 실행 목록에 포함. 창은 재현 조사부터 수정 확인까지. 두 번째 run은 UI cleanup 3개도 포함.",
+      "observed_window_seconds": 61.08243417739868,
+      "usage": {
+        "requests": 5,
+        "uncached_input": 5546,
+        "cache_read": 283136,
+        "cache_creation": 0,
+        "output": 1779,
+        "total_input": 288682,
+        "cached_input_fraction": 0.980788549338026,
+        "models": [
+          "gpt-6-astra"
+        ],
+        "efforts": [
+          "high"
+        ]
+      },
+      "test_run_wall_seconds": 7.81012225151062,
+      "test_seconds": null,
+      "note": "Shared run durations belong to the run, not exclusively to this task; do not sum tasks."
+    },
+    {
+      "task_id": "P2-cleanup",
+      "title": "UI fixture 정리 및 thread.start 실패 회귀 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:20:44.090Z",
+          "2026-09-27T13:20:47.063Z"
+        ],
+        [
+          "2026-09-27T13:42:25.746Z",
+          "2026-09-27T13:42:40.113Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T222213-139d12c5e2",
+        "20260927T224159-781e837b78"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 1,
+      "minor_only_rounds": 0,
+      "late_regressions": [
+        "시작하지 않은 thread.join 예외가 뒤의 runtime.close를 막음"
+      ],
+      "evidence_note": "관측 창은 cleanup 최초 쓰기 도구 실행과 마지막 수정 구간만. 코드 생성·생각 시간의 전체 길이가 아님. 공유 run 시간을 과제 단독 비용으로 사용하지 않음.",
+      "observed_window_seconds": 17.33999991416931,
+      "usage": {
+        "requests": 3,
+        "uncached_input": 6150,
+        "cache_read": 269184,
+        "cache_creation": 0,
+        "output": 2324,
+        "total_input": 275334,
+        "cached_input_fraction": 0.9776634923402122,
+        "models": [
+          "gpt-6-astra"
+        ],
+        "efforts": [
+          "high"
+        ]
+      },
+      "test_run_wall_seconds": 18.4983811378479,
+      "test_seconds": null,
+      "note": "Shared run durations belong to the run, not exclusively to this task; do not sum tasks."
+    },
+    {
+      "task_id": "P3-settings",
+      "title": "읽기 전용 비밀번호·defaults 응답의 설정 화면 회귀 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T13:40:45.657Z",
+          "2026-09-27T13:42:25.746Z"
+        ]
+      ],
+      "run_ids": [
+        "20260927T224159-781e837b78"
+      ],
+      "implementation_seconds": null,
+      "review_seconds": null,
+      "wait_seconds": null,
+      "fix_rounds": 1,
+      "minor_only_rounds": 0,
+      "late_regressions": [],
+      "evidence_note": "실패한 전체 실행을 확인한 시각부터 대상 재검증 결과 확인까지. 현재 HEAD에 이미 존재한 readonly UI와 구형 테스트의 불일치. 공유 run에 cleanup 4개 포함.",
+      "observed_window_seconds": 100.08899998664856,
+      "usage": {
+        "requests": 5,
+        "uncached_input": 15785,
+        "cache_read": 500864,
+        "cache_creation": 0,
+        "output": 1972,
+        "total_input": 516649,
+        "cached_input_fraction": 0.9694473423929979,
+        "models": [
+          "gpt-6-astra"
+        ],
+        "efforts": [
+          "high"
+        ]
+      },
+      "test_run_wall_seconds": 13.394150018692017,
+      "test_seconds": 11.803141750395298,
+      "note": "Shared run durations belong to the run, not exclusively to this task; do not sum tasks."
+    }
+  ],
+  "limitations": [
+    "Retrospective pilot of three real fixes in one controller session, not three independent SDD agent trials.",
+    "Implementation/review/wait phases were not instrumented at the time; null means unmeasured, not zero.",
+    "Request usage is attributed by observed timestamp windows, not causal task ownership; mixed-task requests can contain shared work.",
+    "No separate reviewer/subagent was used in these fixes. First request is session-level, not first request per task.",
+    "No pre-change matched task sample exists, so these measurements cannot establish end-to-end workflow speedup.",
+    "Recorded cache creation zero is the local log value, not a claim about provider billing.",
+    "No-duplicate count covers captured runs only; historical non-runner invocations are outside this inventory."
+  ]
+}

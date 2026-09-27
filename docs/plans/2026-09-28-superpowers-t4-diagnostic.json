@@ -1,0 +1,19 @@
+{
+  "source_run": ".test-runs/20260927T223027-3c61724e27/pytest-of-a08523/pytest-0/test_default_policy_deadline0/.test-runs/20260927T223029-7f6eba4126",
+  "outer_run": "20260927T223027-3c61724e27",
+  "result_sha256": "a454ae10379a2ba87efbb9c84137f497b6cae83aa47a73bc11c04e7e685397a0",
+  "supervisor_sha256": "9b673779b51d834642d1b3d55f21878bf9ddb1c2eb180bd3355d24f3460c8bcf",
+  "diagnostic_requested_seconds": 60.183517625089735,
+  "diagnostic_captured_seconds": 60.417124750092626,
+  "elapsed_seconds": 120.68204791704193,
+  "outcome": "TIMED_OUT",
+  "cleanup": {
+    "errors": [],
+    "ok": true,
+    "remaining": []
+  },
+  "evidence_errors": [
+    "incomplete plugin session"
+  ],
+  "note": "Forced timeout intentionally leaves the plugin session incomplete; this is timeout evidence, not reusable passing-test evidence. Unchanged supervisor source verified against the original outer manifest."
+}

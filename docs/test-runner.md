@@ -1,11 +1,13 @@
 # 감독되는 테스트 실행
 
+업무별 폴더·파일명·공용 fixture 규칙은 [테스트 구조](../tests/README.md)를 따른다.
+
 macOS/POSIX에서 순차 pytest를 실행한다. Python 3.11 이상과 개발 의존성이 필요하다.
 Linux는 장애 행렬 검증 전까지 지원 표시를 하지 않는다. Windows·xdist·pytest-timeout은 지원하지 않는다.
 
 ```sh
 python -m pip install -r requirements-dev.txt
-python scripts/run_tests.py --task-id T1 --agent-id implementer -- tests/test_gimpo_jobs.py -q
+python scripts/run_tests.py --task-id T1 --agent-id implementer -- tests/gimpo/test_jobs.py -q
 python scripts/run_tests.py --task-id FINAL --agent-id controller -- -q --durations=10
 python scripts/run_tests.py --status <run_id>
 ```
@@ -61,8 +63,8 @@ INTERRUPTED로 복구하고 확인 가능한 잔류만 정리한다. 증거가 �
 장애 검사는 작은 임시 git/pytest 프로젝트와 독립적인 외부 제한 시간을 사용한다.
 
 ```sh
-python scripts/run_tests.py --task-id RUNNER --agent-id controller -- tests/test_runner.py tests/test_ui_cleanup.py -q
-RUN_DEFAULT_TIMEOUT_ACCEPTANCE=1 python scripts/run_tests.py --task-id DEFAULT120 --agent-id controller -- tests/test_runner.py::test_default_policy_deadline -q
+python scripts/run_tests.py --task-id RUNNER --agent-id controller -- tests/infrastructure/test_runner.py tests/infrastructure/test_ui_cleanup.py -q
+RUN_DEFAULT_TIMEOUT_ACCEPTANCE=1 python scripts/run_tests.py --task-id DEFAULT120 --agent-id controller -- tests/infrastructure/test_runner.py::test_default_policy_deadline -q
 ```
 
 첫 명령은 축소 정책 장애 검사, 두 번째는 실제 60초 진단·120초 마감 확인이다.
@@ -92,3 +94,14 @@ T4 과제·캐시 집계, 단계 시간 기록 및 T5 브라우저 수명 비교
 UI 테스트는 모듈마다 Chromium 하나를 쓰고 테스트마다 새 context를 생성·종료한다.
 기존 테스트별 브라우저 수명으로 비교하려면 pytest 인자에 `--ui-browser-scope=function`을
 붙인다. 모듈별 기본값은 `--ui-browser-scope=module`이다. 제품의 브라우저 수명과는 별개다.
+
+T4 후속 실측과 단계 journal 해석은 [수용 조건 대조](plans/2026-09-28-superpowers-t4-completion.md)를 따른다.
+과제 명세의 `phase_journal`을 연결하면 과제별 시간이 채워진다. 미기록/미종료 단계는 null이며,
+실제로 발생하지 않은 단계만 `observed_absent_phases`로 명시한다. 새 journal은 부팅 세션 ID를
+사용하므로 구형 boot_time 전용 journal에 이어 쓰지 않는다. `measurement_acceptance`는 측정
+완결성만 검사한다. 장애 감지와 품질 증거는 함께 검토해야 한다.
+
+공용 화면 테스트는 `ui_context` fixture를 받아 `with open_page(ui_context, base) as (page, errors):`를
+사용한다(`tests.support.ui.open_page`). context 옵션이 필요하면 `with ui_context(...) as context:`를
+사용한다. 공용 서버는 `run_app_server(app, runtime=owned_runtime)`가 부분 setup 실패부터
+서버·스레드·runtime 정리까지 소유한다. [자원 관리 회귀와 수정](plans/2026-09-28-test-fixture-resource-ownership.md).

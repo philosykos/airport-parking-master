@@ -1,0 +1,1237 @@
+{
+  "schema_version": 1,
+  "capture_started_utc": "2026-09-27T13:00:30.758944+00:00",
+  "capture_finished_utc": "2026-09-27T13:00:31.029540+00:00",
+  "source_root": "~/.claude/projects/-Users-a08523-Edu-t2-valet-master--claude-worktrees-shared-ui-part1",
+  "session_id": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa",
+  "method": "Capture each file once, retain complete newline-terminated JSONL prefix; within each file use last usage per assistant message.id, preserving first ID appearance order. No raw conversation copied. Files captured sequentially, not an atomic session snapshot.",
+  "source_file_count": 41,
+  "summary": [
+    {
+      "kind": "parent",
+      "model": "claude-opus-5-5",
+      "messages": 217,
+      "cache_hit_messages": 217,
+      "input_tokens": 434,
+      "cache_creation_input_tokens": 357730,
+      "cache_read_input_tokens": 48469132,
+      "output_tokens": 127240,
+      "cached_input_fraction": 0.9926646767414685
+    },
+    {
+      "kind": "subagent",
+      "model": "claude-fable-5-1",
+      "messages": 13,
+      "cache_hit_messages": 12,
+      "input_tokens": 386,
+      "cache_creation_input_tokens": 217585,
+      "cache_read_input_tokens": 1308236,
+      "output_tokens": 40680,
+      "cached_input_fraction": 0.8571812342624558
+    },
+    {
+      "kind": "subagent",
+      "model": "claude-opus-5-5",
+      "messages": 170,
+      "cache_hit_messages": 165,
+      "input_tokens": 342,
+      "cache_creation_input_tokens": 823972,
+      "cache_read_input_tokens": 12656204,
+      "output_tokens": 128389,
+      "cached_input_fraction": 0.9388514595655746
+    },
+    {
+      "kind": "subagent",
+      "model": "claude-sonnet-5",
+      "messages": 892,
+      "cache_hit_messages": 886,
+      "input_tokens": 1784,
+      "cache_creation_input_tokens": 3334707,
+      "cache_read_input_tokens": 96619802,
+      "output_tokens": 681869,
+      "cached_input_fraction": 0.9666205008222944
+    }
+  ],
+  "first_recorded_subagent_summary": [
+    {
+      "model": "claude-fable-5-1",
+      "agent_files": 1,
+      "files_with_cache_read": 0,
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 37805,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 335,
+      "cached_input_fraction": 0.0
+    },
+    {
+      "model": "claude-opus-5-5",
+      "agent_files": 9,
+      "files_with_cache_read": 5,
+      "input_tokens": 18,
+      "cache_creation_input_tokens": 224183,
+      "cache_read_input_tokens": 115275,
+      "output_tokens": 2341,
+      "cached_input_fraction": 0.3395674510127373
+    },
+    {
+      "model": "claude-sonnet-5",
+      "agent_files": 30,
+      "files_with_cache_read": 25,
+      "input_tokens": 60,
+      "cache_creation_input_tokens": 532004,
+      "cache_read_input_tokens": 702405,
+      "output_tokens": 7568,
+      "cached_input_fraction": 0.5689936320798659
+    }
+  ],
+  "files": [
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa.jsonl",
+      "kind": "parent",
+      "included_bytes": 7291570,
+      "prefix_sha256": "2391d9d611773b81a60be3119f2373ab1db94ff5f3acc1ee363d8fd22cef30ae",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 217,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 217,
+          "cache_hit_messages": 217,
+          "input_tokens": 434,
+          "cache_creation_input_tokens": 357730,
+          "cache_read_input_tokens": 48469132,
+          "output_tokens": 127240
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTZQtAMPYKxdtkxMFZ1B",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 17619,
+          "cache_read_input_tokens": 32405,
+          "output_tokens": 93
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a023549e74d66b45b.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1305750,
+      "prefix_sha256": "3afb339a9745b6f2707389fe0382e113dec70ef3d7c501ec961dcb759777ac8f",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 13,
+      "by_model": {
+        "claude-fable-5-1": {
+          "messages": 13,
+          "cache_hit_messages": 12,
+          "input_tokens": 386,
+          "cache_creation_input_tokens": 217585,
+          "cache_read_input_tokens": 1308236,
+          "output_tokens": 40680
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTknD7VVktP7XwFidwNJ",
+        "model": "claude-fable-5-1",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 37805,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 335
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a1a368f43a762f86e.jsonl",
+      "kind": "subagent",
+      "included_bytes": 558433,
+      "prefix_sha256": "0af2e3a5321164b95d3ad13c5842eca7120734b6cc93c4e7a364fe517c9ece19",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 17,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 17,
+          "cache_hit_messages": 17,
+          "input_tokens": 34,
+          "cache_creation_input_tokens": 57073,
+          "cache_read_input_tokens": 1083895,
+          "output_tokens": 9749
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTiDg7ZULf6yDc5VrYLj",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14863,
+          "cache_read_input_tokens": 23055,
+          "output_tokens": 272
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a239179cda2d6aeb0.jsonl",
+      "kind": "subagent",
+      "included_bytes": 452520,
+      "prefix_sha256": "3baf87e27438e6215702b923fb3d3cf6c651cf13c166925228e69bf9adc7ff84",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 9,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 9,
+          "cache_hit_messages": 9,
+          "input_tokens": 18,
+          "cache_creation_input_tokens": 48744,
+          "cache_read_input_tokens": 516428,
+          "output_tokens": 11235
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTeybPZJaWmsrtt1xF98",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13579,
+          "cache_read_input_tokens": 28553,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a2dc71848eef4d0c0.jsonl",
+      "kind": "subagent",
+      "included_bytes": 478843,
+      "prefix_sha256": "e9a572853a51264e91d6d99f0634ea5410c1045c75d4ac8dba98162d44b91e9a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 8,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 8,
+          "cache_hit_messages": 8,
+          "input_tokens": 16,
+          "cache_creation_input_tokens": 58185,
+          "cache_read_input_tokens": 542528,
+          "output_tokens": 8394
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTgEfKyQoNvd3TbEUED3",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14520,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 379
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a3007c472ea0dd789.jsonl",
+      "kind": "subagent",
+      "included_bytes": 388992,
+      "prefix_sha256": "90c872130824c244a602dabcb2ff24c447f9e6f1a1fe48ef8c972342b22ce806",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 5,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 5,
+          "cache_hit_messages": 5,
+          "input_tokens": 10,
+          "cache_creation_input_tokens": 41741,
+          "cache_read_input_tokens": 241331,
+          "output_tokens": 5755
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTsZZCgj2c3ThLpfZUct",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14592,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 131
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a3b7842b60a5c1a65.jsonl",
+      "kind": "subagent",
+      "included_bytes": 534465,
+      "prefix_sha256": "25c20274640a1de43a0dd801ffc27ed411444d7b377a2f1c31e6ed7ebadfa8ae",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 21,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 21,
+          "cache_hit_messages": 21,
+          "input_tokens": 42,
+          "cache_creation_input_tokens": 58970,
+          "cache_read_input_tokens": 1399014,
+          "output_tokens": 11248
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTi6JbZJADZxP3xSneoe",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14543,
+          "cache_read_input_tokens": 23055,
+          "output_tokens": 214
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a3c4d65f6c68621be.jsonl",
+      "kind": "subagent",
+      "included_bytes": 438093,
+      "prefix_sha256": "b8226964f7341112000651d3a704931cfb9f159d87fd8653b070de91a6310b6c",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 12,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 12,
+          "cache_hit_messages": 12,
+          "input_tokens": 24,
+          "cache_creation_input_tokens": 45329,
+          "cache_read_input_tokens": 706770,
+          "output_tokens": 12238
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTpyAhQsPK23qbSMcwK9",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14512,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 385
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a3d6caec07b7c4aa8.jsonl",
+      "kind": "subagent",
+      "included_bytes": 397184,
+      "prefix_sha256": "7418729a7ebd0620f18f08384a27cffc29871c666181df3a8d9a06fc479423f4",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 10,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 10,
+          "cache_hit_messages": 10,
+          "input_tokens": 20,
+          "cache_creation_input_tokens": 45082,
+          "cache_read_input_tokens": 505698,
+          "output_tokens": 8727
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTpxCxZTT76rvyN4Dex8",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14550,
+          "cache_read_input_tokens": 23055,
+          "output_tokens": 237
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a44a923fcf10d10f3.jsonl",
+      "kind": "subagent",
+      "included_bytes": 511444,
+      "prefix_sha256": "bcfdeb663c9d2618dfd6ec9d6476bc6e9450c61d09cd48f39c5e85e0552325af",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 17,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 17,
+          "cache_hit_messages": 17,
+          "input_tokens": 34,
+          "cache_creation_input_tokens": 45139,
+          "cache_read_input_tokens": 1017517,
+          "output_tokens": 9710
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTeDZP2zJR4dcQwQRRqc",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13694,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 269
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a4ce514cb39b7bb6c.jsonl",
+      "kind": "subagent",
+      "included_bytes": 790057,
+      "prefix_sha256": "43eef3835c7c4ff5a269604120fc3d9aab237a2a7a20e7caf2f0af9bb6bff30c",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 26,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 26,
+          "cache_hit_messages": 25,
+          "input_tokens": 52,
+          "cache_creation_input_tokens": 121266,
+          "cache_read_input_tokens": 2560789,
+          "output_tokens": 19086
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTZZCPwkoHk9GKggjTgC",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 11470,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 203
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a519ee8ad10148f89.jsonl",
+      "kind": "subagent",
+      "included_bytes": 768067,
+      "prefix_sha256": "02926b9e7d10bd0ed79a26b8a9eb93ae9c691551ac979c42bac9d5d1601fbfb9",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 29,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 29,
+          "cache_hit_messages": 28,
+          "input_tokens": 58,
+          "cache_creation_input_tokens": 117503,
+          "cache_read_input_tokens": 2454711,
+          "output_tokens": 22189
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTv24yXyJPzjSrjf9NvW",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 38088,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 301
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a540fa578cfb0ab8b.jsonl",
+      "kind": "subagent",
+      "included_bytes": 473976,
+      "prefix_sha256": "de6366222b577240d511e94ac5f81414eb2e29270f08d0f47c37bc621d11087a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 10,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 10,
+          "cache_hit_messages": 10,
+          "input_tokens": 20,
+          "cache_creation_input_tokens": 56292,
+          "cache_read_input_tokens": 618804,
+          "output_tokens": 17095
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTk14Az6TTrcmESwmDMh",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14531,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 379
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a546f2f833f0d1667.jsonl",
+      "kind": "subagent",
+      "included_bytes": 902590,
+      "prefix_sha256": "ae56a622c06fc665b3eafcffb21524f1227003a94fb9a06ddadd9552e8b3e108",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 33,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 33,
+          "cache_hit_messages": 31,
+          "input_tokens": 68,
+          "cache_creation_input_tokens": 219092,
+          "cache_read_input_tokens": 2771560,
+          "output_tokens": 30142
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTpDVtM7KJ5QihQ3ppJZ",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 37506,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 435
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a5e3a189affeba805.jsonl",
+      "kind": "subagent",
+      "included_bytes": 850928,
+      "prefix_sha256": "d0f410fce6df6fe5e711a1a58a44ea7923b0d1003dcf0615a910a00c765b4ec3",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 47,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 47,
+          "cache_hit_messages": 47,
+          "input_tokens": 94,
+          "cache_creation_input_tokens": 156729,
+          "cache_read_input_tokens": 3787673,
+          "output_tokens": 42829
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTpD4EVrY6U78WKcScRB",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13558,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 294
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a5fbd36ee719bcf1b.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1977980,
+      "prefix_sha256": "f3eb2e473e49b214bc6eed19d37807c93a5108ceff59c53aeaaea4b4226622c0",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 126,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 126,
+          "cache_hit_messages": 125,
+          "input_tokens": 252,
+          "cache_creation_input_tokens": 552691,
+          "cache_read_input_tokens": 20304048,
+          "output_tokens": 93901
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTpCk8pygsL78CYtEHKJ",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 41924,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 266
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a62255e14af887ace.jsonl",
+      "kind": "subagent",
+      "included_bytes": 381159,
+      "prefix_sha256": "21c778149d7bbc548ad93bbe9bfd2480acebc8cbdfc42fbd2019a414bc4f17f9",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 5,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 5,
+          "cache_hit_messages": 5,
+          "input_tokens": 10,
+          "cache_creation_input_tokens": 41586,
+          "cache_read_input_tokens": 254706,
+          "output_tokens": 1739
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTiaPKMFeoh2VAYXQcu3",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14629,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 135
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a68f7e03c449d1ad4.jsonl",
+      "kind": "subagent",
+      "included_bytes": 400066,
+      "prefix_sha256": "a435e3931b4221ba655f534fe876086e71765c9d15dd9cbcc72f07b0b13e8dd8",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 8,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 8,
+          "cache_hit_messages": 8,
+          "input_tokens": 16,
+          "cache_creation_input_tokens": 42169,
+          "cache_read_input_tokens": 453821,
+          "output_tokens": 9594
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTbNTJKA31pqUbw88VWp",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14437,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 367
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a7aa48c40d4ed13d9.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1554722,
+      "prefix_sha256": "fe1db0f83eedd110286c968fe4ad04a9be5f846eaee59f8abd071b4df345ad0e",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 66,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 66,
+          "cache_hit_messages": 66,
+          "input_tokens": 132,
+          "cache_creation_input_tokens": 167936,
+          "cache_read_input_tokens": 10067020,
+          "output_tokens": 59402
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTgkePWVHtHZgr9A3xPG",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14046,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 262
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a80db744e6a9548c6.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1772151,
+      "prefix_sha256": "8ee12be143d13e5bf0641f0f680b8e75fb98d59ca5a900a37d98b97dbfc3fd2b",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 32,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 32,
+          "cache_hit_messages": 31,
+          "input_tokens": 64,
+          "cache_creation_input_tokens": 112652,
+          "cache_read_input_tokens": 2666962,
+          "output_tokens": 25745
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTgmRMTKgmAEWQgytZJ9",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 37969,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 293
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a80e70c68f4528c69.jsonl",
+      "kind": "subagent",
+      "included_bytes": 456733,
+      "prefix_sha256": "2eb3c64f2cdbb72a8d950cc8fa0ee9cdd235705b7264143a3785d7e4dd437833",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 13,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 13,
+          "cache_hit_messages": 13,
+          "input_tokens": 26,
+          "cache_creation_input_tokens": 43342,
+          "cache_read_input_tokens": 784381,
+          "output_tokens": 6615
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTo9L4Gob1hmyf8wp4y4",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14515,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 133
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a867665b8019ee047.jsonl",
+      "kind": "subagent",
+      "included_bytes": 548629,
+      "prefix_sha256": "436d085b0045d33047303b26ad96f397d5cfce1b416c9e31b92f7dacf29f04ff",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 15,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 15,
+          "cache_hit_messages": 15,
+          "input_tokens": 30,
+          "cache_creation_input_tokens": 58189,
+          "cache_read_input_tokens": 1014044,
+          "output_tokens": 9605
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTxWcR9wguKYEjUk7qRB",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14562,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 139
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a87bcb0841df8f38f.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1675274,
+      "prefix_sha256": "44286c710660990c33a622c07bcdea7758f16e83903038795adecb0d29b0ea09",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 94,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 94,
+          "cache_hit_messages": 94,
+          "input_tokens": 188,
+          "cache_creation_input_tokens": 360963,
+          "cache_read_input_tokens": 14666042,
+          "output_tokens": 61815
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTvRBP9eZ5GBZWNu1pdv",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14148,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 354
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a977caca0d90a2bba.jsonl",
+      "kind": "subagent",
+      "included_bytes": 453555,
+      "prefix_sha256": "7e2ba49c4fd8fb226bc3b8a6d880d0b9a49793588c4e1acfcfeb2875f8bb654a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 7,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 7,
+          "cache_hit_messages": 7,
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 51386,
+          "cache_read_input_tokens": 372712,
+          "output_tokens": 12735
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTrPu87EjNbcUpWfRicW",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14037,
+          "cache_read_input_tokens": 28553,
+          "output_tokens": 206
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-a9a08e6a3e47b0210.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1254429,
+      "prefix_sha256": "ca158a465a1a37e738540cf5ee492f499cb6f41f2eb96484da0edc760ed950b5",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 66,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 66,
+          "cache_hit_messages": 66,
+          "input_tokens": 132,
+          "cache_creation_input_tokens": 240652,
+          "cache_read_input_tokens": 8035530,
+          "output_tokens": 51967
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTsviTPcr4JiGZ2xMR9D",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13728,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 293
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-aa3bc47c4337e6dbd.jsonl",
+      "kind": "subagent",
+      "included_bytes": 492437,
+      "prefix_sha256": "3299cef88f6294f4252800e62c56cb0d4bca43c341c241ce021af19b925fb35a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 7,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 7,
+          "cache_hit_messages": 6,
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 80535,
+          "cache_read_input_tokens": 354354,
+          "output_tokens": 5317
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTfaWNQdPZeRhkf52bXD",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 37449,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 189
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-aaa629f08d650274b.jsonl",
+      "kind": "subagent",
+      "included_bytes": 633826,
+      "prefix_sha256": "96878558af2b707955ac275e8dffef01b43f9ad76d3691a9ba78541cf44ac172",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 25,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 25,
+          "cache_hit_messages": 25,
+          "input_tokens": 50,
+          "cache_creation_input_tokens": 128874,
+          "cache_read_input_tokens": 1938648,
+          "output_tokens": 23915
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTeD7TJqsBNYQPhGSLA5",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14388,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-aad78aeba57697bdf.jsonl",
+      "kind": "subagent",
+      "included_bytes": 515194,
+      "prefix_sha256": "65ba33148b4fc78cfb32d811cdf4637479ad5988edaa395b2a4ea2103eb91338",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 8,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 8,
+          "cache_hit_messages": 8,
+          "input_tokens": 16,
+          "cache_creation_input_tokens": 65117,
+          "cache_read_input_tokens": 503611,
+          "output_tokens": 4779
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTi6oTtL8tViZQ7VaADy",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14517,
+          "cache_read_input_tokens": 23055,
+          "output_tokens": 191
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-ab59d7550fb7f18fd.jsonl",
+      "kind": "subagent",
+      "included_bytes": 491955,
+      "prefix_sha256": "fa0ae4a6f4a92d112278d1ded1e5f1a9381e69687fbc3e35bca2b210a3662f5e",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 12,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 12,
+          "cache_hit_messages": 12,
+          "input_tokens": 24,
+          "cache_creation_input_tokens": 53148,
+          "cache_read_input_tokens": 776295,
+          "output_tokens": 15953
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTgjyVv8LRxpL3QGHUzB",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13667,
+          "cache_read_input_tokens": 28553,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-abecb378982589b64.jsonl",
+      "kind": "subagent",
+      "included_bytes": 520247,
+      "prefix_sha256": "2ffdf79700d8c1390888fa420f790385fbee0fb7cf9c4c47edac2da18be4f0e1",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 12,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 12,
+          "cache_hit_messages": 12,
+          "input_tokens": 24,
+          "cache_creation_input_tokens": 62612,
+          "cache_read_input_tokens": 872958,
+          "output_tokens": 12975
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTuTw9MJV7VuemeUkvSJ",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14511,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 387
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-ac3742cbaab2f44b6.jsonl",
+      "kind": "subagent",
+      "included_bytes": 362130,
+      "prefix_sha256": "2c41cf93c793e5256debff7f155c5c5231b35661bd0591d83ed46b5545f9b3e4",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 7,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 7,
+          "cache_hit_messages": 7,
+          "input_tokens": 14,
+          "cache_creation_input_tokens": 35559,
+          "cache_read_input_tokens": 362743,
+          "output_tokens": 2690
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTkWAWXkH18SHoaKJqpG",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13761,
+          "cache_read_input_tokens": 28553,
+          "output_tokens": 136
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-ac516f91a772200af.jsonl",
+      "kind": "subagent",
+      "included_bytes": 651748,
+      "prefix_sha256": "170505be266574986d2d93a3b5664c0a840975f046de35b239ace10765248a2a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 24,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 24,
+          "cache_hit_messages": 24,
+          "input_tokens": 48,
+          "cache_creation_input_tokens": 78925,
+          "cache_read_input_tokens": 1904223,
+          "output_tokens": 29442
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTrPFywsDcS8ZJrptMKf",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14531,
+          "cache_read_input_tokens": 27732,
+          "output_tokens": 387
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-acc7b7b8f27e5fc65.jsonl",
+      "kind": "subagent",
+      "included_bytes": 920949,
+      "prefix_sha256": "16a3041ec86843e21fc327539c3d92d368e3bc20c877d055d2079719c58dcd37",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 46,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 46,
+          "cache_hit_messages": 45,
+          "input_tokens": 92,
+          "cache_creation_input_tokens": 192176,
+          "cache_read_input_tokens": 3936236,
+          "output_tokens": 28118
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTjB4N3kZoKHrPc6GBYS",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 42348,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 253
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-acf110d2277f9b391.jsonl",
+      "kind": "subagent",
+      "included_bytes": 587911,
+      "prefix_sha256": "6433e9ce26cfd02d0d76430db6d364abb194c84f23229a5e426585661da96ef0",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 22,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 22,
+          "cache_hit_messages": 22,
+          "input_tokens": 44,
+          "cache_creation_input_tokens": 50176,
+          "cache_read_input_tokens": 1459797,
+          "output_tokens": 11055
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTgF9e4DuCa1TrFJm6yj",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13741,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 250
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-ad2c739d568a753d5.jsonl",
+      "kind": "subagent",
+      "included_bytes": 823480,
+      "prefix_sha256": "8b9095f14ae5fd4fa606949d7f901ce1c44573883045731114fd089b3616399a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 29,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 29,
+          "cache_hit_messages": 29,
+          "input_tokens": 58,
+          "cache_creation_input_tokens": 78907,
+          "cache_read_input_tokens": 2431758,
+          "output_tokens": 19392
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTezMtycJ858oWsWAK5u",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13862,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 342
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-ad90c2add842e2a0a.jsonl",
+      "kind": "subagent",
+      "included_bytes": 1324898,
+      "prefix_sha256": "ea10d59f56e819d768d15b51dacdf941f52a65f638da9f0910fcbf7f2981530e",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 73,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 73,
+          "cache_hit_messages": 72,
+          "input_tokens": 146,
+          "cache_creation_input_tokens": 166032,
+          "cache_read_input_tokens": 8506990,
+          "output_tokens": 39554
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTmaTHpRrV9RJRkPpNNm",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 41836,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 363
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-aef642d213bcfd140.jsonl",
+      "kind": "subagent",
+      "included_bytes": 927134,
+      "prefix_sha256": "49cb1f77aae8b14e7f618ffa92d23ca78235d22894150b1483e2dedf680133ec",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 29,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 29,
+          "cache_hit_messages": 29,
+          "input_tokens": 58,
+          "cache_creation_input_tokens": 91832,
+          "cache_read_input_tokens": 2744259,
+          "output_tokens": 20915
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTfaxnPc1YScjQ46Pj38",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13746,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 263
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-af1086c36b7a3dd66.jsonl",
+      "kind": "subagent",
+      "included_bytes": 567525,
+      "prefix_sha256": "dae23413580d534e9eef17610195d680aef70fc5f1fc49127753e2082b1247ed",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 13,
+      "by_model": {
+        "claude-opus-5-5": {
+          "messages": 13,
+          "cache_hit_messages": 13,
+          "input_tokens": 26,
+          "cache_creation_input_tokens": 67948,
+          "cache_read_input_tokens": 916399,
+          "output_tokens": 10493
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTjALLCvr76SGidw9a3a",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 14698,
+          "cache_read_input_tokens": 23055,
+          "output_tokens": 209
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-af2593686561009f1.jsonl",
+      "kind": "subagent",
+      "included_bytes": 351911,
+      "prefix_sha256": "2bd1fb397dfa0df091d1a115ccbc3735f230caba932bed342526c8963ad24c2d",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 4,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 4,
+          "cache_hit_messages": 4,
+          "input_tokens": 8,
+          "cache_creation_input_tokens": 34188,
+          "cache_read_input_tokens": 176379,
+          "output_tokens": 3860
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTv1771SHrxUbTC7FdxJ",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13648,
+          "cache_read_input_tokens": 28553,
+          "output_tokens": 137
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-af65609981e7e2fb9.jsonl",
+      "kind": "subagent",
+      "included_bytes": 509295,
+      "prefix_sha256": "17ef8e66f440301784ece5d175817a01a87ce310d04fde5ab9f027db0bd3e031",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 18,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 18,
+          "cache_hit_messages": 17,
+          "input_tokens": 36,
+          "cache_creation_input_tokens": 74703,
+          "cache_read_input_tokens": 1056059,
+          "output_tokens": 11369
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTadPQxQJ9rs4svP7fDH",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 41897,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 445
+        }
+      }
+    },
+    {
+      "source_relative_path": "92c77e6a-5c54-4ad0-ad77-1b4a9ea9d1fa/subagents/agent-af94a3238dd54ee29.jsonl",
+      "kind": "subagent",
+      "included_bytes": 902816,
+      "prefix_sha256": "e85d74185b80629fc4bb2bc70caf882b6dd33d2fcb1d33d54ff93effaa246b7a",
+      "invalid_json_lines": 0,
+      "unique_assistant_messages": 57,
+      "by_model": {
+        "claude-sonnet-5": {
+          "messages": 57,
+          "cache_hit_messages": 56,
+          "input_tokens": 114,
+          "cache_creation_input_tokens": 155236,
+          "cache_read_input_tokens": 4509313,
+          "output_tokens": 28916
+        }
+      },
+      "first_recorded_assistant": {
+        "message_id": "msg_011CfTadnjuDUtx7dDyqwvbT",
+        "model": "claude-sonnet-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 13586,
+          "cache_read_input_tokens": 28357,
+          "output_tokens": 2
+        }
+      }
+    }
+  ]
+}

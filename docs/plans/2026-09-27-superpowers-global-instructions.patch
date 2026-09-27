@@ -1,0 +1,47 @@
+--- ~/.claude/CLAUDE.md.before
++++ ~/.claude/CLAUDE.md
+@@ -11,6 +11,11 @@
+   (정본: `~/.claude/skills/co-technical-writer/scripts/README.md`).
+ 
+ ## 작업 배분
++
++아래 작업 배분 기준은 명시적으로 선택된 워크플로우가 없는 작업의 기본값이다.
++프로젝트가 SDD를 선택하면 SDD의 역할 템플릿·dispatch·순차 구현 계약을 따른다.
++SDD 구현자·리뷰어는 general-purpose로 dispatch하고 모델은 호출 인자를 정본으로 한다.
++고정 역할 사용자 에이전트와 그 모델 훅은 SDD dispatch에 적용하지 않는다.
+ 
+ 작업을 시작하면 첫 응답에 일의 성격과 맡길 범위를 한 줄로 적는다. 판정 기준은 넷이다.
+ 
+@@ -32,7 +37,8 @@
+   "확인 못 한 항목은 못 했다고 적는다"를 넣는다. 웹 조사면 WebFetch → Playwright → curl 순서도
+   넣는다.
+ - 구현은 쓸 파일 목록과 통과 기준 테스트를 적을 수 있을 때만 맡긴다. 쓰기 범위는 지시문으로만
+-  막히므로, 돌아온 diff 에 지시문 밖 변경이 없는지 보고 테스트를 직접 돌린 뒤 채택한다. 여럿을
++  막히므로, 돌아온 diff 에 지시문 밖 변경이 없는지 보고 해당 코드의 원본 검증 증거를 확인한다.
++  증거가 없거나 무효이거나 새로운 구체적 의심이 있을 때 필요한 검증을 실행한다. 여럿을
+   병렬로 띄우면 쓰는 파일이 겹치지 않게 나누거나 worktree 로 격리한다.
+ - 돌아온 결과는 근거(행·URL)를 직접 열어 확인한 것만 채택한다.
+ 
+@@ -40,8 +46,8 @@
+ 
+ ## effort
+ 
+-세션 중간에 effort 를 바꾸면 프롬프트 캐시가 무효화된다. 사용자가 바꾸자고 하면 이를 알리고,
+-새 세션을 열거나 서브에이전트 정의 파일 frontmatter 의 `effort` 로 바꾸는 방법을 함께 제시한다.
++동일 에이전트의 모델·effort는 가능한 유지한다. 변경 시 사용 도구의 전달 방식과 실제 캐시
++지표를 확인한다. 새 세션이나 정의 파일 변경이 캐시를 보존한다고 가정하지 않는다.
+ 
+ ## 푸시
+ 
+--- ~/.claude/hooks/agent-model-guard.sh.before
++++ ~/.claude/hooks/agent-model-guard.sh
+@@ -10,7 +10,8 @@
+ [ -n "$model" ] || exit 0
+ name=$(printf '%s' "$input" | jq -r '.tool_input.subagent_type // ""' 2>/dev/null)
+ [ -n "$name" ] || exit 0
+-case "$name" in */*|*..*) exit 0 ;; esac
++# SDD general-purpose dispatch owns its explicit model; fixed user roles retain their policy.
++case "$name" in general-purpose|*/*|*..*) exit 0 ;; esac
+ def=""
+ for dir in "${CLAUDE_PROJECT_DIR:-}/.claude/agents" "$HOME/.claude/agents"; do
+   if [ -f "$dir/$name.md" ]; then def="$dir/$name.md"; break; fi

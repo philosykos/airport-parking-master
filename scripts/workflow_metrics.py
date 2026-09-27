@@ -4,8 +4,11 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 from statistics import median
+import subprocess
+import sys
 import time
 
 import psutil
@@ -14,11 +17,39 @@ TOKEN_KEYS = ('uncached_input', 'cache_read', 'cache_creation', 'output')
 PHASES = ('implementation', 'review', 'waiting', 'test')
 
 
+def boot_identity():
+    """Boot timestamps can move with wall-clock adjustments on macOS."""
+    if sys.platform == 'darwin':
+        value = subprocess.check_output(['sysctl', '-n', 'kern.bootsessionuuid'],
+                                        text=True, timeout=5).strip()
+    elif sys.platform.startswith('linux'):
+        value = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+    else:
+        raise ValueError('phase journal needs a supported stable boot identity')
+    if not value:
+        raise ValueError('empty boot identity')
+    return value
+
+
+def same_boot(first, second):
+    if 'boot_id' in first or 'boot_id' in second:
+        return bool(first.get('boot_id')) and first.get('boot_id') == second.get('boot_id')
+    return first['boot_time'] == second['boot_time']
+
+
 def phase_totals(events):
     """Single-controller intervals; unfinished work is never reported as zero."""
     active = None
     totals = {}
+    previous = None
     for event in events:
+        clock = event['monotonic']
+        boot = event['boot_time']
+        if not math.isfinite(clock) or not math.isfinite(boot):
+            raise ValueError('invalid clock')
+        if previous and (not same_boot(previous, event) or clock < previous['monotonic']):
+            raise ValueError('phase crossed a reboot or invalid clock order')
+        previous = event
         key = (event['task_id'], event['phase'])
         if event['phase'] not in PHASES:
             raise ValueError('unknown phase')
@@ -30,7 +61,7 @@ def phase_totals(events):
             if not active or key != (active['task_id'], active['phase']):
                 raise ValueError('phase stop does not match start')
             elapsed = event['monotonic'] - active['monotonic']
-            if event['boot_time'] != active['boot_time'] or elapsed < 0:
+            if not same_boot(active, event) or elapsed < 0:
                 raise ValueError('phase crossed a reboot or invalid clock')
             task = totals.setdefault(event['task_id'], {})
             task[event['phase']] = task.get(event['phase'], 0) + elapsed
@@ -46,6 +77,8 @@ def timestamp(value):
 
 def capture_usage(path, cutoff=None):
     """Last usage per response/message ID; a complete, hashed JSONL prefix only."""
+    if cutoff is not None and (type(cutoff) is not int or cutoff < 0):
+        raise ValueError('cutoff must be a nonnegative integer')
     with path.open('rb') as stream:
         raw = stream.read(path.stat().st_size if cutoff is None else cutoff)
     if cutoff is not None and len(raw) != cutoff:
@@ -65,7 +98,7 @@ def capture_usage(path, cutoff=None):
             model, effort = payload.get('model'), payload.get('effort')
         if row.get('type') == 'token_usage_record':
             usage = payload['usage']
-            key = payload['response_id']
+            key = 'codex:' + payload['response_id']
             read = usage.get('cached_input_tokens')
             write = usage.get('cache_write_input_tokens')
             total = usage.get('input_tokens')
@@ -74,7 +107,7 @@ def capture_usage(path, cutoff=None):
                           uncached_input=uncached, cache_read=read, cache_creation=write,
                           output=usage.get('output_tokens'))
         elif row.get('type') == 'assistant' and row.get('message', {}).get('usage'):
-            msg = row['message']; usage = msg['usage']; key = msg['id']
+            msg = row['message']; usage = msg['usage']; key = 'claude:' + msg['id']
             record = dict(timestamp=row['timestamp'], model=msg.get('model'), effort=None,
                           uncached_input=usage.get('input_tokens'),
                           cache_read=usage.get('cache_read_input_tokens'),
@@ -84,8 +117,10 @@ def capture_usage(path, cutoff=None):
             continue
         if any(record[k] is not None and record[k] < 0 for k in TOKEN_KEYS):
             raise ValueError('inconsistent token usage')
+        record['request_id_sha256'] = hashlib.sha256(key.encode()).hexdigest()
         if key in records:
-            record['timestamp'] = records[key]['timestamp']
+            for field in ('timestamp', 'model', 'effort'):
+                record[field] = records[key][field]
         records[key] = record
     return dict(source_file=path.name, included_bytes=len(raw),
                 prefix_sha256=hashlib.sha256(raw).hexdigest(), invalid_json_lines=invalid,
@@ -102,6 +137,25 @@ def aggregate_usage(records):
                 cached_input_fraction=totals['cache_read'] / total if total else None,
                 models=sorted({r['model'] for r in records if r['model']}),
                 efforts=sorted({r['effort'] for r in records if r['effort']}))
+
+
+def merge_usage_snapshots(snapshots):
+    """Order overlapping prefixes by length, so the latest usage wins once."""
+    records = {}
+    legacy_sources = set()
+    seen_sources = set()
+    for snapshot in sorted(snapshots, key=lambda s: s.get('included_bytes', 0)):
+        legacy = any('request_id_sha256' not in r for r in snapshot['records'])
+        source = snapshot.get('source_file')
+        if source in seen_sources and (legacy or source in legacy_sources):
+            raise ValueError('overlapping legacy usage needs recapture with request identities')
+        seen_sources.add(source)
+        if legacy:
+            legacy_sources.add(source)
+        for record in snapshot['records']:
+            key = record.get('request_id_sha256', ('legacy', len(records)))
+            records[key] = record
+    return sorted(records.values(), key=lambda r: timestamp(r['timestamp']))
 
 
 def union_seconds(intervals):
@@ -147,17 +201,68 @@ def duplicate_runs(runs):
     return duplicates
 
 
-def task_metrics(task, snapshots, runs):
+def task_metrics(task, snapshots, runs, phases=None):
     windows = [(timestamp(a), timestamp(b)) for a, b in task['observation_windows']]
-    usage = [r for snapshot in snapshots for r in snapshot['records']
+    usage = [r for r in merge_usage_snapshots(snapshots)
              if any(a <= timestamp(r['timestamp']) < b for a, b in windows)]
     selected = [r for r in runs if r['run_id'] in task['run_ids']]
-    return dict(**task, observed_window_seconds=union_seconds(windows), usage=aggregate_usage(usage),
+    data = dict(**task, observed_window_seconds=union_seconds(windows), usage=aggregate_usage(usage),
                 test_run_wall_seconds=union_seconds([(timestamp(r['started_at']), timestamp(r['finished_at']))
                                                     for r in selected]),
                 test_seconds=(sum(r['test_seconds'] for r in selected)
                               if selected and all(r['test_seconds'] is not None for r in selected) else None),
                 note='Shared run durations belong to the run, not exclusively to this task; do not sum tasks.')
+    if phases is not None:
+        measured = phases['completed_seconds'].get(task['task_id'], {})
+        absent = task.get('observed_absent_phases', [])
+        if set(absent) - set(PHASES) or set(absent) & set(measured):
+            raise ValueError('absent phases conflict with phase journal')
+        active = phases['active']
+        active_phase = active['phase'] if active and active['task_id'] == task['task_id'] else None
+        if active_phase in absent:
+            raise ValueError('an active phase cannot be absent')
+        seconds = {phase: (None if phase == active_phase else measured.get(phase, 0 if phase in absent else None))
+                   for phase in PHASES}
+        data.update(phase_seconds=seconds, implementation_seconds=seconds['implementation'],
+                    review_seconds=seconds['review'], wait_seconds=seconds['waiting'],
+                    test_phase_seconds=seconds['test'],
+                    phase_measurement_complete=all(value is not None for value in seconds.values()))
+    return data
+
+
+def measurement_acceptance(tasks, runs, duplicates):
+    """Check pilot measurement completeness, not product quality or speedup."""
+    available = {r['run_id']: r for r in runs}
+    missing = {}
+    task_ids = [task['task_id'] for task in tasks]
+    for task in tasks:
+        gaps = []
+        phases = task.get('phase_seconds', {})
+        for phase in PHASES:
+            value = phases.get(phase)
+            if (not isinstance(value, (int, float)) or not math.isfinite(value) or
+                    value < 0 or (phase != 'waiting' and value == 0)):
+                gaps.append(phase + '_seconds')
+        usage = task.get('usage', {})
+        if not usage.get('requests') or any(usage.get(k) is None for k in TOKEN_KEYS):
+            gaps.append('usage')
+        for field in ('fix_rounds', 'minor_only_rounds', 'flaky_failures', 'late_regressions', 'scope_expansions'):
+            if task.get(field) is None:
+                gaps.append(field)
+        ids = task.get('run_ids', [])
+        if not ids or any(run_id not in available for run_id in ids):
+            gaps.append('run_evidence')
+        elif any(available[run_id].get('test_seconds') is None for run_id in ids):
+            gaps.append('worker_seconds')
+        if gaps:
+            missing[task['task_id']] = gaps
+    unexplained = sum(r['classification'] == 'unexplained' for r in duplicates)
+    return dict(complete=(len(tasks) >= 3 and len(set(task_ids)) == len(tasks) and
+                          not missing and unexplained == 0),
+                task_count=len(tasks), missing=missing, unique_task_ids=len(set(task_ids)) == len(tasks),
+                unexplained_duplicates=unexplained,
+                finishing_duplicates=sum(r['classification'] == 'required-by-finishing' for r in duplicates),
+                scope='Measurement completeness only; review diagnostic and quality evidence separately.')
 
 
 def compare_runs(root, pairs, minimum_gain=.05):
@@ -230,7 +335,7 @@ def main():
         events = json.loads(args.journal.read_text()) if args.journal.exists() else []
         events.append(dict(task_id=args.task_id, phase=args.phase, event=args.event,
                            utc=datetime.now(timezone.utc).isoformat(), monotonic=time.monotonic(),
-                           boot_time=psutil.boot_time()))
+                           boot_time=psutil.boot_time(), boot_id=boot_identity()))
         totals = phase_totals(events)
         temporary = args.journal.with_suffix('.tmp')
         temporary.write_text(json.dumps(events, indent=2) + '\n')
@@ -248,11 +353,18 @@ def main():
         spec = json.loads(args.spec.read_text())
         snapshots = [json.loads((args.spec.parent / name).read_text()) for name in spec['usage_snapshots']]
         runs = [load_run(args.runs, run_id) for run_id in spec['run_ids']]
+        phases = (phase_totals(json.loads((args.spec.parent / spec['phase_journal']).read_text()))
+                  if 'phase_journal' in spec else None)
         data = dict(schema_version=1, runs=runs, duplicates=duplicate_runs(runs),
-                    tasks=[task_metrics(task, snapshots, runs) for task in spec['tasks']],
+                    tasks=[task_metrics(task, snapshots, runs, phases) for task in spec['tasks']],
                     limitations=spec['limitations'])
-        if 'phase_journal' in spec:
-            data['phase_timings'] = phase_totals(json.loads((args.spec.parent / spec['phase_journal']).read_text()))
+        if phases is not None:
+            data['phase_timings'] = phases
+        usage = merge_usage_snapshots(snapshots)
+        data['usage_summary'] = dict(total=aggregate_usage(usage),
+                                    first_recorded_request=aggregate_usage(usage[:1]),
+                                    subsequent_requests=aggregate_usage(usage[1:]))
+        data['measurement_acceptance'] = measurement_acceptance(data['tasks'], runs, data['duplicates'])
     args.output.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
 
 

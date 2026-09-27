@@ -1,0 +1,98 @@
+{
+  "usage_snapshots": [
+    "2026-09-28-superpowers-t4-usage.json"
+  ],
+  "phase_journal": "2026-09-28-superpowers-t4-phases.json",
+  "run_ids": [
+    "20260928T005345-db4472d78c",
+    "20260928T005514-d619882b9b",
+    "20260928T005704-cf565516b7"
+  ],
+  "tasks": [
+    {
+      "task_id": "P5-report",
+      "title": "단계 journal을 과제 보고서에 연결",
+      "observation_windows": [
+        [
+          "2026-09-27T15:52:42.644191+00:00",
+          "2026-09-27T15:54:06.630240+00:00"
+        ]
+      ],
+      "run_ids": [
+        "20260928T005345-db4472d78c"
+      ],
+      "observed_absent_phases": [
+        "waiting"
+      ],
+      "absence_reason": "단일 controller가 순차 수행. 테스트 완료 확인은 test 단계, 외부 승인/에이전트/자원 대기는 발생하지 않음.",
+      "fix_rounds": 1,
+      "review_fix_rounds": 0,
+      "minor_only_rounds": 0,
+      "flaky_failures": 0,
+      "late_regressions": [],
+      "scope_expansions": [],
+      "review_findings": [],
+      "reviewer": "controller self-review"
+    },
+    {
+      "task_id": "P6-usage",
+      "title": "usage 요청 신원과 겹치는 스냅샷 중복 집계 수정",
+      "observation_windows": [
+        [
+          "2026-09-27T15:54:07.540000+00:00",
+          "2026-09-27T15:55:52.625043+00:00"
+        ]
+      ],
+      "run_ids": [
+        "20260928T005514-d619882b9b"
+      ],
+      "observed_absent_phases": [
+        "waiting"
+      ],
+      "absence_reason": "단일 controller가 순차 수행. 테스트 완료 확인은 test 단계, 외부 승인/에이전트/자원 대기는 발생하지 않음.",
+      "fix_rounds": 1,
+      "review_fix_rounds": 0,
+      "minor_only_rounds": 0,
+      "flaky_failures": 0,
+      "late_regressions": [],
+      "scope_expansions": [],
+      "review_findings": [],
+      "reviewer": "controller self-review"
+    },
+    {
+      "task_id": "P7-acceptance",
+      "title": "미완료 측정의 자동 수용 판정 차단",
+      "observation_windows": [
+        [
+          "2026-09-27T15:55:53.094380+00:00",
+          "2026-09-27T15:57:39.633069+00:00"
+        ]
+      ],
+      "run_ids": [
+        "20260928T005704-cf565516b7"
+      ],
+      "observed_absent_phases": [
+        "waiting"
+      ],
+      "absence_reason": "단일 controller가 순차 수행. 테스트 완료 확인은 test 단계, 외부 승인/에이전트/자원 대기는 발생하지 않음.",
+      "fix_rounds": 1,
+      "review_fix_rounds": 0,
+      "minor_only_rounds": 0,
+      "flaky_failures": 0,
+      "late_regressions": [],
+      "scope_expansions": [],
+      "review_findings": [],
+      "reviewer": "controller self-review"
+    }
+  ],
+  "limitations": [
+    "Three prospective developer-tool fixes, not representative product/UI timings or three independent SDD agents.",
+    "One controller; first recorded request is session-level, not task-level.",
+    "Test phase includes launcher, test execution and result polling; worker/test-run wall are separate and must not be added.",
+    "Uninstrumented preflight and measurement setup are excluded; the interrupted P4 journal and short P4-clock experiment are excluded from the three samples.",
+    "Zero waiting is an explicit observation of no external waiting, not a replacement for missing values.",
+    "Usage belongs to requests timestamped inside task windows, not a causal allocation of token costs.",
+    "No matched pre-change sample; no end-to-end speedup or statistical flake-rate claim.",
+    "Cache creation zero is the local recorded usage, not a billing assertion."
+  ]
+}
