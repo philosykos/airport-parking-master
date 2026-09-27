@@ -51,19 +51,17 @@
     {{ action_button('watch', '자동 예약 시작', 'play_arrow', 'start', disabled=true) }}
     {{ action_button('stop', '중지', 'stop', 'stop', disabled=true, hidden=true) }}
     {{ action_button('check', '빈자리 조회', 'search', 'test', type='submit', disabled=true, form='reservation-form') }}
-    {{ action_button('import-t2', 'T2 정보 가져오기', 'download', 'clear') }}
+    {{ action_button('import-t2', 'T2 정보 가져오기', 'download', 'secondary') }}
 {% endblock %}
 {% block progress %}
 <div class="progress-card" id="progress-card" hidden>
     <h2 id="status-title">예약 요약</h2>
     <dl id="summary" hidden></dl>
-    <p id="freshness" class="help" hidden></p>
+    <div class="job-notice" id="job-notice" hidden><p id="job-notice-text"></p><button type="button" id="show-browser" class="primary" hidden>공항 예약창 보기</button></div>
     <div class="job-actions" id="job-actions" hidden>
         <button type="button" id="prepare" hidden>예약 정보 입력</button>
         <button type="button" id="proceed" hidden>결제 대기까지 진행</button>
-        <button type="button" id="show-browser" class="primary" hidden>공항 예약창 보기</button>
-        <button type="button" id="record-result" hidden>결과 기록</button>
     </div>
-    <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button type="button" id="resend" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
+    <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button type="button" id="resend" class="link" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
 </div>
 {% endblock %}
