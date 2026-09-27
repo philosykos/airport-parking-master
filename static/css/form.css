@@ -712,8 +712,12 @@ button svg {
     display: none;
 }
 @media (min-width: 961px) {
-    .form-body { padding: 24px; }
-    .form-title { display: block; font-family: var(--font-headline); font-size: 15px; font-weight: 800; color: var(--on-surface); margin: 0 0 16px; }
+    /* 폼 칸은 오른쪽 로그 패널과 같은 회색 바탕 위에 흰 카드(.form-body)를 띄운다 */
+    .form-panel { background: var(--surface-bright); border-right: none; padding: 20px 0 20px 20px; }
+    .form-panel--active { border-right: none; }
+    .form-body { flex: 1; min-height: 0; background: #FFFFFF; border: 1px solid #E4E5EA; border-radius: 12px; padding: 20px; }
+    .form-panel--active .form-body { border-color: var(--success); }
+    .form-title { display: block; font-family: var(--font-headline); font-size: 16px; font-weight: 800; color: var(--on-surface); margin: 0 0 16px; }
     .field-row + .field-row { margin-top: 14px; }
     label { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: normal; }
     input[type="text"], input[type="number"], input[type="tel"], input[type="password"],

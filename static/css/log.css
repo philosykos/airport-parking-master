@@ -381,6 +381,7 @@ tr.log-row:hover .tag {
     .log-table-container { border: 0; border-radius: 0; box-shadow: none; }
     th { background: #FFFFFF; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: none; letter-spacing: normal; padding: 10px 20px; border-bottom: 1px solid #EEF0F3; }
     td { height: 44px; padding: 0 20px; white-space: nowrap; text-overflow: ellipsis; border-bottom: 1px solid #F3F4F6; }
+    .cell-time { font-size: 13px; }
     tr.log-row:hover, tr.row-event:hover { background: #F7F8FA; transform: none; box-shadow: none; }
     tr.log-row:hover .tag { transform: none; }
     tr.row-event { background: transparent; }
