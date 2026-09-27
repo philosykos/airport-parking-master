@@ -37,8 +37,9 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server, ui_context):
         tones = page.locator('#log-body .cell-status').evaluate_all('nodes => nodes.map(node => node.dataset.tone)')
         assert tones == ['error', 'error', 'success', 'error']
         page.locator('#completion-overlay button').click()
+        # evaluate가 fetchLogs의 promise를 기다리고 완료 안내는 그 안에서 동기로 열리므로, 한 프레임만 넘기고 본다.
         page.evaluate('t2Screen.fetchLogs()')
-        page.wait_for_timeout(300)
+        page.evaluate('new Promise(resolve => requestAnimationFrame(() => resolve()))')
         assert not overlay_open(page)
         page.locator('#log-body tr.log-row').nth(2).click()
         page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")

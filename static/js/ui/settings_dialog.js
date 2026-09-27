@@ -1,4 +1,4 @@
-// 설정 레이어 팝업. 열려 있는 동안만 서비스별 알림 상태를 3초마다 다시 읽는다.
+// 설정 레이어 팝업. 열려 있는 동안만 서비스별 알림 상태를 설정한 주기(기본 3초)마다 다시 읽는다.
 (() => {
     'use strict';
     const UI = window.UI = window.UI || {};
@@ -59,7 +59,7 @@
                 // 이 새로고침은 보고하지 못했다: 집계는 실제로 보고한 다른 서비스만으로 계속 계산한다.
                 this.owner.reportTelegramStatus(this, null);
             } finally {
-                if (id === this.refreshId) this.schedule(3000);
+                if (id === this.refreshId) this.schedule(Number(document.body.dataset.settingsRefreshMs) || 3000);
             }
         }
         async sendTest() {

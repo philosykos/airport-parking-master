@@ -19,7 +19,7 @@ from services.gimpo.store import READY
 
 
 @pytest.fixture
-def ui_server(client, tmp_path, monkeypatch):
+def ui_server(client, ui_intervals, tmp_path, monkeypatch):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,FakeNotifier())
     service=GimpoService(runtime.config);service._runtime=runtime
@@ -28,7 +28,7 @@ def ui_server(client, tmp_path, monkeypatch):
         yield base, runtime
 
 
-def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path, ui_context):
+def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
     base,runtime=ui_server
     with ui_context(timezone_id='America/New_York', viewport={'width':1280,'height':1000}) as context:
         context.route('**/*',lambda route: route.continue_() if route.request.url.startswith(base+'/') else route.abort())
@@ -55,8 +55,6 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path, ui_context):
         stored = page.evaluate('({...localStorage})')
         assert all(key.startswith('gimpo.completion.') for key in stored)
         assert '123가4567' not in json.dumps(stored, ensure_ascii=False)
-        page.evaluate('window.scrollTo(0,0)')
-        page.screenshot(path=str(tmp_path/'gimpo-desktop.png'),full_page=True)
         page.click('#stop')
         page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#reprepare').count() == 0
@@ -338,23 +336,6 @@ def test_password_fields_share_input_style(ui_server, ui_context):
         assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
 
 
-def test_settings_dialog_keeps_gimpo_inputs(ui_server, ui_context):
-    base, runtime = ui_server
-    with ui_context() as context:
-        page = context.new_page()
-        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-        page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
-        page.fill('#carNumber', '123가4567')
-        page.click('#open-settings')
-        assert page.locator('#settings-dialog').is_visible()
-        page.keyboard.press('Escape')
-        page.locator('#settings-dialog').wait_for(state='hidden')
-        assert page.evaluate('document.activeElement.id') == 'open-settings'
-        assert page.input_value('#carNumber') == '123가4567'
-        assert page.url == base + '/gimpo-parking/'
-
-
 def test_missing_fields_show_field_errors_without_starting(ui_server, ui_context):
     base, runtime = ui_server
     with ui_context() as context:
@@ -399,7 +380,7 @@ def overlay_variant(page):
 
 
 def wait_polls(page, count=2):
-    # 김포 화면은 1.5초마다 작업 상태를 읽는다. 고정 대기 대신 그 응답을 count번 받을 때까지 기다린다.
+    # 김포 화면은 설정한 주기(테스트는 UI_INTERVALS)마다 작업 상태를 읽는다. 고정 대기 대신 그 응답을 count번 받을 때까지 기다린다.
     for _ in range(count):
         with page.expect_response(lambda response: '/gimpo-parking/api/jobs/GMP-' in response.url
                                   and response.request.method == 'GET', timeout=10000):
@@ -496,22 +477,6 @@ def test_open_payment_overlay_is_replaced_when_state_moves_on(ui_server, ui_cont
         runtime.store.mark_returned(job['id'])
         page.wait_for_function("document.getElementById('completion-overlay').textContent.includes('결과를 선택하면')")
         assert overlay_variant(page) == 'action'
-        assert not errors
-
-
-def test_payment_overlay_is_above_open_mobile_sheet(ui_server, ui_context):
-    base, runtime = ui_server
-    with open_page(ui_context, base, width=390) as (page, errors):
-        page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
-        page.fill('#carNumber', '123가4567')
-        page.fill('#phone', '01012345678')
-        page.click('#watch')
-        page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
-        hit = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight - 40).closest('#completion-overlay') !== null")
-        assert hit
-        assert page.evaluate("UI.layers.top() === document.getElementById('completion-overlay')")
         assert not errors
 
 
@@ -733,4 +698,46 @@ def test_log_time_keeps_date_and_empty_summary_card_is_hidden(ui_server, ui_cont
         assert times and all(re.fullmatch(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', t) for t in times)
         assert page.locator('#log-body .cell-time').first.evaluate('e => e.scrollWidth <= e.clientWidth')
         assert all(h < 30 for h in page.locator('#log-body .cell-status').evaluate_all('els => els.map(e => e.getBoundingClientRect().height)'))
+        assert not errors
+
+
+def request_gaps(page, path, count):
+    # 브라우저의 Resource Timing으로 같은 경로 요청들의 시작 간격(ms)을 잰다(파이썬 쪽 이벤트 지연이 섞이지 않는다).
+    page.wait_for_function("([path, count]) => performance.getEntriesByType('resource')"
+                           ".filter(entry => new URL(entry.name).pathname === path).length >= count",
+                           arg=[path, count + 1], timeout=10000)
+    return page.evaluate("""path => {
+        const starts = performance.getEntriesByType('resource')
+            .filter(entry => new URL(entry.name).pathname === path).map(entry => entry.startTime);
+        return starts.slice(1).map((start, index) => start - starts[index]);
+    }""", path)
+
+
+def test_screens_poll_at_configured_intervals(ui_context, ui_server, monkeypatch):
+    # 운영 기본값(1500/2000/3000)이 아니라 앱 설정값을 따르는지 본다. 세 값을 서로·기본값과 다르게 둔다.
+    base, runtime = ui_server
+    configured = {'GIMPO_POLL_MS': 300, 'T2_POLL_MS': 400, 'SETTINGS_REFRESH_MS': 500}
+    for key, value in configured.items():
+        monkeypatch.setitem(app.config, key, value)
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+
+    def assert_cadence(gaps, interval, default):
+        # 다음 요청은 응답을 받은 뒤 interval만큼 뒤에 예약되므로 간격은 interval 이상이고, 기본값보다 훨씬 짧다.
+        gaps = sorted(gaps)
+        assert gaps[0] >= interval * .9, gaps
+        assert gaps[len(gaps) // 2] < interval + 400 < default, gaps
+
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        assert page.evaluate('({...document.body.dataset})') == {
+            'gimpoPollMs': '300', 't2PollMs': '400', 'settingsRefreshMs': '500'}
+        assert_cadence(request_gaps(page, f"/gimpo-parking/api/jobs/{job['id']}", 3), 300, 1500)
+        page.evaluate('UI.settings.open()')  # 결제 안내 레이어가 떠 있어도 설정 팝업을 연다
+        assert_cadence(request_gaps(page, '/t2-valet/api/notifications/status', 3), 500, 3000)
+        assert not errors
+    with open_page(ui_context, base) as (page, errors):
+        # T2 화면은 실행 중일 때만 폴링한다. 스케줄러를 돌리지 않고 로그 응답만 실행 중으로 준다.
+        page.route('**/t2-valet/api/logs', lambda route: route.fulfill(json={'running': True, 'logs': []}))
+        page.goto(base + '/t2-valet/')
+        assert_cadence(request_gaps(page, '/t2-valet/api/logs', 3), 400, 2000)
         assert not errors

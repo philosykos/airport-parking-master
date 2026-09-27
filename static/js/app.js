@@ -154,7 +154,7 @@
 
         schedulePoll() {
             clearTimeout(this.pollTimer);
-            this.pollTimer = this.running ? setTimeout(() => this.fetchLogs(), 2000) : null;
+            this.pollTimer = this.running ? setTimeout(() => this.fetchLogs(), Number(document.body.dataset.t2PollMs) || 2000) : null;
         }
 
         async fetchLogs() {

@@ -62,9 +62,10 @@ def test_handoff_invalidates_before_any_payment(browser_runtime,mutation,state):
     assert client.forwarded==[]
 
 
+# 중복 코드 '10'/'20'과 결제 금액 '0'/'-1'은 각각 같은 분기(code != '00', paymentAmt <= 0)로 끝나므로 브라우저는
+# 한 건씩만 돈다. 코드·금액 판정 자체는 test_gimpo_contract.py가 OfficialContract로 직접 확인한다.
 @pytest.mark.parametrize('setting,value,state', [('codes',('10',),'STOPPED'),('duplicate','10','REVIEW_REQUIRED'),
-    ('duplicate','20','REVIEW_REQUIRED'),('payment_amount','0','REVIEW_REQUIRED'),('payment_amount','-1','REVIEW_REQUIRED'),
-    ('error_html',True,'SESSION_EXPIRED')])
+    ('payment_amount','0','REVIEW_REQUIRED'),('error_html',True,'SESSION_EXPIRED')])
 def test_non_success_is_never_ready(browser_runtime,setting,value,state):
     runtime=browser_runtime
     class Scenario(FixtureBrowser): pass
@@ -138,7 +139,8 @@ def test_final_full_in_manual_browser_flow(browser_runtime):
     assert runtime.store.events()==[]
 
 
-@pytest.mark.parametrize('discount,amount', [('DC005', 4000), ('DC007', 1600)])
+# DC001이 아닌 할인은 모두 같은 재계산 분기를 지난다(DC007 금액 판정은 test_gimpo_contract.py).
+@pytest.mark.parametrize('discount,amount', [('DC005', 4000)])
 def test_official_discount_recalculation(browser_runtime, discount, amount):
     raw = inputs()
     raw['discountSelection'] = discount

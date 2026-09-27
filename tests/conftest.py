@@ -56,8 +56,21 @@ def no_external_http(monkeypatch, tmp_path):
     notifications.close()
 
 
+# 화면 테스트용 폴링·새로고침 주기(ms). 운영 기본값(app.py)과 같을 필요는 없고, 화면이 설정값을 따른다는 것만
+# test_screens_poll_at_configured_intervals가 확인한다. 느린 기계에서도 응답이 다음 주기 전에 오도록 여유를 둔다.
+UI_INTERVALS = {'GIMPO_POLL_MS': 100, 'T2_POLL_MS': 100, 'SETTINGS_REFRESH_MS': 200}
+
+
 @pytest.fixture
-def t2_server(client, tmp_path, monkeypatch):
+def ui_intervals(monkeypatch):
+    # 앱 설정을 테스트마다 바꾸고 끝나면 되돌린다(monkeypatch.setitem).
+    for key, value in UI_INTERVALS.items():
+        monkeypatch.setitem(flask_app.config, key, value)
+    return UI_INTERVALS
+
+
+@pytest.fixture
+def t2_server(client, ui_intervals, tmp_path, monkeypatch):
     # client 픽스처가 T2 저장소·스케줄러·외부 호출을 tmp_path와 가짜로 바꿔 둔다.
     # 설정 팝업이 김포 알림 상태도 읽으므로 김포 서비스도 임시 경로로 바꾼다.
     service = GimpoService(replace(CONFIG, directory=tmp_path / 'gimpo'))

@@ -40,39 +40,37 @@ def test_t2_and_gimpo_share_component_styles(client, t2_server, ui_context):
     assert results['/t2-valet/'] == results['/gimpo-parking/']
 
 
-@pytest.mark.parametrize('path', ['/', '/t2-valet/', '/gimpo-parking/'])
-@pytest.mark.parametrize('width', [320, 390, 1280])
-def test_no_horizontal_scroll(client, t2_server, path, width, ui_context):
-    base = t2_server
-    with open_page(ui_context, base, width=width, height=800) as (page, errors):
-        page.goto(base + path)
-        page.wait_for_load_state('networkidle')
-        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert not errors
-
-
 @pytest.mark.parametrize('path,ready', [
+    ('/', None),
     ('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),
     ('/gimpo-parking/', "() => !document.getElementById('check').disabled"),
 ])
-@pytest.mark.parametrize('width', [320, 390])
-def test_header_status_badge_label_not_clipped(client, t2_server, path, ready, width, ui_context):
+def test_no_horizontal_scroll_and_header_badge_not_clipped(ui_context, client, t2_server, path, ready):
+    # 너비마다 페이지를 새로 여는 대신 한 번 연 페이지의 뷰포트를 바꿔 가며 같은 단언을 한다.
+    # 배지 문구를 바꾸는 320 확인이 다른 너비에 영향을 주지 않도록 넓은 쪽부터 좁은 쪽으로 돈다.
     base = t2_server
-    with open_page(ui_context, base, width=width, height=800) as (page, errors):
+    with open_page(ui_context, base, width=1280, height=800) as (page, errors):
         page.goto(base + path)
         page.wait_for_load_state('networkidle')
-        page.wait_for_function(ready)
+        if ready:
+            page.wait_for_function(ready)
+
+        def no_horizontal_scroll():
+            return page.evaluate('document.documentElement.scrollWidth <= innerWidth')
 
         def not_clipped():
             return page.evaluate("() => { const el = document.getElementById('header-status-text');"
                                   " return el.clientWidth >= el.scrollWidth; }")
 
-        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert not_clipped()
-        if width == 320:
+        for width in (1280, 390, 320):
+            page.set_viewport_size({'width': width, 'height': 800})
+            assert no_horizontal_scroll(), width
+            if ready and width in (390, 320):
+                assert not_clipped(), width
+        if ready:
             page.evaluate("() => UI.statusBadge.set({label: '스케줄 실행 중', tone: 'running'})")
             assert not_clipped()
-            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            assert no_horizontal_scroll()
         assert not errors
 
 

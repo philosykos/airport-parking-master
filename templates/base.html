@@ -19,7 +19,7 @@
     {%- endfor %}
     {% block scripts %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-gimpo-poll-ms="{{ config.GIMPO_POLL_MS }}" data-t2-poll-ms="{{ config.T2_POLL_MS }}" data-settings-refresh-ms="{{ config.SETTINGS_REFRESH_MS }}">
     <nav class="app-header" aria-label="주 메뉴">
         <div class="app-header-left">
             {% block header_back %}<a class="header-back" href="{{ url_for('landing') }}" aria-label="서비스 선택으로 돌아가기"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span><span class="header-back-text">서비스 선택</span></a>{% endblock %}

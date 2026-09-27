@@ -14,8 +14,11 @@ from services.notifications.telegram import Delivery
 from tests.support.ui import open_page, run_app_server
 from tests.support.waiting import eventually
 from tests.notifications.fakes import TransportNotifier
+from tests.conftest import UI_INTERVALS
 
 ENDPOINTS = ('/t2-valet/api/notifications', '/gimpo-parking/api/notifications')
+# 화면 테스트의 설정 팝업 새로고침 주기(ms). 운영 기본값 3000과 달라도 되고, 대기는 이 주기의 배수로 잡는다.
+REFRESH_MS = UI_INTERVALS['SETTINGS_REFRESH_MS']
 
 
 @pytest.fixture
@@ -150,7 +153,7 @@ def test_every_page_offers_settings_dialog(client, path):
 
 
 @pytest.fixture
-def live_server(settings_services):
+def live_server(settings_services, ui_intervals):
     # settings_services는 client(T2 격리)와 tmp_path 김포 서비스에 의존하므로, 이를 통해서만
     # live_server를 만들 수 있게 해 이 서버가 격리 없이 뜨는 일이 없게 한다.
     with run_app_server(app) as base:
@@ -186,7 +189,7 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server, ui_co
         assert page.evaluate('document.activeElement.id') == 'open-settings'
         polled = []
         page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
-        page.wait_for_timeout(3500)
+        page.wait_for_timeout(4 * REFRESH_MS)  # 열려 있었다면 새로고침이 여러 번 났을 시간
         assert polled == []
 
         for notifier in notifiers:
@@ -227,8 +230,11 @@ def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live
         wait_tests_enabled(page)
         assert page.locator('#telegram-state').inner_text() == '켜짐'
         assert page.evaluate('window.telegramWrites') == 1
-        # 상태가 바뀌지 않으면 두 번(3초 간격) 이상의 새로고침 주기 동안에도 다시 쓰지 않는다.
-        page.wait_for_timeout(6500)
+        # 상태가 바뀌지 않으면 두 번 이상의 새로고침 주기 동안에도 다시 쓰지 않는다.
+        refreshed = []
+        page.on('request', lambda request: refreshed.append(request.url) if request.url.endswith('/t2-valet/api/notifications/status') else None)
+        page.wait_for_timeout(5 * REFRESH_MS)
+        assert len(refreshed) >= 2
         assert page.evaluate('window.telegramWrites') == 1
         assert page.locator('#telegram-state').inner_text() == '켜짐'
         # 한 서비스의 상태가 실제로 바뀌면 집계도 바뀌어 정확히 한 번 더 쓴다.
@@ -285,7 +291,7 @@ def test_closing_dialog_during_test_send_stops_status_requests(settings_services
         polled = []
         page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
         held[0].continue_()
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(4 * REFRESH_MS)
         assert polled == []
         assert not errors
 

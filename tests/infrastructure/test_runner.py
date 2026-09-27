@@ -88,15 +88,13 @@ def test_normal_outcomes(project, body, code, outcome, count):
     assert result['reusable'] == (count == 'passed')
 
 
+# 감독기(Progress.event)가 마감을 거는 경로마다 한 건씩 둔다: ready→collection, protocol_start→test,
+# protocol_end(last)→final, collection_end→gap. setup·teardown·훅 안의 멈춤도 모두 protocol_start가 건
+# 같은 test 마감으로 끝나므로 한 건(출력이 계속 늘어도 마감이 늘지 않는 경우)으로 대표한다.
 @pytest.mark.parametrize('phase,source,conftest', [
     ('collection', 'import time; time.sleep(30)', ''),
-    ('test', 'def test_hang(slow): pass', 'import pytest,time\n@pytest.fixture\ndef slow(): time.sleep(30)'),
-    ('test', 'import time\ndef test_hang(): time.sleep(30)', ''),
-    ('test', 'def test_hang(slow): pass', 'import pytest,time\n@pytest.fixture\ndef slow():\n yield\n time.sleep(30)'),
-    ('final', 'def test_ok(): pass', 'import time\ndef pytest_sessionfinish(): time.sleep(30)'),
     ('test', 'import time\ndef test_hang():\n while True:\n  print("still printing", flush=True)\n  time.sleep(.01)', ''),
-    ('test', 'def test_hang(): pass', 'import pytest,time\n@pytest.hookimpl(hookwrapper=True)\ndef pytest_runtest_setup(item):\n time.sleep(30)\n yield'),
-    ('test', 'def test_hang(): pass', 'import time\ndef pytest_runtest_protocol(item, nextitem): time.sleep(30)'),
+    ('final', 'def test_ok(): pass', 'import time\ndef pytest_sessionfinish(): time.sleep(30)'),
     ('gap', 'def test_hang(): pass', 'import time\ndef pytest_runtestloop(session): time.sleep(30)'),
 ])
 def test_hang_deadlines(project, phase, source, conftest):
@@ -203,7 +201,9 @@ def test_lock_and_changed_inputs(project):
     assert not result['inputs_unchanged']
 
 
-@pytest.mark.parametrize('name', ['events.jsonl', 'stdout.log', 'stderr.log'])
+# 실제 실행기가 증거 파일 검사를 부르는지만 본다. 파일별 판정은 test_replaced_or_truncated_streams_are_incomplete가
+# 프로세스 없이 확인하고, events.jsonl은 EvidenceFiles와 Events 두 검사를 모두 지난다.
+@pytest.mark.parametrize('name', ['events.jsonl'])
 def test_missing_evidence(project, name):
     (project / 'test_case.py').write_text('import time\ndef test_slow(): time.sleep(.5)')
     child = start(project)
