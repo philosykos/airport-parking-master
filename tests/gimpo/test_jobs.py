@@ -10,7 +10,7 @@ from playwright.async_api import Error as PlaywrightError
 from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime, ProcessLease, RuntimeUnavailable
 from services.gimpo.parking import GimpoService
-from services.gimpo.store import Conflict, READY
+from services.gimpo.store import Conflict, JobStore, READY
 from services.gimpo.validation import SEOUL, validate
 from tests.gimpo.fakes import FakeBrowser, FakeNotifier
 from tests.gimpo.helpers import inputs, valid_input, wait_state
@@ -51,20 +51,96 @@ def test_stop_cleans_secrets_then_restart_new_generation(runtime):
     assert runtime.clients[job['id']] is not old
 
 
-@pytest.mark.parametrize('state',['PAYMENT_DISPATCHING','PAYMENT_IN_PROGRESS','PAYMENT_RESULT_UNKNOWN'])
-def test_payment_blocks_stop_edit_new_prepare(runtime, state):
+@pytest.mark.parametrize('state', ['PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
+def test_payment_stop_closes_window_but_patch_is_rejected(runtime, state):
     job = ready(runtime)
     runtime.store.dispatch_payment(job['id'], job)
     if state != 'PAYMENT_DISPATCHING': runtime.store.transition(job['id'], state, 'test')
     browser = runtime.clients[job['id']]
-    for action in [lambda:runtime.stop(job['id'], job), lambda:runtime.stop(job['id'], job, inputs()),
-                   lambda:runtime.create(inputs()), lambda:runtime.prepare(job['id'], job),
-                   lambda:runtime.restart(job['id'], job, inputs()), lambda:runtime.proceed(job['id'], job, True)]:
+    for action in [lambda: runtime.stop(job['id'], job, inputs()), lambda: runtime.create(inputs()),
+                   lambda: runtime.prepare(job['id'], job), lambda: runtime.restart(job['id'], job, inputs()),
+                   lambda: runtime.proceed(job['id'], job, True)]:
         with pytest.raises(Conflict): action()
     assert not browser.closed
-    runtime.resolve(job['id'], job, 'unknown', True)
-    eventually(lambda:not runtime.store.get(job['id'])['active'])
+    runtime.stop(job['id'], job)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    final = runtime.store.get(job['id'])
+    assert browser.closed and final['state'] == 'CLOSED_BY_USER'
+    assert final['reason'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
+    # 중지 명령 한 번은 로그 한 행이다(시작 문구 행이 끝 문구로 갱신된다. 기존 STOPPING→STOPPED와 같다).
+    assert final['logs'][-1]['message'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
+    assert not hasattr(runtime, 'resolve')
+
+
+def test_payment_stop_close_failure_can_be_retried(runtime):
+    class Stuck(FakeBrowser):
+        fail = True
+        async def close(self):
+            if Stuck.fail: raise RuntimeError('close failed')
+            await super().close()
+    runtime.client_factory = Stuck
+    job = ready(runtime)
+    runtime.store.dispatch_payment(job['id'], job)
+    runtime.stop(job['id'], job)
+    eventually(lambda: runtime.store.get(job['id'])['reason'] == '예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.')
+    assert runtime.store.get(job['id'])['active'] and runtime.store.get(job['id'])['state'] == 'CLOSED_BY_USER'
+    Stuck.fail = False
+    runtime.stop(job['id'], runtime.store.get(job['id']))
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+
+
+def test_recovered_payment_job_without_browser_stops_at_once(tmp_path):
+    config = replace(CONFIG, directory=tmp_path / 'data')
+    first = GimpoRuntime(config, FakeBrowser, notifier=FakeNotifier())
+    job = wait_state(first, first.create(inputs())['id'], READY)
+    first.store.dispatch_payment(job['id'], job)
+    first.store.transition(job['id'], 'PAYMENT_IN_PROGRESS', 'test')
+    first.closing = True; first.outbox.close(); first.loop.call_soon_threadsafe(first.loop.stop); first.thread.join(5)
+    first.store.close(); first.lease.close()
+    second = GimpoRuntime(config, FakeBrowser, notifier=FakeNotifier())
+    try:
+        recovered = second.store.active()
+        assert recovered['state'] == 'PAYMENT_RESULT_UNKNOWN'
+        time.sleep(1)  # 감시 루프가 창 없는 복구 작업을 스스로 끝내지 않는다
+        assert second.store.get(job['id'])['active']
+        second.stop(job['id'], recovered)
+        eventually(lambda: second.store.get(job['id'])['state'] == 'CLOSED_BY_USER' and not second.store.get(job['id'])['active'])
+    finally:
+        second.close()
+
+
+@pytest.mark.parametrize('state', ['PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
+def test_user_closing_window_during_payment_ends_job(runtime, state):
+    job = ready(runtime)
+    runtime.store.dispatch_payment(job['id'], job)
+    runtime.store.transition(job['id'], state, 'test')
+    runtime._submit(runtime.clients[job['id']].close()).result(timeout=3)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
     assert runtime.store.get(job['id'])['state'] == 'CLOSED_BY_USER'
+
+
+def test_user_closing_window_in_handoff_is_cancel_without_correction(runtime):
+    class UserClosed(FakeBrowser):
+        async def closed_by_user(self):
+            return self.closed
+    runtime.client_factory = UserClosed
+    job = ready(runtime)
+    runtime._submit(runtime.clients[job['id']].close()).result(timeout=3)
+    wait_state(runtime, job['id'], 'HANDOFF_CANCELLED')
+    assert runtime.store.get(job['id'])['reason'] == '공항 예약창이 닫혔습니다. 계속하려면 ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.'
+    assert not [e for e in runtime.store.events() if e['kind'] == 'CORRECTION']
+
+
+def test_shutdown_in_handoff_interrupts(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    job = ready(runtime)
+    runtime.close()
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert (final['state'], final['active'], final['reason']) == ('INTERRUPTED', False, '프로그램이 종료되어 결제 대기를 끝냈습니다.')
+    finally:
+        store.close()
 
 
 def test_expiration_and_cancellation_release_slot(runtime):

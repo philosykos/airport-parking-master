@@ -38,6 +38,7 @@ class BrowserClient(Protocol):
     async def inspect(self) -> bool: ...
     async def show(self) -> None: ...
     async def close(self) -> None: ...
+    async def closed_by_user(self) -> bool: ...
 
 
 class OfficialContract:
@@ -156,7 +157,7 @@ class PlaywrightGimpoClient:
     def _mark_progress(self):
         if self.progress_seen and self.payment_response_ok:
             try:
-                self.owner.store.transition(self.job_id, "PAYMENT_IN_PROGRESS", "공항 결제창에서 결제를 마친 뒤 예약 내역을 확인해주세요.",
+                self.owner.store.transition(self.job_id, "PAYMENT_IN_PROGRESS", "공항 결제창에서 결제를 진행하고 있습니다.",
                                             expected={"PAYMENT_DISPATCHING"})
             except Conflict:
                 pass
@@ -505,6 +506,11 @@ class PlaywrightGimpoClient:
 
     async def alive(self):
         return not self.closed and self.page is not None and not self.page.is_closed() and self.browser.is_connected()
+
+    async def closed_by_user(self):
+        # 예약창만 닫히고 브라우저는 연결되어 있으면 사용자가 창을 닫은 것으로 본다.
+        return (not self.closed and self.page is not None and self.page.is_closed()
+                and self.browser is not None and self.browser.is_connected())
 
     async def inspect(self):
         if not await self.alive():

@@ -62,7 +62,7 @@ def browser_runtime(tmp_path):
     # Tests release payment sessions explicitly, never leave test browsers behind.
     job=runtime.store.active()
     if job and job['paymentMayHaveBeenSent']:
-        runtime.resolve(job['id'],job,'unknown',True)
+        runtime.stop(job['id'],job)
         eventually(lambda:not runtime.store.active())
     runtime.close()
 
@@ -151,7 +151,8 @@ def test_browser_closed_before_payment(browser_runtime):
     eventually(lambda:runtime.store.get(job['id'])['state']==READY,timeout=15)
     client=runtime.clients[job['id']]
     runtime._submit(client.page.close()).result(timeout=5)
-    wait_state(runtime,job['id'],'SESSION_EXPIRED')
+    # 공유 Chromium은 연결된 채 예약창만 닫혔으므로 사용자가 닫은 것으로 본다.
+    wait_state(runtime,job['id'],'HANDOFF_CANCELLED')
     assert client.forwarded==[]
 
 

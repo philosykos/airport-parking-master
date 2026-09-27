@@ -51,6 +51,8 @@ class FakeBrowser:
         self.closed = True
     async def show(self):
         pass
+    async def closed_by_user(self):
+        return False
 
 
 class FixtureBrowser(PlaywrightGimpoClient):

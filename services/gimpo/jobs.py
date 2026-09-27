@@ -109,11 +109,25 @@ class GimpoRuntime:
     def stop(self, job_id, version, replacement=None):
         with self.command_lock:
             self._accepting()
-            if not self.store.get(job_id)["active"]:
+            job = self.store.get(job_id)
+            if not job["active"]:
                 raise Conflict("이미 종료된 작업입니다.")
+            if replacement is None and job["state"] in PAYMENT_STATES | {"CLOSED_BY_USER"}:
+                # 결제 단계는 다시 시작할 수 없으므로 예약창을 닫고 작업을 끝낸다.
+                job = self.store.command(job_id, version, PAYMENT_STATES | {"CLOSED_BY_USER"}, "CLOSED_BY_USER",
+                                         "공항 예약창을 닫고 작업을 끝냅니다.")
+                self._submit(self._close_payment(job_id))
+                return job
             job = self.store.command(job_id, version, PREPAYMENT | RESTARTABLE, "STOPPING", "예약 진행을 중지하고 예약창을 닫습니다.")
             self._submit(self._stop(job_id, replacement))
             return job
+
+    async def _close_payment(self, job_id):
+        try:
+            await self._close_client(job_id)
+        except Conflict:
+            return  # 닫지 못하면 _close_client가 다시 누르라는 사유를 남기고 작업을 진행 중으로 둔다
+        self.store.release(job_id, "CLOSED_BY_USER", "예약 완료를 확인하지 못하고 작업을 끝냈습니다.", {"CLOSED_BY_USER"})
 
     async def _stop(self, job_id, replacement=None):
         task = self.tasks.get(job_id)
@@ -168,22 +182,6 @@ class GimpoRuntime:
                 await client.show()
             except Exception:
                 await self._fail(job_id, BrowserFault("브라우저를 표시할 수 없습니다.", "SESSION_EXPIRED"))
-
-    def resolve(self, job_id, version, outcome, acknowledged):
-        if acknowledged is not True or outcome not in {"reserved", "not_reserved", "unknown"}:
-            raise Conflict("예약 결과를 선택하고 예약창 닫기에 동의해주세요.")
-        with self.command_lock:
-            self._accepting()
-            if not self.store.get(job_id)["active"]:
-                raise Conflict("이미 종료된 작업입니다.")
-            job = self.store.command(job_id, version, PAYMENT_STATES | {"CLOSED_BY_USER"}, "CLOSED_BY_USER", "사용자가 선택한 예약 결과를 기록하고 종료합니다.")
-            self.store.transition(job_id, "CLOSED_BY_USER", job["reason"], expected={"CLOSED_BY_USER"}, userReportedOutcome=outcome)
-            self._submit(self._resolve(job_id))
-            return job
-
-    async def _resolve(self, job_id):
-        await self._close_client(job_id)
-        self.store.release(job_id, "CLOSED_BY_USER", "예약 결과를 기록하고 종료했습니다.", {"CLOSED_BY_USER"})
 
     async def _new_client(self, job_id):
         client = self.client_factory(self, self.store.get(job_id), self.inputs[job_id])
@@ -287,7 +285,7 @@ class GimpoRuntime:
                 self.inputs.pop(job_id, None)
                 job = self.store.get(job_id)
                 if job["state"] == "CLOSED_BY_USER":
-                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘결과 기록’을 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
+                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
                 else:
                     self.store.transition(job_id, "ERROR", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.",
                                           expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
@@ -324,10 +322,18 @@ class GimpoRuntime:
 
     def payment_unknown(self, job_id):
         try:
-            self.store.transition(job_id, "PAYMENT_RESULT_UNKNOWN", "결제 결과를 확인할 수 없습니다. 공항 사이트에서 예약 내역을 확인한 뒤 결과를 기록해주세요.",
+            self.store.transition(job_id, "PAYMENT_RESULT_UNKNOWN", "결제 결과를 확인하지 못했습니다. 결제했다면 공항 사이트 예약조회에서 확인해주세요.",
                                   expected={"PAYMENT_DISPATCHING", "PAYMENT_IN_PROGRESS"})
         except Conflict:
             pass
+
+    async def _session_lost(self, job_id):
+        client = self.clients.get(job_id)
+        if client is not None and await client.closed_by_user():
+            await self._finish_pre(job_id, "HANDOFF_CANCELLED",
+                                   "공항 예약창이 닫혔습니다. 계속하려면 ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.", {READY})
+        else:
+            await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
 
     async def _valid_handoff(self, job_id):
         job = self.store.get(job_id)
@@ -339,7 +345,7 @@ class GimpoRuntime:
         client = self.clients.get(job_id)
         try:
             if client is not None and not await client.alive():
-                await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
+                await self._session_lost(job_id)
                 return False
             target_closed = False
             try:
@@ -348,7 +354,7 @@ class GimpoRuntime:
                 valid = False
                 target_closed = _is_target_closed(error)
             if not valid and client is not None and (target_closed or not await client.alive()):
-                await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
+                await self._session_lost(job_id)
                 return False
         except Exception:
             valid = False
@@ -380,10 +386,16 @@ class GimpoRuntime:
                     client = self.clients.get(job["id"])
                     if client and not await client.alive():
                         await self._fail(job["id"], BrowserFault("공식 브라우저가 종료되었습니다.", "SESSION_EXPIRED"))
-                elif job and job["state"] in {"PAYMENT_DISPATCHING", "PAYMENT_IN_PROGRESS"}:
+                elif job and job["state"] in PAYMENT_STATES:
                     client = self.clients.get(job["id"])
-                    disconnected = client is None or not await client.alive()
-                    if disconnected or (job["state"] == "PAYMENT_DISPATCHING" and self.store.clock() - job["paymentDispatchedAt"] > self.config.browser_timeout_sec):
+                    if client is not None and not await client.alive():
+                        # 결제 중 사용자가 예약창을 닫았다. 앱이 더 할 일이 없으므로 작업을 끝낸다.
+                        self.store.transition(job["id"], "CLOSED_BY_USER", "공항 예약창을 닫고 작업을 끝냅니다.", expected=PAYMENT_STATES,
+                                              commandId=uuid.uuid4().hex)  # stop()·reserved()처럼 새 로그 행으로 남긴다
+                        await self._close_payment(job["id"])
+                    elif job["state"] in {"PAYMENT_DISPATCHING", "PAYMENT_IN_PROGRESS"} and (
+                            client is None or (job["state"] == "PAYMENT_DISPATCHING"
+                                               and self.store.clock() - job["paymentDispatchedAt"] > self.config.browser_timeout_sec)):
                         self.payment_unknown(job["id"])
             except Exception:
                 pass
@@ -394,6 +406,8 @@ class GimpoRuntime:
         if job:
             if job["paymentMayHaveBeenSent"]:
                 self.payment_unknown(job["id"])
+            elif job["state"] == READY:
+                await self._finish_pre(job["id"], "INTERRUPTED", "프로그램이 종료되어 결제 대기를 끝냈습니다.", {READY})
             elif job["state"] in PREPAYMENT | RESTARTABLE | {"STOPPING"}:
                 self.store.transition(job["id"], "STOPPING", "프로그램이 종료되고 있습니다.", expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
                 await self._stop(job["id"])
