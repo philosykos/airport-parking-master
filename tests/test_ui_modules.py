@@ -217,6 +217,21 @@ def test_status_badge_updates_header_and_log_status(ui_page):
     assert not errors
 
 
+def test_toast_renders_above_open_layer(ui_page):
+    load, errors = ui_page
+    page = load('<div class="toast-container" id="toast-container"></div>' + render_string(LOG_PANEL))
+    page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    layer_z = page.evaluate("parseInt(document.getElementById('log-panel').style.zIndex, 10)")
+    page.evaluate("UI.toast('알림', 'info')")
+    page.wait_for_function("document.querySelector('.toast')")
+    toast_z = page.evaluate("parseInt(getComputedStyle(document.getElementById('toast-container')).zIndex, 10)")
+    assert toast_z > layer_z
+    assert not errors
+
+
 def test_completion_overlay_stacks_above_open_log_sheet(ui_page):
     load, errors = ui_page
     page = load(render_string(LOG_PANEL))

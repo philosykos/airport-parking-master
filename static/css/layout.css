@@ -135,8 +135,7 @@
         font-size: 16px;
     }
     .status-badge {
-        flex-shrink: 1;
-        min-width: 0;
+        flex-shrink: 0;
         max-width: 40vw;
         margin-left: var(--space-1);
         padding: 2px 8px;

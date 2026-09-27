@@ -82,6 +82,25 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server):
         browser.close()
 
 
+def test_completion_overlay_waits_for_open_settings_dialog(t2_server):
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, t2_server)
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '0'")
+        page.click('#open-settings')
+        assert page.locator('#settings-dialog').is_visible()
+        t2_valet.log_store.append({'time': '2026-01-01 00:00:05', 'type': 'test', 'status': 200,
+                                   'body': '{"result":{"code":200}}', 'url': 'https://example.invalid/reserve', 'payload': {}})
+        page.evaluate('t2Screen.fetchLogs()')
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '1'")
+        assert not overlay_open(page)
+        page.keyboard.press('Escape')
+        page.evaluate('t2Screen.fetchLogs()')
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
+        assert not errors
+        browser.close()
+
+
 def test_mobile_sheet_picker_and_settings_keep_inputs(t2_server):
     with sync_playwright() as p:
         browser, page, errors = open_page(p, t2_server, width=390)

@@ -215,7 +215,10 @@
             };
             $('reservation-form').addEventListener('input', event => event.target.closest('.field-group')?.classList.remove('has-error'));
             $('reservation-form').addEventListener('change', saveChanges);
-            $('reservation-form').addEventListener('vp.change', saveChanges);
+            $('reservation-form').addEventListener('vp.change', event => {
+                event.target.closest('.field-group')?.classList.remove('has-error');
+                saveChanges();
+            });
             $('watch').onclick = () => this.perform(() => this.start('watch'));
             for (const action of ['stop', 'prepare', 'show-browser']) $(action).onclick = () => this.perform(() => this.command(action));
             $('proceed').onclick = () => this.perform(() => this.command('proceed', {autoProceedConsent: true}));

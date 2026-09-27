@@ -18,7 +18,7 @@ from services.gimpo.store import READY
 
 
 @pytest.fixture
-def ui_server(tmp_path, monkeypatch):
+def ui_server(client, tmp_path, monkeypatch):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,FakeNotifier())
     service=GimpoService(runtime.config);service._runtime=runtime
@@ -400,6 +400,20 @@ def test_missing_fields_show_field_errors_without_starting(ui_server):
         browser.close()
 
 
+def test_date_field_error_clears_on_picker_change(ui_server):
+    base, runtime = ui_server
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        page.evaluate("document.getElementById('entryAt').closest('.field-group').classList.add('has-error')")
+        page.evaluate("document.getElementById('entry-picker').dispatchEvent(new CustomEvent('vp.change', {bubbles: true}))")
+        assert not page.evaluate("document.getElementById('entryAt').closest('.field-group').classList.contains('has-error')")
+        browser.close()
+
+
 PROGRESS_REASON = '공항 결제창에서 결제를 마친 뒤 예약 내역을 확인해주세요.'
 
 
@@ -544,6 +558,7 @@ def test_payment_overlay_is_above_open_mobile_sheet(ui_server):
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#watch')
+        page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
         hit = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight - 40).closest('#completion-overlay') !== null")
         assert hit

@@ -183,6 +183,8 @@
                 this.initialLogsFetched = true;
                 this.lastSuccessId = successId;
             } else if (successId && successId !== this.lastSuccessId) {
+                // 설정 팝업이 열려 있으면 다음 폴링에서 다시 판단한다(김포 updateCompletion과 같은 방식).
+                if (UI.settings?.isOpen()) return;
                 this.lastSuccessId = successId;
                 UI.toast('예약이 완료되었습니다', 'success');
                 UI.completion.success({title: '예약이', highlight: '완료되었습니다', subtitle: '공항 사이트에서 예약 내역을 확인해주세요.'});
