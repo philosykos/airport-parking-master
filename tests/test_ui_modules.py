@@ -6,7 +6,7 @@ from playwright.sync_api import expect, sync_playwright
 from app import app
 
 ROOT = Path(__file__).resolve().parent.parent
-UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple']
+UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker']
 STYLES = ['tokens', 'layout', 'form', 'log', 'overlay']
 ORIGIN = 'http://ui.test'
 
@@ -118,4 +118,30 @@ def test_layer_closed_before_its_focus_frame_keeps_focus_outside(ui_page):
     page.evaluate("() => { UI.completion.success({title: 'a'}); UI.completion.close(); }")
     page.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
     assert page.evaluate('document.activeElement.id') == 'trigger'
+    assert not errors
+
+
+def test_select_picker_sheet_on_mobile_only(ui_page):
+    load, errors = ui_page
+    page = load('<div class="field-group"><label for="color">색상</label><select id="color">'
+                '<option value="">선택</option><option value="RED">빨강</option><option value="BLUE">파랑</option>'
+                '</select></div>' + render('partials/select_picker.html'))
+    page.evaluate("""() => { window.changes = 0;
+        document.getElementById('color').addEventListener('change', () => changes++);
+        window.picker = new UI.SelectPicker(document.getElementById('select-picker-overlay'));
+        picker.attach(document.body); }""")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.dispatch_event('#color', 'mousedown')
+    page.wait_for_function("document.getElementById('select-picker-overlay').classList.contains('open')")
+    assert page.locator('#select-picker-title').inner_text() == '색상'
+    assert page.locator('.select-picker-item').all_inner_texts() == ['빨강', '파랑']
+    page.locator('.select-picker-item', has_text='파랑').click()
+    assert page.input_value('#color') == 'BLUE' and page.evaluate('changes') == 1
+    assert not is_open(page, 'select-picker-overlay')
+    page.dispatch_event('#color', 'mousedown')
+    page.keyboard.press('Escape')
+    assert not is_open(page, 'select-picker-overlay')
+    page.set_viewport_size({'width': 1280, 'height': 900})
+    page.dispatch_event('#color', 'mousedown')
+    assert not is_open(page, 'select-picker-overlay')
     assert not errors
