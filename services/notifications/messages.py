@@ -50,7 +50,7 @@ class ReservationMessages:
         checked = datetime.fromtimestamp(job["availabilityCheckedAt"], SEOUL).strftime("%Y-%m-%d %H:%M:%S")
         return NotificationMessage("김포공항 국내선 주차", "결제 대기 — 예약 미완료", (
             ("주차장", summary["parkingName"]), ("입차", summary["entryAt"]), ("출차", summary["exitAt"]),
-            ("예상 주차요금", f'{summary["calculateAmt"]:,}원'), ("예약 보증금", f'{summary["depositAmt"]:,}원'),
+            ("예상 주차요금", f'{summary["calculateAmt"] - summary.get("discountAmt", 0):,}원'), ("예약 보증금", f'{summary["depositAmt"]:,}원'),
             ("잔여석 조회 시각", checked + " (서울)")),
             '예약 프로그램이 실행 중인 PC의 공항 예약창에서 결제해주세요.\n'
             '아직 자리가 확보되지 않았습니다. 대기 시간이 지나면 예약 화면에서 ‘다시 준비’를 눌러주세요.', reference)

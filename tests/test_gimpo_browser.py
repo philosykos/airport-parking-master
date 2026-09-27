@@ -150,61 +150,115 @@ def test_official_discount_recalculation(browser_runtime, discount, amount):
     assert browser_runtime.clients[job['id']].forwarded == []
 
 
-def test_polling_reuses_document_and_stealth_context(browser_runtime):
+def advance_application_retry(runtime, job_id):
+    """Wake the configured wait without shortening production input limits."""
+    async def resume():
+        task = runtime.tasks.get(job_id)
+        if task:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        runtime._schedule(job_id, runtime._flow(job_id))
+    runtime._submit(resume()).result(timeout=5)
+
+
+def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_document(browser_runtime):
     runtime = browser_runtime
     class Polling(FixtureBrowser):
-        codes = ('10', '10', '00')
+        codes = ('00', '10', '10', '00')
     runtime.client_factory = Polling
     job = runtime.create(inputs())
-    wait_state(runtime, job['id'], 'WAITING_AVAILABLE')
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
     client = runtime.clients[job['id']]
     browser, context, page = client.browser, client.context, client.page
 
-    async def repeat():
+    async def inspect_first():
+        assert page.url.endswith('/reservation/resInsert.do')
+        assert await page.locator('#flashMessage').is_visible()
+        assert await page.locator('#reservationBtn').is_disabled()
         await page.evaluate("window.sameDocument = 'kept'; document.cookie = 'sessionProbe=kept; path=/'")
         assert await page.evaluate('navigator.webdriver') is False
         assert await page.evaluate('navigator.languages') == ['ko-KR', 'ko']
-        assert not await client.check()
-        assert await client.check()
+        return await client._form()
+    original = runtime._submit(inspect_first()).result(timeout=5)
+    assert client.check_count == 2
+    assert len(runtime.store.get(job['id'])['logs']) == 1
+    advance_application_retry(runtime, job['id'])
+    eventually(lambda: client.check_count == 3 and runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE')
+    assert len(runtime.store.get(job['id'])['logs']) == 2
+    advance_application_retry(runtime, job['id'])
+    current = wait_state(runtime, job['id'], READY)
+    assert len(current['logs']) == 3
+
+    async def inspect_final():
         assert await page.evaluate('window.sameDocument') == 'kept'
         assert 'sessionProbe=kept' in await page.evaluate('document.cookie')
-    runtime._submit(repeat()).result(timeout=10)
+        assert await client._form() == original
+        assert len(context.pages) == 1
+    runtime._submit(inspect_final()).result(timeout=5)
     assert (client.browser, client.context, client.page) == (browser, context, page)
-    assert len(context.pages) == 1 and client.check_count == 3
-    runtime.stop(job['id'], runtime.store.get(job['id']))
-    eventually(lambda: not runtime.store.get(job['id'])['active'])
-    assert client.closed
-
-
-def test_final_full_reuses_window_and_updates_payment_generation(browser_runtime):
-    runtime = browser_runtime
-    class FinalFull(FixtureBrowser):
-        codes = ('00', '10', '00', '00')
-    runtime.client_factory = FinalFull
-    job = runtime.create(inputs())
-    wait_state(runtime, job['id'], 'WAITING_AVAILABLE')
-    client = runtime.clients[job['id']]
-    browser, context, page = client.browser, client.context, client.page
-
-    async def resume():
-        await page.evaluate("sessionStorage.setItem('sessionProbe', 'kept')")
-        sleeper = runtime.tasks.get(job['id'])
-        if sleeper:
-            sleeper.cancel()
-            await asyncio.gather(sleeper, return_exceptions=True)
-        await runtime._flow(job['id'])
-        assert await page.evaluate("sessionStorage.getItem('sessionProbe')") == 'kept'
-    runtime._submit(resume()).result(timeout=15)
-    current = wait_state(runtime, job['id'], READY)
-    assert runtime.clients[job['id']] is client
-    assert (client.browser, client.context, client.page) == (browser, context, page)
-    assert len(context.pages) == 1 and current['generation'] == 2
-    assert client.version['generation'] == 2
+    assert sum(path == '/reservation/resInsert.do' for path, _ in client.requests) == 1
+    checks = [frame for path, frame in client.requests if path == '/reservation/reservationCheck.json']
+    assert len(checks) == 4 and checks[0].endswith('/reservation/recheck.do')
+    assert all(frame.endswith('/reservation/resInsert.do') for frame in checks[1:])
+    assert client.bootstrap_form['resInDttm'] != client.inputs['entryAt'] + ':00'
+    for fields in client.availability_forms[1:]:
+        assert fields['resInDttm'] == [client.inputs['entryAt'] + ':00']
+        assert fields['resOutDttm'] == [client.inputs['exitAt'] + ':00']
+    assert client.quote_requests[0]['inDttm'] == [client.inputs['entryAt'] + ':00']
+    assert client.quote_requests[0]['outDttm'] == [client.inputs['exitAt'] + ':00']
+    assert sum(path == '/reservation/duplicateReservation.json' for path, _ in client.requests) == 3
+    assert client.version['generation'] == current['generation'] == 1
+    assert client.forwarded == []
     assert len(runtime.store.events(job['id'])) == 1
 
     async def confirm():
-        await page.locator('#confirmOk').click()
+        await page.locator('#confirmOk').dblclick()
         await asyncio.sleep(.2)
     runtime._submit(confirm()).result(timeout=5)
     assert client.forwarded == ['/reservation/payment.json']
     assert runtime.store.get(job['id'])['paymentMayHaveBeenSent']
+
+
+def test_stop_while_waiting_in_application_closes_browser(browser_runtime):
+    runtime = browser_runtime
+    class Full(FixtureBrowser):
+        codes = ('00', '10')
+    runtime.client_factory = Full
+    job = runtime.create(inputs())
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    client = runtime.clients[job['id']]
+    runtime.stop(job['id'], runtime.store.get(job['id']))
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    assert client.closed and client.check_count == 2 and client.forwarded == []
+
+
+
+def test_bootstrap_price_is_replaced_with_requested_period_price(browser_runtime):
+    runtime = browser_runtime
+    class LongerStay(FixtureBrowser):
+        quote_amount = '72000'
+    runtime.client_factory = LongerStay
+    job = runtime.create(inputs())
+    eventually(lambda: runtime.store.get(job['id'])['state'] in {READY, 'ERROR', 'REVIEW_REQUIRED'}, timeout=15)
+    current = runtime.store.get(job['id'])
+    assert current['state'] == READY, current['reason']
+    assert current['summary']['calculateAmt'] == 72000
+    assert current['summary']['receiptAmt'] == 62000
+    client = runtime.clients[job['id']]
+    async def inspect():
+        display = await client.page.locator('#application-date-display').inner_text()
+        assert client.inputs['entryAt'] + ':00' in display
+        assert client.inputs['exitAt'] + ':00' in display
+        assert client.bootstrap_form['resInDttm'] not in display
+    runtime._submit(inspect()).result(timeout=5)
+    assert client.forwarded == []
+
+
+def test_missing_official_requested_price_stops_before_reservation(browser_runtime):
+    runtime = browser_runtime
+    class NoQuote(FixtureBrowser):
+        quote_amount = None
+    runtime.client_factory = NoQuote
+    job = runtime.create(inputs())
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'REVIEW_REQUIRED', timeout=15)
+    assert runtime.store.events(job['id']) == []

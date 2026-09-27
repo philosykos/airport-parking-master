@@ -248,3 +248,22 @@ def test_once_full_displays_one_result_row(ui_server):
         page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
         assert page.locator('#logs li').count() == 1
         browser.close()
+
+
+def test_summary_displays_discounted_price(ui_server):
+    base, runtime = ui_server
+    class Discounted(FakeBrowser):
+        async def prepare(self, **kwargs):
+            summary = await super().prepare(**kwargs)
+            return {**summary, 'calculateAmt': 104000, 'discountAmt': 52000, 'receiptAmt': 42000}
+    runtime.client_factory = Discounted
+    job = runtime.create(inputs())
+    wait_state(runtime, job['id'], READY)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("document.querySelector('#summary').textContent.includes('52,000원')")
+        assert '104,000원' not in page.locator('#summary').inner_text()
+        browser.close()

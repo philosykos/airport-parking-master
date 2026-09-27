@@ -200,8 +200,8 @@
             $('job-actions').hidden = !Array.from($('job-actions').children).some(button => !button.hidden);
             $('summary').replaceChildren();
             $('summary').hidden = !job?.summary;
-            const values = job?.summary;
-            if (values) for (const [key, label] of [['parkingName', '주차장'], ['entryAt', '입차'], ['exitAt', '출차'], ['calculateAmt', '예상 주차요금'], ['depositAmt', '예약 보증금']]) {
+            const values = job?.summary ? {...job.summary, estimatedAmt: job.summary.calculateAmt - (job.summary.discountAmt || 0)} : null;
+            if (values) for (const [key, label] of [['parkingName', '주차장'], ['entryAt', '입차'], ['exitAt', '출차'], ['estimatedAmt', '예상 주차요금'], ['depositAmt', '예약 보증금']]) {
                 const dt = document.createElement('dt'), dd = document.createElement('dd');
                 dt.textContent = label; dd.textContent = typeof values[key] === 'number' ? values[key].toLocaleString() + '원' : values[key];
                 $('summary').append(dt, dd);

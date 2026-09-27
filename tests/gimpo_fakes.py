@@ -35,7 +35,8 @@ class FakeBrowser:
     async def check(self):
         self.checks += 1
         return self.available
-    async def prepare(self):
+    async def prepare(self, *, bootstrap=False):
+        self.bootstrap = bootstrap
         self.prepares += 1
         return {"parkingName": "국내선 제2주차장 주차타워 2, 3층", "entryAt": self.inputs["entryAt"], "exitAt": self.inputs["exitAt"],
                 "calculateAmt": 8000, "depositAmt": 10000, "paymentAmt": 10000, "receiptAmt": -2000, "discountAmt": 0}
@@ -58,10 +59,15 @@ class FixtureBrowser(PlaywrightGimpoClient):
     duplicate = "00"
     payment_amount = "10000"
     error_html = False
+    quote_amount = "8000"
     def __init__(self, owner, job, inputs):
         super().__init__(owner, job, inputs, headless=True)
         self.forwarded = []
         self.check_count = 0
+        self.requests = []
+        self.quote_requests = []
+        self.availability_forms = []
+        self.bootstrap_form = None
     async def _start(self):
         if self.context:
             return
@@ -71,6 +77,7 @@ class FixtureBrowser(PlaywrightGimpoClient):
         await self.context.route("**/*", self._guard)
     async def _fixture(self, route):
         path = urlparse(route.request.url).path
+        self.requests.append((path, route.request.frame.url))
         if path == '/reservation/recheck.do':
             await route.fulfill(content_type='text/html', body=(FIXTURES / 'step1.html').read_text())
         elif path == '/reservation/resInsert.do':
@@ -78,9 +85,14 @@ class FixtureBrowser(PlaywrightGimpoClient):
             fields = {"parkingDivCd": "PLT-002", "sectnId": "2", "parkingName": "국내선 제2주차장 주차타워 2, 3층", "airportNm": "김포공항",
                       "resInDttm": data['resInDttm'], "resOutDttm": data['resOutDttm'],
                       **json.loads((FIXTURES / 'contract.json').read_text())["amounts"], "paymentAmt": self.payment_amount}
+            self.bootstrap_form = data
             inputs = ''.join(f'<input type="hidden" id="{k}" name="{k}" value="{html.escape(v)}">' for k,v in fields.items())
-            await route.fulfill(content_type='text/html', body=(FIXTURES / 'step2.html').read_text().replace('__FIELDS__', inputs))
+            await route.fulfill(content_type='text/html', body=(FIXTURES / 'step2.html').read_text().replace('__FIELDS__', inputs).replace('__BOOTSTRAP_IN__', data['resInDttm']).replace('__BOOTSTRAP_OUT__', data['resOutDttm']))
+        elif path == '/main/calculateAmt.json':
+            self.quote_requests.append(parse_qs(route.request.post_data))
+            await route.fulfill(json={'calculateAmt': self.quote_amount})
         elif path == '/reservation/reservationCheck.json':
+            self.availability_forms.append(parse_qs(route.request.post_data))
             code = self.codes[min(self.check_count, len(self.codes)-1)]
             self.check_count += 1
             if self.error_html:

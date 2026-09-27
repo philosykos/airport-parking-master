@@ -153,3 +153,13 @@ def test_resend_history_survives_recovery(store):
     assert len(corrections) == 1 and corrections[0]['replyTo'] == 42
     store.recover('another-run')
     assert len([e for e in store.events() if e['kind'] == 'CORRECTION']) == 1
+
+
+def test_discounted_parking_price_in_notification():
+    from services.notifications.messages import ReservationMessages
+    job = {'id': 'GMP-test', 'availabilityCheckedAt': 1000,
+           'summary': {'parkingName': '김포', 'entryAt': '2026-10-03 11:00',
+                       'exitAt': '2026-10-06 18:00', 'calculateAmt': 104000,
+                       'discountAmt': 52000, 'depositAmt': 10000}}
+    message = ReservationMessages.gimpo({'kind': 'READY', 'round': 1}, job)
+    assert ('예상 주차요금', '52,000원') in message.fields

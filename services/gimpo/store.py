@@ -110,7 +110,9 @@ class JobStore:
 
     def _log(self, job):
         previous = job["logs"][-1] if job["logs"] else None
-        new_row = not previous or job["state"] == "CHECKING" or previous.get("requestId") != job["commandId"]
+        new_row = (not previous or job["state"] == "CHECKING"
+                   or (job["state"] == "RECHECKING" and previous["state"] == "WAITING_AVAILABLE")
+                   or previous.get("requestId") != job["commandId"])
         entry = {"time": self.clock(), "state": job["state"], "message": job["reason"],
                  "requestId": job["commandId"],
                  "logId": uuid.uuid4().hex if new_row else previous["logId"]}

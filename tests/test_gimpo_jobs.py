@@ -102,11 +102,11 @@ def test_process_lease(runtime):
     with pytest.raises(RuntimeUnavailable): ProcessLease(runtime.config.directory)
 
 
-def test_stop_during_inflight_check_cannot_create_ready(runtime):
+def test_stop_during_application_preparation_cannot_create_ready(runtime):
     class Slow(FakeBrowser):
-        async def check(self):
+        async def prepare(self, *, bootstrap=False):
             await asyncio.sleep(30)
-            return True
+            return await super().prepare(bootstrap=bootstrap)
     runtime.client_factory = Slow
     job = runtime.create(inputs())
     runtime.stop(job['id'], job)
@@ -200,8 +200,10 @@ def test_final_full_watch_keeps_browser_without_ready(runtime):
     runtime.client_factory=FinalFull
     job=runtime.create(inputs())
     wait_state(runtime,job['id'],'WAITING_AVAILABLE')
-    assert not runtime.clients[job['id']].closed
-    assert runtime.store.get(job['id'])['generation']==2
+    browser = runtime.clients[job['id']]
+    assert not browser.closed and browser.bootstrap
+    assert browser.checks == 0 and browser.prepares == 1 and browser.proceeds == 1
+    assert runtime.store.get(job['id'])['generation']==1
     assert runtime.store.events()==[]
     runtime.stop(job['id'],runtime.store.get(job['id']))
     wait_state(runtime,job['id'],'STOPPED')
@@ -220,7 +222,7 @@ def test_final_full_watch_reuses_browser_until_stopped(runtime):
     assert not browser.closed
     current = runtime.store.get(job['id'])
     assert current['active'] and job['id'] in runtime.inputs
-    assert current['generation'] == 2 and runtime.store.events() == []
+    assert current['generation'] == 1 and runtime.store.events() == []
     # Advance the pending interval by cancelling only its sleeper, then resume
     # the real flow to verify the same browser resumes successfully.
     async def resume():
@@ -233,6 +235,7 @@ def test_final_full_watch_reuses_browser_until_stopped(runtime):
     runtime._submit(resume()).result(timeout=5)
     wait_state(runtime, job['id'], READY)
     assert runtime.clients[job['id']] is browser and not browser.closed
+    assert browser.checks == 0 and browser.prepares == 1 and browser.proceeds == 2
 
 
 def test_api_uses_only_environment_password(gimpo_client, runtime, monkeypatch):

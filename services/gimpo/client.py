@@ -2,10 +2,11 @@
 import asyncio
 import re
 import time
+from datetime import datetime, timedelta
 from typing import Protocol
 from urllib.parse import parse_qs, unquote, urlparse
 
-from services.gimpo.validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME
+from services.gimpo.validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME, SEOUL
 from services.gimpo.store import Conflict, READY
 
 ORIGIN = "https://park.airport.co.kr"
@@ -22,7 +23,7 @@ class BrowserFault(Exception):
 
 class BrowserClient(Protocol):
     async def check(self) -> bool: ...
-    async def prepare(self) -> dict: ...
+    async def prepare(self, *, bootstrap=False) -> dict: ...
     async def proceed(self) -> tuple[bool, float]: ...
     async def alive(self) -> bool: ...
     async def inspect(self) -> bool: ...
@@ -180,7 +181,7 @@ class PlaywrightGimpoClient:
 
     async def _dialog(self, dialog):
         job = self.owner.store.get(self.job_id)
-        if job["paymentMayHaveBeenSent"]:
+        if job["paymentMayHaveBeenSent"] or not self.allow_confirmation:
             # Native dialogs during PG belong to the user; do not acknowledge them.
             return
         values = (self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00",
@@ -206,7 +207,7 @@ class PlaywrightGimpoClient:
             raise BrowserFault("정상 조회 대신 오류 화면을 받았습니다.", "SESSION_EXPIRED") from None
         return OfficialContract.code(data, duplicate)
 
-    async def check(self):
+    async def _load_search_form(self, entry_at=None, exit_at=None):
         await self._start()
         job = self.owner.store.get(self.job_id)
         if job["paymentMayHaveBeenSent"] or self.sealed_form is not None:
@@ -234,7 +235,13 @@ class PlaywrightGimpoClient:
             await self.page.select_option("#parkingNm", PARKING)
         # Official date widgets are readonly: update displayed values in this tab.
         await self.page.evaluate("([a,b]) => {$('#resInDttm').val(a); $('#resOutDttm').val(b)}",
-                                 [self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00"])
+                                 [(entry_at or self.inputs["entryAt"]) + ":00", (exit_at or self.inputs["exitAt"]) + ":00"])
+
+    async def check(self):
+        await self._load_search_form()
+        return await self._check_loaded_search_form()
+
+    async def _check_loaded_search_form(self):
         async with self.page.expect_response("**/reservation/reservationCheck.json") as pending:
             await self.page.click("#parkCheckBtn")
         return await self._read_code(await pending.value) == "00"
@@ -244,9 +251,71 @@ class PlaywrightGimpoClient:
             const fields = {}; for (const [k,v] of new FormData(form)) (fields[k] ||= []).push(v); return fields;
         }""")
 
-    async def prepare(self):
-        async with self.page.expect_navigation(wait_until="load"):
+    @staticmethod
+    def _bootstrap_windows():
+        start = (datetime.now(SEOUL) + timedelta(days=14)).replace(hour=10, minute=0, second=0, microsecond=0)
+        windows = []
+        while len(windows) < 5:
+            if start.weekday() < 5:
+                windows.append((start.strftime("%Y-%m-%d %H:%M"),
+                                (start + timedelta(hours=4)).strftime("%Y-%m-%d %H:%M")))
+            start += timedelta(days=1)
+        return windows
+
+    async def _find_application_window(self):
+        for index, (entry, end) in enumerate(self._bootstrap_windows()):
+            if index:
+                await asyncio.sleep(self.inputs["intervalSeconds"])
+            await self._load_search_form(entry, end)
+            if await self._check_loaded_search_form():
+                return entry, end
+        raise BrowserFault("예약신청 화면 진입용 평일 시간대를 찾지 못했습니다. 잠시 후 다시 시작해주세요.")
+
+    async def _apply_requested_dates(self, bootstrap):
+        # Obtain the requested period's price from the official calculator, not
+        # from the short bootstrap stay rendered into the application page.
+        quote = await self.page.evaluate("""async values => {
+            const response = await fetch('/main/calculateAmt.json', {
+                method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                body: new URLSearchParams(values)
+            });
+            return {status: response.status, data: await response.json()};
+        }""", {"sectnId": self.inputs["parkingId"], "inDttm": self.inputs["entryAt"] + ":00",
+                "outDttm": self.inputs["exitAt"] + ":00", "discountCd": "DC001"})
+        data = quote.get("data")
+        amount = data.get("calculateAmt") if isinstance(data, dict) else None
+        if quote.get("status") != 200 or not re.fullmatch(r"[0-9]{1,10}", str(amount)):
+            raise BrowserFault("실제 예약 기간의 공식 예상요금을 확인할 수 없습니다.")
+        await self.page.evaluate("""([oldStart, oldEnd, start, end, amount]) => {
+            if (typeof settingAmt !== 'function') throw new Error('Official amount calculator missing');
+            const form = document.getElementById('reservationVO');
+            form.querySelector('#resInDttm').value = start;
+            form.querySelector('#resOutDttm').value = end;
+            form.querySelector('#calculateAmt').value = String(amount);
+            form.querySelector('#discountAmt').value = '0';
+            settingAmt(amount);
+            // The official page embeds the bootstrap dates in display text and
+            // its native confirmation message. Keep both consistent with the form.
+            const replaceDates = text => text.split(oldStart).map(part => part.split(oldEnd).join(end)).join(start);
+            const walker = document.createTreeWalker(form, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (!node.parentElement.closest('script, style')) node.textContent = replaceDates(node.textContent);
+            }
+            const nativeConfirm = window.confirm.bind(window);
+            window.confirm = message => nativeConfirm(
+                typeof message === 'string' && message.startsWith('작성 내용을 다시 한번 확인해주세요.')
+                    ? replaceDates(message) : message);
+        }""", [bootstrap[0] + ":00", bootstrap[1] + ":00", self.inputs["entryAt"] + ":00",
+                self.inputs["exitAt"] + ":00", int(amount)])
+
+    async def prepare(self, *, bootstrap=False):
+        entry_window = await self._find_application_window() if bootstrap else None
+        async with self.page.expect_navigation(wait_until="load") as pending:
             await self.page.click("#requestBtn")
+        response = await pending.value
+        if response is None or response.status != 200 or urlparse(self.page.url).path != "/reservation/resInsert.do":
+            raise BrowserFault("공식 예약신청 화면에 진입하지 못했습니다.", "SESSION_EXPIRED")
         await self.page.locator("#carNo").wait_for(state="visible")
         await self.page.evaluate("() => new Promise(resolve => $(resolve))")
         await self.page.evaluate("""() => {
@@ -268,7 +337,13 @@ class PlaywrightGimpoClient:
             }).observe(modal, {attributes: true, attributeFilter: ['class', 'style', 'hidden']});
             window.addEventListener('beforeunload', () => { if (visible) cancel(); });
         }""")
-        # Step 2 starts with the ordinary rate; check its identity before changing discounts.
+        # Check the server-rendered bootstrap identity before replacing the dates.
+        initial = {**self.inputs, "discountSelection": "DC001"}
+        if entry_window:
+            initial.update(entryAt=entry_window[0], exitAt=entry_window[1])
+        OfficialContract.summary(await self._form(), initial)
+        if entry_window:
+            await self._apply_requested_dates(entry_window)
         OfficialContract.summary(await self._form(), {**self.inputs, "discountSelection": "DC001"})
         if self.inputs["discountSelection"] != "DC001":
             async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
@@ -290,32 +365,60 @@ class PlaywrightGimpoClient:
             await self.page.fill(selector, self.inputs[key])
         for name in AGREEMENTS:
             await self.page.locator("#" + name).evaluate("element => { element.checked = true; element.dispatchEvent(new Event('change', {bubbles: true})); }")
+        if self.inputs["mode"] == "watch":
+            # Keep manual clicks from creating a second, untracked request chain.
+            await self.page.evaluate("""() => {
+                const button = document.querySelector('#reservationBtn');
+                button.disabled = true;
+                button.textContent = '자동 예약 진행 중';
+            }""")
         return summary
 
     async def proceed(self):
         if self.sealed_form is not None:
             raise BrowserFault("이미 진행한 결제는 다시 요청할 수 없습니다.")
+        if not await self.alive() or urlparse(self.page.url).path != "/reservation/resInsert.do":
+            raise BrowserFault("예약신청 화면이 닫혔거나 변경되었습니다.", "SESSION_EXPIRED")
         OfficialContract.summary(await self._form(), self.inputs)
+        self.dialog_error = False
         self.allow_confirmation = True
-        responses = asyncio.Queue()
+        responses = {path: asyncio.Queue() for path in ("/reservation/duplicateReservation.json", "/reservation/reservationCheck.json")}
         async def collect(response):
             path = urlparse(response.url).path
-            if path in {"/reservation/duplicateReservation.json", "/reservation/reservationCheck.json"}:
-                await responses.put(response)
+            if path in responses and response.request.frame == self.page.main_frame:
+                await responses[path].put(response)
         self.page.on("response", collect)
         try:
-            await self.page.click("#reservationBtn")
+            notice = self.page.locator("#flashMessage")
+            if await notice.is_visible():
+                message = await notice.locator("#alertMassage").inner_text()
+                if not re.fullmatch(r"예약가능\s*주차면수\s*:\s*0", message.strip()):
+                    raise BrowserFault("공식 만차 안내 문구가 변경되었습니다.")
+                await notice.locator("#flashMessageClose").click()
+                await notice.wait_for(state="hidden")
+            # Dispatch exactly one owned click; the visible control remains locked.
+            await self.page.locator("#reservationBtn").evaluate(
+                "button => button.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))")
             timeout = self.owner.config.browser_timeout_sec
-            duplicate = await asyncio.wait_for(responses.get(), timeout)
+            duplicate = await asyncio.wait_for(responses["/reservation/duplicateReservation.json"].get(), timeout)
             if not duplicate.url.endswith("duplicateReservation.json") and urlparse(duplicate.url).path != "/reservation/duplicateReservation.json":
                 raise BrowserFault("중복 검사를 확인할 수 없습니다.")
             code = await self._read_code(duplicate, True)
             if code != "00":
                 raise BrowserFault("같은 기간의 예약이 이미 있습니다." if code == "10" else "예약부도 이력으로 예약이 제한되었습니다.")
-            final = await asyncio.wait_for(responses.get(), timeout)
+            final = await asyncio.wait_for(responses["/reservation/reservationCheck.json"].get(), timeout)
+            if urlparse(final.url).path != "/reservation/reservationCheck.json":
+                raise BrowserFault("신청 화면의 잔여석 검사를 확인할 수 없습니다.")
             code = await self._read_code(final)
             checked_at = self.owner.store.clock()
             if code == "10":
+                # Only dismiss the known full-parking notice. Other alerts require review.
+                notice = self.page.locator("#flashMessage")
+                await notice.wait_for(state="visible")
+                message = await notice.locator("#alertMassage").inner_text()
+                if not re.fullmatch(r"예약가능\s*주차면수\s*:\s*0", message.strip()):
+                    raise BrowserFault("공식 만차 안내 문구가 변경되었습니다.")
+                # Leave the result visible until the next scheduled attempt.
                 return False, checked_at
             await self.page.locator("#confirm").wait_for(state="visible")
             if self.dialog_error or "결제 하시겠습니까?" not in await self.page.locator("#confirmMassage").inner_text():

@@ -183,46 +183,35 @@ class GimpoRuntime:
         return client
 
     async def _flow(self, job_id):
-        failures = 0
-        while not self.closing:
-            try:
-                job = self.store.get(job_id)
-                if job["state"] not in {"CHECKING", "WAITING_AVAILABLE"}:
-                    return
-                if job["state"] == "WAITING_AVAILABLE":
-                    self.store.transition(job_id, "CHECKING", "빈자리를 다시 조회합니다.", expected={"WAITING_AVAILABLE"})
-                self._validate_current_input(job_id)
-                client = self.clients.get(job_id) or await self._new_client(job_id)
-                available = await client.check()
-                failures = 0
-                if available:
-                    self.store.transition(job_id, "AVAILABLE", "빈자리가 있습니다. 예약 정보를 입력해주세요.", expected={"CHECKING"},
-                                          availabilityCheckedAt=self.store.clock(), commandStatus="DONE")
-                    if self.inputs[job_id]["mode"] == "watch":
-                        self.store.transition(job_id, "PREPARING", "공항 사이트에 예약 정보를 입력합니다.", expected={"AVAILABLE"})
-                        await self._prepare(job_id, automatic=True)
-                    return
+        try:
+            job = self.store.get(job_id)
+            if job["state"] not in {"CHECKING", "WAITING_AVAILABLE"}:
+                return
+            self._validate_current_input(job_id)
+            client = self.clients.get(job_id) or await self._new_client(job_id)
+            if self.inputs[job_id]["mode"] == "watch":
+                if job["state"] == "WAITING_AVAILABLE" and job["summary"]:
+                    self.store.transition(job_id, "RECHECKING", "예약신청 화면에서 다시 시도합니다.", expected={"WAITING_AVAILABLE"})
+                    await self._proceed(job_id)
+                else:
+                    self.store.transition(job_id, "PREPARING", "예약신청 화면에 진입한 뒤 실제 예약 정보를 입력합니다.",
+                                          expected={"CHECKING", "WAITING_AVAILABLE"})
+                    await self._prepare(job_id, automatic=True, bootstrap=True)
+                return
+            available = await client.check()
+            if available:
+                self.store.transition(job_id, "AVAILABLE", "빈자리가 있습니다. 예약 정보를 입력해주세요.", expected={"CHECKING"},
+                                      availabilityCheckedAt=self.store.clock(), commandStatus="DONE")
+            else:
                 self.store.transition(job_id, "WAITING_AVAILABLE", "선택한 기간은 만차입니다.", expected={"CHECKING"},
                                       availabilityCheckedAt=self.store.clock(), commandStatus="DONE")
-                if self.inputs[job_id]["mode"] == "once":
-                    await self._finish_pre(job_id, "STOPPED", "1회 조회 결과: 만차입니다.", {"WAITING_AVAILABLE"})
-                    return
-            except Conflict:
-                return
-            except asyncio.CancelledError:
-                raise
-            except Exception as error:
-                fault = self._fault(error)
-                if fault.retryable and self.inputs.get(job_id, {}).get("mode") == "watch" and failures < 3:
-                    failures += 1
-                    try:
-                        self.store.transition(job_id, "WAITING_AVAILABLE", "조회하지 못했습니다. 잠시 후 다시 조회합니다.", expected={"CHECKING"})
-                    except Conflict:
-                        return
-                else:
-                    await self._fail(job_id, fault)
-                    return
-            await asyncio.sleep(self.inputs[job_id]["intervalSeconds"] * (2 ** failures))
+                await self._finish_pre(job_id, "STOPPED", "1회 조회 결과: 만차입니다.", {"WAITING_AVAILABLE"})
+        except Conflict:
+            return
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            await self._fail(job_id, self._fault(error))
 
     def _validate_current_input(self, job_id):
         data = self.inputs[job_id]
@@ -231,10 +220,10 @@ class GimpoRuntime:
         except InputError:
             raise BrowserFault("예약 가능한 기간을 벗어났습니다. 입출차 시간을 수정한 뒤 다시 조회해주세요.") from None
 
-    async def _prepare(self, job_id, automatic):
+    async def _prepare(self, job_id, automatic, bootstrap=False):
         try:
             self._validate_current_input(job_id)
-            summary = await self.clients[job_id].prepare()
+            summary = await self.clients[job_id].prepare(bootstrap=bootstrap)
             self.store.transition(job_id, "PREPARED", "입출차 시간과 주차장, 요금을 확인했습니다.", expected={"PREPARING"}, summary=summary, commandStatus="DONE")
             if automatic:
                 self.store.transition(job_id, "RECHECKING", "중복 예약과 잔여석을 다시 확인합니다.", expected={"PREPARED"})
@@ -248,30 +237,30 @@ class GimpoRuntime:
 
     async def _proceed(self, job_id):
         try:
-            self._validate_current_input(job_id)
-            job = self.store.get(job_id)
-            available, checked = await self.clients[job_id].proceed()
-            if not available:
-                if self.inputs[job_id]["mode"] == "watch":
-                    # Keep the browser/session alive; the next check returns to the
-                    # search form in the same tab and adopts the new generation.
-                    self.store.transition(job_id, "WAITING_AVAILABLE", "그사이 만차가 되었습니다. 빈자리를 다시 조회합니다.", expected={"RECHECKING"},
-                                          summary=None, generation=job["generation"] + 1)
-                    self._schedule(job_id, self._resume_flow(job_id))
-                else:
+            while not self.closing:
+                self._validate_current_input(job_id)
+                job = self.store.get(job_id)
+                if job["state"] != "RECHECKING":
+                    return
+                available, checked = await self.clients[job_id].proceed()
+                if available:
+                    self.store.ready(job_id, job["generation"], job["summary"], checked, self.config.handoff_max_age_sec)
+                    return
+                if self.inputs[job_id]["mode"] != "watch":
                     await self._finish_pre(job_id, "STOPPED", "최종 재조회 결과 만차입니다.", {"RECHECKING"})
-                return
-            self.store.ready(job_id, job["generation"], job["summary"], checked, self.config.handoff_max_age_sec)
+                    return
+                # Preserve the application document, its filled inputs, and session.
+                self.store.transition(job_id, "WAITING_AVAILABLE", "만차입니다. 예약신청 화면에서 다시 시도합니다.",
+                                      expected={"RECHECKING"}, availabilityCheckedAt=checked, commandStatus="DONE")
+                await asyncio.sleep(self.inputs[job_id]["intervalSeconds"])
+                self.store.transition(job_id, "RECHECKING", "예약신청 화면에서 다시 시도합니다.", expected={"WAITING_AVAILABLE"},
+                                      commandStatus="RUNNING")
         except Conflict:
             pass
         except asyncio.CancelledError:
             raise
         except Exception as error:
             await self._fail(job_id, self._fault(error))
-
-    async def _resume_flow(self, job_id):
-        await asyncio.sleep(self.inputs[job_id]["intervalSeconds"])
-        await self._flow(job_id)
 
     @staticmethod
     def _fault(error):
