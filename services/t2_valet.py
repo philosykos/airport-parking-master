@@ -126,8 +126,17 @@ def redact_payload(payload):
             "carNumber": mask(payload.get("carNumber", ""), 3)}
 
 
-def redact_text(text):
-    """응답 본문·오류 문구에 섞인 휴대폰 번호를 가린다."""
+def redact_text(text, payload):
+    """응답 본문·오류 문구에 섞인 요청 자신의 예약자명·휴대폰·차량번호와, 그 밖의 휴대폰 번호를 가린다."""
+    fields = [
+        (payload.get("name", ""), 1, 0),
+        (payload.get("phone", ""), 3, 4),
+        (payload.get("carNumber", ""), 3, 0),
+    ]
+    # 한 값이 다른 값의 일부일 수 있으므로 긴 값부터 바꾼다
+    for value, keep_head, keep_tail in sorted(fields, key=lambda f: len(f[0]), reverse=True):
+        if value:
+            text = text.replace(value, mask(value, keep_head, keep_tail))
     return PHONE_IN_TEXT.sub(lambda m: mask(m.group(0), 3, 4), text)
 
 
@@ -141,9 +150,9 @@ def do_single_call(url, payload):
     entry = {"time": now_text(), "type": "call", "url": url, "payload": redact_payload(payload)}
     try:
         resp = http_requests.post(url, json=payload, headers=DEFAULT_HEADERS, timeout=10, verify=False)
-        entry.update(status=resp.status_code, body=redact_text(resp.text[:2000]))
+        entry.update(status=resp.status_code, body=redact_text(resp.text, payload)[:2000])
     except Exception as e:
-        entry.update(status="ERROR", body=redact_text(str(e)[:2000]))
+        entry.update(status="ERROR", body=redact_text(str(e), payload)[:2000])
     return entry
 
 
