@@ -184,7 +184,7 @@ def new_event_id():
 def notify_reservation_completed(payload, event_id):
     # Only the explicit message fields are used; raw API responses/PII are never sent.
     try:
-        return NOTIFICATIONS.publish(event_id, ReservationMessages.t2_completed(payload, event_id))
+        return NOTIFICATIONS.publish(event_id, ReservationMessages.t2_completed(payload))
     except Exception:
         _notification_result({"status": "FAILED", "error": "예약 완료 알림을 처리하지 못했습니다. 예약 요청은 다시 실행하지 않습니다."})
         return {"status": "FAILED"}

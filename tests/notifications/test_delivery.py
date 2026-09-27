@@ -83,12 +83,12 @@ def test_shared_config_validation():
 def test_common_t2_message_is_allowlisted():
     payload={'departingAt':'2026-10-03 11:00:00','arrivedAt':'2026-10-06 18:00:00',
              'name':'PRIVATE_NAME','phone':'PRIVATE_PHONE','carNumber':'PRIVATE_CAR','token':'PRIVATE_TOKEN','password':'PRIVATE_PASSWORD'}
-    message=ReservationMessages.t2_completed(payload,'ICN-T2-fixture',datetime(2026,10,1,9,tzinfo=ZoneInfo('Asia/Seoul'))).render()
+    message=ReservationMessages.t2_completed(payload,datetime(2026,10,1,9,tzinfo=ZoneInfo('Asia/Seoul'))).render()
     assert '[인천공항 T2 발렛] 예약 완료' in message
     assert '입차: 2026-10-03 11:00' in message
     assert '출차: 2026-10-06 18:00' in message
     assert 'PRIVATE' not in message
-    assert '작업: ICN-T2-fixture' in message
+    assert '작업:' not in message
 
 
 def test_background_sender_dedupes_without_rebooking():
