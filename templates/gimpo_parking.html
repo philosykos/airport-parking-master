@@ -1,65 +1,73 @@
+{% extends 'service_base.html' %}
 {% from 'partials/date_input.html' import date_input %}
-<!doctype html>
-<html lang="ko">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>김포공항 국내선 예약주차장</title>
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" integrity="sha384-SN6A48CJQjx946+DRb8wsoifC4a8ur9ZS6R+HCTgnBHOKCa6GLXAR3Qn8d1jztxg" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/gimpo_parking.css') }}">
+{% from 'partials/ui.html' import field, action_button %}
+{% block title %}김포공항 국내선 예약주차장{% endblock %}
+{% block description %}김포공항 국내선 예약주차장 예약 도우미{% endblock %}
+{% block body_class %}service gimpo{% endblock %}
+{% block header_title %}김포공항 국내선 예약주차장{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/gimpo_parking.css') }}">{% endblock %}
+{% block scripts %}
     <script defer src="{{ url_for('static', filename='js/datepicker.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='js/ui/notification_status.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/gimpo_parking.js') }}"></script>
-</head>
-<body class="gimpo">
-<nav class="app-header"><div class="app-header-left"><a class="header-back" href="/" aria-label="서비스 선택으로 돌아가기">← 서비스 선택</a><span class="title-main">GMP · 김포공항</span></div>{% include 'partials/settings_link.html' %}</nav>
-<main class="gimpo-main">
-    <header class="gimpo-intro"><p class="eyebrow">DOMESTIC PARKING</p><h1>김포공항 국내선 예약주차장</h1><p>빈자리를 조회하고 예약 정보를 입력합니다. 예약을 완료하려면 이 PC에서 열린 공항 사이트에서 결제해주세요.</p></header>
-    <div id="message" role="status" aria-live="polite"></div>
-    <div class="gimpo-grid">
-    <section class="gimpo-card">
-        <h2>예약 정보</h2>
-        <form id="reservation-form" autocomplete="off">
-        <fieldset id="input-fields" disabled>
-            <div class="field-row"><div class="field-group"><label for="airportCode">공항</label><select id="airportCode" name="airportCode" required></select></div><div class="field-group"><label for="parkingId">주차장</label><select id="parkingId" name="parkingId" required></select></div></div>
-            <div class="field-row">
-                <div class="field-group"><label for="entryAt">입차시간</label>{{ date_input('entryAt', 'entry-picker', '입차시간', required=true) }}</div>
-                <div class="field-group"><label for="exitAt">출차시간</label>{{ date_input('exitAt', 'exit-picker', '출차시간', required=true) }}</div>
-            </div>
-            <div class="field-row"><div class="field-group"><label for="carNumber">차량번호</label><input id="carNumber" name="carNumber" type="text" required maxlength="20" placeholder="123가4567"></div><div class="field-group"><label for="phone">휴대전화 번호</label><input id="phone" name="phone" type="tel" required maxlength="20" placeholder="01012345678"></div></div>
-            <div class="field-row"><div class="field-group"><label for="discountSelection">할인 구분</label><select id="discountSelection" name="discountSelection"></select></div><div class="field-group"><label for="intervalSeconds">조회 간격(초)</label><input id="intervalSeconds" name="intervalSeconds" type="number" required min="30" max="3600" step="1"></div></div>
-        </fieldset>
-        <div class="field-row"><div class="field-group">
-            <label for="reservationPassword">예약 비밀번호</label>
-            <div class="password-field">
-                <input id="reservationPassword" type="password" readonly autocomplete="off" placeholder="환경변수에서 불러오는 중">
-                <button id="toggle-password" type="button" aria-label="비밀번호 보기" aria-controls="reservationPassword" aria-pressed="false" disabled><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button>
-            </div>
-        </div><div class="field-group">
-            <label for="passwordConfirmation">예약 비밀번호 확인</label>
-            <div class="password-field">
-                <input id="passwordConfirmation" type="password" readonly autocomplete="off" placeholder="환경변수에서 불러오는 중">
-                <button id="toggle-password-confirmation" type="button" aria-label="확인 비밀번호 보기" aria-controls="passwordConfirmation" aria-pressed="false" disabled><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button>
-            </div>
-        </div></div>
-        <div class="actions"><button type="submit" id="check" disabled>빈자리 조회</button><button type="button" id="watch" class="primary" disabled>자동 예약 시작</button><button id="import-t2" type="button">T2 차량·연락처 가져오기</button></div>
-        </form>
-    </section>
-    <section class="gimpo-card status-panel" aria-labelledby="status-title">
-        <div class="status-heading"><h2 id="status-title">진행 상황</h2><span id="state" class="status-pill">연결 중</span></div>
-        <dl id="summary" hidden></dl><p id="freshness" class="help" hidden></p>
-        <div class="actions" id="job-actions"><button id="prepare" hidden>예약 정보 입력</button><button id="proceed" hidden>결제 대기까지 진행</button><button id="stop" hidden>중지</button><button id="show-browser" hidden class="primary">공항 예약창 보기</button></div>
-        <details id="resolution" hidden><summary>예약 결과 확인 및 종료</summary><p class="help">종료해도 공항 예약은 취소되지 않습니다.</p><label for="outcome">공항 사이트에서 확인한 예약 결과</label><select id="outcome"><option value="">선택</option><option value="reserved">예약 완료</option><option value="not_reserved">예약되지 않음</option><option value="unknown">확인하지 못함</option></select><label><input id="resolve-consent" type="checkbox"> 선택한 결과를 기록하고 예약창을 닫습니다.</label><button id="resolve">기록 후 종료</button></details>
-        <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button id="resend" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
-        <h3>작업 로그</h3><ol id="logs" aria-live="polite"></ol>
-    </section>
+{% endblock %}
+{% block log_title %}작업 로그{% endblock %}
+{% block log_empty %}아직 작업 기록이 없습니다{% endblock %}
+{% block form_intro %}<p class="form-intro">빈자리를 조회하고 예약 정보를 입력합니다. 결제는 이 PC에 열린 공항 예약창에서 직접 진행합니다.</p>{% endblock %}
+{% block form_fields %}
+<form id="reservation-form" class="form-section" autocomplete="off" novalidate>
+    <fieldset id="input-fields" disabled>
+        <div class="field-row">
+            {% call field('airportCode', '공항') %}<select id="airportCode" name="airportCode" required></select>{% endcall %}
+            {% call field('parkingId', '주차장') %}<select id="parkingId" name="parkingId" required></select>{% endcall %}
+        </div>
+        <div class="field-row">
+            {% call field('entryAt', '입차시간', '입차시간을 확인해주세요') %}{{ date_input('entryAt', 'entry-picker', '입차시간', required=true) }}{% endcall %}
+            {% call field('exitAt', '출차시간', '출차시간을 확인해주세요') %}{{ date_input('exitAt', 'exit-picker', '출차시간', required=true) }}{% endcall %}
+        </div>
+        <div class="field-row">
+            {% call field('carNumber', '차량번호', '차량번호를 입력해주세요') %}<input id="carNumber" name="carNumber" type="text" required maxlength="20" placeholder="123가4567">{% endcall %}
+            {% call field('phone', '휴대전화 번호', '휴대전화 번호를 입력해주세요') %}<input id="phone" name="phone" type="tel" required maxlength="20" placeholder="01012345678">{% endcall %}
+        </div>
+        <div class="field-row">
+            {% call field('discountSelection', '할인 구분') %}<select id="discountSelection" name="discountSelection"></select>{% endcall %}
+            {% call field('intervalSeconds', '조회 간격(초)', '30~3600초로 입력해주세요') %}<input id="intervalSeconds" name="intervalSeconds" type="number" required min="30" max="3600" step="1">{% endcall %}
+        </div>
+    </fieldset>
+    <div class="field-row">
+        {% call field('reservationPassword', '예약 비밀번호') %}
+        <div class="password-field">
+            <input id="reservationPassword" type="password" readonly autocomplete="off" placeholder="환경변수에서 불러오는 중">
+            <button id="toggle-password" type="button" aria-label="비밀번호 보기" aria-controls="reservationPassword" aria-pressed="false" disabled><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button>
+        </div>
+        {% endcall %}
+        {% call field('passwordConfirmation', '예약 비밀번호 확인') %}
+        <div class="password-field">
+            <input id="passwordConfirmation" type="password" readonly autocomplete="off" placeholder="환경변수에서 불러오는 중">
+            <button id="toggle-password-confirmation" type="button" aria-label="확인 비밀번호 보기" aria-controls="passwordConfirmation" aria-pressed="false" disabled><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button>
+        </div>
+        {% endcall %}
     </div>
-</main>
-</body></html>
+</form>
+{% endblock %}
+{% block form_actions %}
+    {{ action_button('watch', '자동 예약 시작', 'play_arrow', 'start', disabled=true) }}
+    {{ action_button('stop', '중지', 'stop', 'stop', disabled=true) }}
+    {{ action_button('check', '빈자리 조회', 'search', 'test', type='submit', disabled=true, form='reservation-form') }}
+    {{ action_button('import-t2', 'T2 정보 가져오기', 'download', 'clear') }}
+{% endblock %}
+{% block form_footer %}<p class="help">차량번호·연락처와 선택한 옵션은 이 PC에 자동 저장됩니다.</p>{% endblock %}
+{% block progress %}
+<div class="progress-card" id="progress-card">
+    <div class="status-heading"><h2 id="status-title">진행 상황</h2><span id="state" class="status-pill" data-tone="idle">연결 중</span></div>
+    <dl id="summary" hidden></dl>
+    <p id="freshness" class="help" hidden></p>
+    <div class="job-actions" id="job-actions" hidden>
+        <button type="button" id="prepare" hidden>예약 정보 입력</button>
+        <button type="button" id="proceed" hidden>결제 대기까지 진행</button>
+        <button type="button" id="show-browser" class="primary" hidden>공항 예약창 보기</button>
+    </div>
+    <details id="resolution" hidden><summary>예약 결과 확인 및 종료</summary><p class="help">종료해도 공항 예약은 취소되지 않습니다.</p><label for="outcome">공항 사이트에서 확인한 예약 결과</label><select id="outcome"><option value="">선택</option><option value="reserved">예약 완료</option><option value="not_reserved">예약되지 않음</option><option value="unknown">확인하지 못함</option></select><label><input id="resolve-consent" type="checkbox"> 선택한 결과를 기록하고 예약창을 닫습니다.</label><button type="button" id="resolve">기록 후 종료</button></details>
+    <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button type="button" id="resend" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
+</div>
+{% endblock %}

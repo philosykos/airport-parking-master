@@ -61,7 +61,7 @@ label {
 }
 
 /* ── Inputs & Selects ── */
-input[type="text"], input[type="number"], input[type="tel"],
+input[type="text"], input[type="number"], input[type="tel"], input[type="password"],
 input[type="date"], input[type="time"], select {
     width: 100%;
     min-width: 0;
