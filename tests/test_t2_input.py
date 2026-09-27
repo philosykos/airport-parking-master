@@ -79,3 +79,15 @@ def test_interval_rejects_bad_values(value, message):
     with pytest.raises(InputError) as e:
         parse_interval(value)
     assert str(e.value) == message
+
+
+@pytest.mark.parametrize("plate", ["12가3456", "123호4567", "12허3456", "12배3456"])
+def test_any_hangul_plate_letter_is_accepted(plate):
+    # 렌터카(하·허·호) 같은 용도 글자는 가~하 범위 밖에도 있다
+    assert validate_fields({**VALID, "carNumber": plate}, require_contact=True)["carNumber"] == plate
+
+
+@pytest.mark.parametrize("plate", ["12a3456", "12ㄱ3456", "12가나3456"])
+def test_non_syllable_plate_letter_is_rejected(plate):
+    with pytest.raises(InputError):
+        validate_fields({**VALID, "carNumber": plate}, require_contact=True)

@@ -32,4 +32,5 @@ def warn_legacy_env(env_path):
 
 if __name__ == "__main__":
     warn_legacy_env(os.path.join(BASE_DIR, ".env"))
-    app.run(debug=True, port=8080)
+    # 디버그 모드는 브라우저에서 코드를 실행하는 Werkzeug 디버거를 켜므로 끈다
+    app.run(debug=False, port=8080)

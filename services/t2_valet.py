@@ -1,4 +1,5 @@
 import functools
+import json
 import os
 import re
 from dataclasses import dataclass
@@ -158,7 +159,10 @@ def redact_text(text, payload):
     for value, keep_head, keep_tail in sorted(fields, key=lambda f: len(f[0]), reverse=True):
         # 한 글자 값은 본문 곳곳의 같은 글자를 전부 가리게 되므로 2자 이상만 가린다
         if len(value) >= 2:
-            text = text.replace(value, mask(value, keep_head, keep_tail))
+            masked = mask(value, keep_head, keep_tail)
+            text = text.replace(value, masked)
+            # JSON 응답이 한글을 \uXXXX로 이스케이프해 보낸 경우
+            text = text.replace(json.dumps(value)[1:-1], json.dumps(masked)[1:-1])
     return PHONE_IN_TEXT.sub(lambda m: mask(m.group(0), 3, 4), text)
 
 

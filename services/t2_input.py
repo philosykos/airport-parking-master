@@ -17,7 +17,7 @@ _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 FIELDS = {
     "name": ("예약자명", None),
     "phone": ("휴대폰 번호", re.compile(r"010[0-9]{8}")),
-    "carNumber": ("차량번호", re.compile(r"[0-9]{2,3}[가-하][0-9]{4}")),
+    "carNumber": ("차량번호", re.compile(r"[0-9]{2,3}[가-힣][0-9]{4}")),
     "carModel": ("차종", None),
     "carBrand": ("제조사", _CODE),
     "carColor": ("색상", _CODE),

@@ -78,3 +78,10 @@ def test_do_single_call_masks_phone_before_truncating(monkeypatch):
     monkeypatch.setattr(t2_valet.http_requests, "post", lambda url, **kwargs: Resp())
     entry = t2_valet.do_single_call("https://example.invalid", {"name": "", "phone": "", "carNumber": ""})
     assert "0101234" not in entry["body"]
+
+
+def test_redact_text_masks_unicode_escaped_json():
+    # 응답이 한글을 \uXXXX로 이스케이프해도 가린다. 화면은 본문을 JSON으로 풀어 보여 준다.
+    payload = {"name": "홍길동", "phone": "01012345678", "carNumber": "12가3456"}
+    redacted = json.loads(t2_valet.redact_text(json.dumps(payload), payload))
+    assert redacted == {"name": "홍**", "phone": "010****5678", "carNumber": "12가****"}

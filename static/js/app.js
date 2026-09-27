@@ -18,7 +18,7 @@ const FORM_FIELDS = ['name', 'phone', 'carNumber', 'carModel', 'carBrand', 'carC
 const DATE_FIELDS = ['departingAt', 'arrivedAt'];
 const FORMAT_RULES = {
     phone: { pattern: /^010\d{8}$/, message: '휴대폰 번호: 010XXXXXXXX (숫자 11자리)' },
-    carNumber: { pattern: /^\d{2,3}[가-하]\d{4}$/, message: '차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)' }
+    carNumber: { pattern: /^\d{2,3}[가-힣]\d{4}$/, message: '차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)' }
 };
 const OVERLAY_IDS = ['detail-overlay', 'log-sheet-overlay', 'select-picker-overlay'];
 
@@ -138,6 +138,7 @@ document.addEventListener('click', function(e) {
 });
 
 // POST 요청 공통 처리. body가 있으면 JSON으로 보낸다. 응답은 { ok, data }.
+// 서버가 JSON이 아닌 오류 페이지(400·500 HTML)를 돌려주면 data.error에 상태 코드를 담는다.
 async function apiPost(path, body) {
     var options = { method: 'POST' };
     if (body !== undefined) {
@@ -145,7 +146,13 @@ async function apiPost(path, body) {
         options.body = JSON.stringify(body);
     }
     var resp = await fetch(API_BASE + path, options);
-    return { ok: resp.ok, data: await resp.json() };
+    var data;
+    try {
+        data = await resp.json();
+    } catch (e) {
+        data = { error: '서버 오류 (HTTP ' + resp.status + ')' };
+    }
+    return { ok: resp.ok, data: data };
 }
 
 async function testCall() {

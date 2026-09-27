@@ -14,7 +14,9 @@ PRIVATE_MODE = 0o600
 def _open(path, flags, mode="r"):
     fd = os.open(path, flags, PRIVATE_MODE)
     try:
-        os.fchmod(fd, PRIVATE_MODE)
+        # 권한은 소유자만 바꿀 수 있다. sudo로 실행해 root가 만든 파일 등은 그대로 두고 연다.
+        if os.fstat(fd).st_uid == os.getuid():
+            os.fchmod(fd, PRIVATE_MODE)
         return os.fdopen(fd, mode, encoding="utf-8")
     except BaseException:
         os.close(fd)

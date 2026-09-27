@@ -77,3 +77,20 @@ def test_corrupt_lines_are_skipped(tmp_path):
     path = tmp_path / "api_call.log"
     path.write_text('not json\n\n{"n": 1}\n', encoding="utf-8")
     assert LogStore(str(path)).recent() == [{"n": 1}]
+
+
+def test_files_owned_by_another_user_are_read_without_chmod(tmp_path, monkeypatch):
+    # sudo로 실행해 root가 만든 파일처럼 소유자가 아니면 권한을 바꿀 수 없다(fchmod가 EPERM).
+    # 권한은 그대로 두고, 읽을 수 있으면 읽는다.
+    data = tmp_path / "user_data.json"
+    data.write_text('{"name": "a"}', encoding="utf-8")
+    log = tmp_path / "api_call.log"
+    log.write_text('{"n": 1}\n', encoding="utf-8")
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(data).st_uid + 1)
+
+    def refuse(fd, mode):
+        raise PermissionError(1, "Operation not permitted")
+    monkeypatch.setattr(os, "fchmod", refuse)
+
+    assert UserDataStore(str(data)).load() == {"name": "a"}
+    assert LogStore(str(log)).recent() == [{"n": 1}]
