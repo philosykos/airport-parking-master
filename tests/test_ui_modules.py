@@ -6,7 +6,7 @@ from playwright.sync_api import expect, sync_playwright
 from app import app
 
 ROOT = Path(__file__).resolve().parent.parent
-UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker']
+UI_SCRIPTS = ['api', 'overlay', 'toast', 'ripple', 'sheet', 'select_picker', 'status_badge', 'log_panel']
 STYLES = ['tokens', 'layout', 'form', 'log', 'overlay']
 ORIGIN = 'http://ui.test'
 
@@ -144,4 +144,89 @@ def test_select_picker_sheet_on_mobile_only(ui_page):
     page.set_viewport_size({'width': 1280, 'height': 900})
     page.dispatch_event('#color', 'mousedown')
     assert not is_open(page, 'select-picker-overlay')
+    assert not errors
+
+
+LOG_PANEL = ("{% from 'partials/ui.html' import log_sheet_bar, log_panel %}"
+             "<div class='status-badge' id='header-status' data-tone='idle'><span class='ping-container'><span class='ping-ring'></span><span class='ping-dot'></span></span><span id='header-status-text'>대기 중</span></div>"
+             "<section class='log-panel' id='log-panel'>{{ log_sheet_bar() }}{{ log_panel('실행 로그', '기록 없음') }}</section>"
+             "{% include 'partials/log_mobile.html' %}{% include 'partials/log_detail.html' %}"
+             "{% include 'partials/completion_overlay.html' %}")
+
+ENTRIES = """[
+  {time: '10:00', type: {label: '1회 요청', variant: 'test'}, status: {label: '601', tone: 'error'},
+   summary: '<img src=x onerror=alert(1)>', detail: [{title: 'RESPONSE BODY', kind: 'json', body: '{"a":1}'}]},
+  {time: '10:01', type: {label: '상태', variant: 'event'}, status: {label: 'SUCCESS', tone: 'info'},
+   summary: '완료', detail: [{title: '메시지', kind: 'text', body: '완료'}]}]"""
+
+
+def test_log_panel_renders_rows_detail_and_empty_state(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate(f"() => {{ window.panel = new UI.LogPanel(document.getElementById('log-panel')); panel.render({ENTRIES}); }}")
+    rows = page.locator('#log-body tr.log-row')
+    assert rows.count() == 2
+    assert rows.first.locator('.cell-time').inner_text() == '10:01'
+    assert page.locator('#log-body img').count() == 0
+    assert page.locator('#log-count').inner_text() == '2'
+    assert rows.nth(1).locator('.cell-status').get_attribute('data-tone') == 'error'
+    assert rows.first.get_attribute('class') == 'log-row row-event'
+    rows.nth(1).click()
+    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    assert page.locator('#detail-json .json-key').inner_text() == '"a":'
+    page.keyboard.press('Escape')
+    assert not is_open(page, 'detail-overlay')
+    page.evaluate('panel.render([])')
+    assert page.locator('#log-body .empty-msg').inner_text().strip().endswith('기록 없음')
+    assert page.locator('#log-count').inner_text() == '0'
+    assert not errors
+
+
+def test_log_panel_is_bottom_sheet_on_mobile_and_escape_closes_top_layer_only(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate(f"() => {{ window.panel = new UI.LogPanel(document.getElementById('log-panel')); panel.render({ENTRIES}); }}")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    expect(page.locator('#log-panel')).to_be_hidden()
+    assert page.locator('#log-fab').is_visible()
+    assert page.locator('#log-fab-badge').inner_text() == '2'
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.locator('#log-body tr.log-row').first.click()
+    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    page.keyboard.press('Escape')
+    assert not is_open(page, 'detail-overlay')
+    assert is_open(page, 'log-panel')
+    page.locator('#log-panel .log-sheet-close').click()
+    assert not is_open(page, 'log-panel')
+    assert page.evaluate('document.body.style.overflow') == ''
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    assert not errors
+
+
+def test_status_badge_updates_header_and_log_status(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', short: '실행 중', tone: 'running'})")
+    assert page.locator('#header-status').get_attribute('data-tone') == 'running'
+    assert page.locator('#header-status-text').inner_text() == '스케줄 실행 중'
+    assert page.locator('#status-badge').get_attribute('data-tone') == 'running'
+    assert page.locator('#status-badge .status-label').inner_text() == '실행 중'
+    page.set_viewport_size({'width': 390, 'height': 844})
+    assert page.locator('#header-status').is_visible()
+    assert not errors
+
+
+def test_completion_overlay_stacks_above_open_log_sheet(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.evaluate("UI.completion.success({title: '예약이', highlight: '완료되었습니다'})")
+    hit = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight - 40).closest('#completion-overlay') !== null")
+    assert hit
+    page.evaluate('panel.openSheet()')  # 완료 안내가 떠 있으면 시트를 다시 올리지 않는다
+    assert page.evaluate("UI.layers.top() === document.getElementById('completion-overlay')")
     assert not errors

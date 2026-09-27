@@ -46,13 +46,14 @@
     background: var(--text-muted);
     transition: background var(--duration-slow) ease, box-shadow var(--duration-slow) ease;
 }
-.log-status.running {
-    color: #059669;
-}
-.log-status.running .status-dot {
-    background: var(--success);
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
-}
+.log-status[data-tone="running"] { color: #059669; }
+.log-status[data-tone="running"] .status-dot { background: var(--success); box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
+.log-status[data-tone="success"] { color: #047857; }
+.log-status[data-tone="success"] .status-dot { background: var(--success); }
+.log-status[data-tone="warning"] { color: #B45309; }
+.log-status[data-tone="warning"] .status-dot { background: var(--warning); }
+.log-status[data-tone="error"] { color: var(--danger); }
+.log-status[data-tone="error"] .status-dot { background: var(--danger); }
 .log-stats-divider {
     width: 1px;
     height: 14px;
@@ -196,20 +197,18 @@ tr.log-row:hover .tag {
     border-radius: 50%;
     flex-shrink: 0;
 }
-.cell-status.status-ok {
-    background: rgba(209, 250, 229, 0.6);
-    color: #15803D;
-}
-.cell-status.status-ok::before {
-    background: #22C55E;
-}
-.cell-status.status-err {
-    background: rgba(254, 226, 226, 0.6);
-    color: #B91C1C;
-}
-.cell-status.status-err::before {
-    background: #EF4444;
-}
+.cell-status[data-tone="success"] { background: rgba(209, 250, 229, 0.6); color: #15803D; }
+.cell-status[data-tone="success"]::before { background: #22C55E; }
+.cell-status[data-tone="error"] { background: rgba(254, 226, 226, 0.6); color: #B91C1C; }
+.cell-status[data-tone="error"]::before { background: #EF4444; }
+.cell-status[data-tone="warning"] { background: var(--warning-bg); color: #B45309; }
+.cell-status[data-tone="warning"]::before { background: var(--warning); }
+.cell-status[data-tone="running"] { background: var(--secondary-fixed); color: var(--on-secondary-fixed); }
+.cell-status[data-tone="running"]::before { background: var(--secondary); }
+.cell-status[data-tone="info"] { background: rgba(254, 215, 170, 0.5); color: #C2410C; }
+.cell-status[data-tone="info"]::before { background: #F97316; }
+.cell-status[data-tone="idle"] { background: var(--surface-container-low); color: var(--text-muted); }
+.cell-status[data-tone="idle"]::before { background: var(--text-muted); }
 
 .body-cell {
     overflow: hidden;
@@ -239,12 +238,6 @@ tr.log-row:hover .tag {
 .col-time { width: 220px; }
 .col-type { width: 110px; }
 .col-status { width: 130px; }
-
-@media (max-width: 960px) {
-    .log-panel {
-        display: none;
-    }
-}
 
 /* ── Mobile Log FAB ── */
 .log-fab {
@@ -299,13 +292,36 @@ tr.log-row:hover .tag {
     }
 }
 
-/* ── Mobile Log Bottom Sheet ── */
-.log-sheet-overlay {
+/* ── 모바일: 로그 패널 자체가 바텀시트가 된다 ── */
+.log-sheet-bar,
+.log-backdrop {
     display: none;
 }
 
 @media (max-width: 960px) {
-    .log-sheet-overlay {
+    .log-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 101;
+        height: auto;
+        max-height: 85dvh;
+        overflow-y: auto;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        background: var(--surface-container-lowest);
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
+        padding-bottom: env(safe-area-inset-bottom);
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.35s;
+    }
+    .log-panel.open {
+        transform: translateY(0);
+        visibility: visible;
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .log-backdrop {
         display: block;
         position: fixed;
         inset: 0;
@@ -315,88 +331,51 @@ tr.log-row:hover .tag {
         pointer-events: none;
         transition: opacity var(--duration-normal) ease;
     }
-    .log-sheet-overlay.open {
+    .log-backdrop.open {
         opacity: 1;
         pointer-events: auto;
     }
-    .log-sheet {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        max-height: 85dvh;
-        background: var(--surface-container-lowest);
-        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-        transform: translateY(100%);
-        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12);
-        z-index: 101;
-        padding-bottom: env(safe-area-inset-bottom);
+    .log-fab {
+        overflow: visible; /* form.css 전역 button의 overflow: hidden이 건수 배지를 자르지 않게 한다 */
     }
-    .log-sheet-overlay.open .log-sheet {
-        transform: translateY(0);
+    .log-sheet-bar {
+        display: flex;
+        justify-content: center;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface-container-lowest);
+        padding: 8px 8px 0;
+        min-height: 44px;
     }
     .log-sheet-handle {
         width: 36px;
         height: 4px;
+        margin-top: 4px;
         background: var(--outline-variant);
         border-radius: 2px;
-        margin: 8px auto;
-        flex-shrink: 0;
-    }
-    .log-sheet-header {
-        display: flex;
-        align-items: center;
-        padding: var(--space-1) var(--space-2) var(--space-2);
-        border-bottom: 1px solid rgba(198, 197, 212, 0.2);
-        flex-shrink: 0;
-        gap: var(--space-2);
-    }
-    .log-sheet-header h3 {
-        font-family: var(--font-headline);
-        font-size: 18px;
-        font-weight: 800;
-        color: var(--on-surface);
-        margin: 0;
-        flex: 1;
     }
     .log-sheet-close {
+        position: absolute;
+        right: 8px;
+        top: 4px;
         width: 44px;
         height: 44px;
+        padding: 0;
         border: none;
         background: transparent;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
         color: var(--on-surface-variant);
-        padding: 0;
     }
-    .log-sheet-close:active {
-        background: rgba(0, 0, 0, 0.05);
+    .log-panel .log-scroll {
+        overflow: visible;
     }
-    .log-sheet-body {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: auto;
-        padding: var(--space-2);
-        -webkit-overflow-scrolling: touch;
-    }
-    .log-sheet-body table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .log-sheet-body th,
-    .log-sheet-body td {
+    .log-panel th,
+    .log-panel td {
         padding: var(--space-1) var(--space-2);
     }
-    .log-sheet-body .col-time { width: auto; min-width: 100px; }
-    .log-sheet-body .col-type { width: auto; min-width: 60px; }
-    .log-sheet-body .col-status { width: auto; min-width: 70px; }
-    .log-sheet-body .cell-time {
-        font-size: 12px;
-    }
+    .log-panel .col-time { width: auto; min-width: 100px; }
+    .log-panel .col-type { width: auto; min-width: 60px; }
+    .log-panel .col-status { width: auto; min-width: 70px; }
+    .log-panel .cell-time { font-size: 12px; }
 }
+
