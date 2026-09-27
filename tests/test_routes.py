@@ -321,10 +321,11 @@ PRETENDARD_URL = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist
 PRETENDARD_SRI = "sha384-SN6A48CJQjx946+DRb8wsoifC4a8ur9ZS6R+HCTgnBHOKCa6GLXAR3Qn8d1jztxg"
 
 
-def test_t2_frontend_has_no_inline_event_handlers():
-    for rel in ("templates/t2_valet.html", "static/js/app.js"):
-        text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
-        assert not re.search(r"\son[a-z]+\s*=\s*[\"']", text), rel
+def test_frontend_has_no_inline_event_handlers():
+    files = [*(PROJECT_ROOT / "templates").rglob("*.html"), *(PROJECT_ROOT / "static/js").rglob("*.js")]
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        assert not re.search(r"\son[a-z]+\s*=\s*[\"']", text), path
 
 
 def test_t2_page_sends_csp(client):
