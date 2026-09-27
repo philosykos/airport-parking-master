@@ -52,6 +52,7 @@ def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
         assert page.locator('#passwordConfirmation').get_attribute('type') == 'password'
         assert page.locator('#show-browser').is_visible()
         stored = page.evaluate('({...localStorage})')
+        assert stored
         assert all(key.startswith('gimpo.completion.') for key in stored)
         assert '123가4567' not in json.dumps(stored, ensure_ascii=False)
         page.click('#stop')
@@ -510,6 +511,24 @@ def test_completion_keys_of_other_jobs_are_pruned(ui_server, ui_context):
         wait_polls(page)
         assert sorted(page.evaluate('Object.keys(localStorage)')) == sorted([current, 'other.key'])
         assert overlay_variant(page) is None  # 현재 작업 기록은 남아 결제 안내를 다시 띄우지 않는다
+        assert not errors
+
+
+def test_completion_overlay_stays_closed_after_reload(ui_server, ui_context):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
+        page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
+        page.reload()
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
+        wait_polls(page)
+        assert overlay_variant(page) is None
+        stored = page.evaluate('() => Object.keys(localStorage)')
+        assert stored
+        assert all(key.startswith(f"gimpo.completion.{job['id']}.") for key in stored)
+        assert 'PrivatePass44' not in json.dumps(stored, ensure_ascii=False)
         assert not errors
 
 

@@ -723,7 +723,7 @@ button svg {
     .btn-stop:hover:not(:disabled) { background: #FDE4E4; transform: none; box-shadow: none; }
     .btn-stop .btn-ripple { background: rgba(186, 26, 26, 0.15); }
     .btn-test, .btn-secondary { background: #FFFFFF; color: var(--on-surface); border: 1px solid #D5D7E0; font-weight: 600; }
-    .btn-test:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { background: var(--surface-container-low); color: var(--on-surface); }
+    .btn-test:hover:not(:disabled), .btn-secondary:hover:not(:disabled) { background: var(--surface-container-low); color: var(--on-surface); border-color: #D5D7E0; }
     /* 위 입력칸 규칙이 뒤에 와서 이기므로, 날짜 입력의 오른쪽 모서리·포커스 테두리·달력 버튼을 다시 맞춘다 */
     .td-input-group input { border-top-right-radius: 0; border-bottom-right-radius: 0; }
     input:focus, select:focus { border-color: var(--surface-tint); }
