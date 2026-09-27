@@ -1,5 +1,6 @@
 """Fault injection uses disposable repositories and independent outer deadlines."""
 import json
+import re
 import os
 from pathlib import Path
 import signal
@@ -54,12 +55,14 @@ def finish(child, project, timeout=20):
         child.kill()
         child.communicate(timeout=5)
         raise AssertionError('independent outer deadline exceeded')
-    paths = sorted((project / '.test-runs').glob('*/result.json'))
-    assert paths, (out, err)
-    result = json.loads(paths[-1].read_text())
+    # 같은 초에 시작한 실행은 run_id 이름순이 시작 순서와 다를 수 있으므로, 이 실행이 알린 run_id로 찾는다.
+    run_ids = re.findall(r'^run_id=(\S+)$', out, re.M)
+    assert len(run_ids) == 1, (out, err)
+    run = project / '.test-runs' / run_ids[0]
+    result = json.loads((run / 'result.json').read_text())
     assert result['cleanup']['ok'], (result['cleanup'], out, err)
     assert child.returncode == result['exit_code'], (out, err, result)
-    return result, paths[-1].parent
+    return result, run
 
 
 def wait_status(project, predicate):
