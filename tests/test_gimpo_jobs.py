@@ -97,42 +97,58 @@ TARGET_CLOSED_MESSAGE = "Target page, context or browser has been closed"
 def test_target_closed_error_and_now_dead_browser_expires_session(runtime):
     # alive() True on the first call, inspect() raises the target-closed error, alive() False afterwards.
     class Browser(FakeBrowser):
+        armed = False
         async def inspect(self):
+            if not self.armed:
+                return await super().inspect()
             self.closed = True
             raise PlaywrightError(TARGET_CLOSED_MESSAGE)
     runtime.client_factory = Browser
     job = ready(runtime)
+    runtime.clients[job['id']].armed = True
     wait_state(runtime, job['id'], 'SESSION_EXPIRED')
 
 
 def test_target_closed_error_with_still_alive_browser_expires_session(runtime):
     # alive() True, inspect() raises the target-closed error, alive() still True.
     class Browser(FakeBrowser):
+        armed = False
         async def inspect(self):
+            if not self.armed:
+                return await super().inspect()
             raise PlaywrightError(TARGET_CLOSED_MESSAGE)
     runtime.client_factory = Browser
     job = ready(runtime)
+    runtime.clients[job['id']].armed = True
     wait_state(runtime, job['id'], 'SESSION_EXPIRED')
 
 
 def test_invalid_inspection_and_now_dead_browser_expires_session(runtime):
     # alive() True, inspect() returns False, alive() False afterwards.
     class Browser(FakeBrowser):
+        armed = False
         async def inspect(self):
+            if not self.armed:
+                return await super().inspect()
             self.closed = True
             return False
     runtime.client_factory = Browser
     job = ready(runtime)
+    runtime.clients[job['id']].armed = True
     wait_state(runtime, job['id'], 'SESSION_EXPIRED')
 
 
 def test_invalid_inspection_with_still_alive_browser_cancels_handoff(runtime):
     # alive() True, inspect() returns False, alive() still True: existing behavior kept.
     class Browser(FakeBrowser):
+        armed = False
         async def inspect(self):
+            if not self.armed:
+                return await super().inspect()
             return False
     runtime.client_factory = Browser
     job = ready(runtime)
+    runtime.clients[job['id']].armed = True
     wait_state(runtime, job['id'], 'HANDOFF_CANCELLED')
 
 

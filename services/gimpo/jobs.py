@@ -347,7 +347,7 @@ class GimpoRuntime:
                 valid = client is not None and await client.inspect()
             except Exception as error:
                 valid = False
-                target_closed = client is not None and _is_target_closed(error)
+                target_closed = _is_target_closed(error)
             if not valid and client is not None and (target_closed or not await client.alive()):
                 await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
                 return False
