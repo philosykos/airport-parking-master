@@ -62,6 +62,7 @@ class FixtureBrowser(PlaywrightGimpoClient):
     payment_amount = "10000"
     error_html = False
     quote_amount = "8000"
+    completion_overrides = {}
     def __init__(self, owner, job, inputs):
         super().__init__(owner, job, inputs, headless=True)
         self.forwarded = []
@@ -133,5 +134,14 @@ class FixtureBrowser(PlaywrightGimpoClient):
         elif path in {'/reservation/payment.json', '/reservation/insertAction.do'}:
             self.forwarded.append(path)
             await route.fulfill(json={"fixture": "no real payment response"})
+        elif path == '/reservation/resComplete.do':
+            values = {'__ENTRY_AT__': self.inputs['entryAt'], '__EXIT_AT__': self.inputs['exitAt'],
+                      '__CAR_NUMBER__': self.inputs['carNumber'], '__RESERVATION_NO__': '1234AB5678', **self.completion_overrides}
+            body = (FIXTURES / 'step3_complete.html').read_text(encoding='utf-8')
+            for key, value in values.items():
+                body = body.replace(key, value)
+            await route.fulfill(content_type='text/html; charset=utf-8', body=body)
+        elif path == '/reservation/resView.do':
+            await route.fulfill(content_type='text/html; charset=utf-8', body='<html><body>예약 조회</body></html>')
         else:
             await route.abort()  # No network, including third-party assets or redirects.

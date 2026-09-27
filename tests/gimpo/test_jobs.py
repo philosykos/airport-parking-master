@@ -29,6 +29,99 @@ def ready(runtime):
     return wait_state(runtime, job['id'], READY)
 
 
+REASON = '공항 예약확인 화면에서 예약 완료를 확인했습니다(예약번호 1234AB5678).'
+
+
+def paying(runtime, state='PAYMENT_IN_PROGRESS'):
+    job = ready(runtime)
+    runtime.store.dispatch_payment(job['id'], job)
+    if state != 'PAYMENT_DISPATCHING': runtime.store.transition(job['id'], state, 'test')
+    return job
+
+
+@pytest.mark.parametrize('state', ['PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'])
+def test_reserved_holds_window_then_releases(tmp_path, state):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier(), completion_hold_sec=0.6)
+    try:
+        job = paying(runtime, state)
+        browser = runtime.clients[job['id']]
+        runtime.loop.call_soon_threadsafe(runtime.reserved, job['id'], '1234AB5678')
+        eventually(lambda: runtime.store.get(job['id'])['state'] == 'RESERVED')
+        held = runtime.store.get(job['id'])
+        assert held['active'] and held['reservationNo'] == '1234AB5678' and held['reason'] == REASON and not browser.closed
+        with pytest.raises(Conflict): runtime.stop(job['id'], held)
+        with pytest.raises(Conflict): runtime.create(inputs())
+        eventually(lambda: not runtime.store.get(job['id'])['active'])
+        final = runtime.store.get(job['id'])
+        assert browser.closed and final['state'] == 'RESERVED' and final['reason'] == REASON
+        assert [log['message'] for log in final['logs']].count(REASON) == 1
+    finally:
+        runtime.close()
+
+
+def test_reserved_ends_early_when_user_closes_window(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier(), completion_hold_sec=30)
+    try:
+        job = paying(runtime)
+        runtime.loop.call_soon_threadsafe(runtime.reserved, job['id'], '1234AB5678')
+        eventually(lambda: runtime.store.get(job['id'])['state'] == 'RESERVED')
+        runtime._submit(runtime.clients[job['id']].close()).result(timeout=3)
+        eventually(lambda: not runtime.store.get(job['id'])['active'], timeout=3)
+    finally:
+        runtime.close()
+
+
+def test_reserved_close_failure_still_finishes(tmp_path):
+    class Stuck(FakeBrowser):
+        async def close(self): raise RuntimeError('close failed')
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), Stuck, notifier=FakeNotifier(), completion_hold_sec=0)
+    try:
+        job = paying(runtime)
+        runtime.loop.call_soon_threadsafe(runtime.reserved, job['id'], '1234AB5678')
+        eventually(lambda: runtime.store.get(job['id'])['state'] == 'RESERVED' and not runtime.store.get(job['id'])['active'])
+    finally:
+        Stuck.close = FakeBrowser.close
+        runtime.close()
+
+
+def test_shutdown_during_hold_keeps_reserved(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier(), completion_hold_sec=30)
+    job = paying(runtime)
+    browser = runtime.clients[job['id']]
+    runtime.loop.call_soon_threadsafe(runtime.reserved, job['id'], '1234AB5678')
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'RESERVED')
+    runtime.close()
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert browser.closed and (final['state'], final['active']) == ('RESERVED', False)
+    finally:
+        store.close()
+
+
+def test_unverified_completion_keeps_state_and_logs_once(runtime):
+    job = paying(runtime)
+    runtime.loop.call_soon_threadsafe(runtime.completion_unverified, job['id'])
+    eventually(lambda: runtime.store.get(job['id'])['reason'] == '예약확인 화면을 확인하지 못했습니다.')
+    current = runtime.store.get(job['id'])
+    assert current['state'] == 'PAYMENT_IN_PROGRESS' and current['active']
+    assert [log['message'] for log in current['logs']].count('예약확인 화면을 확인하지 못했습니다.') == 1
+
+
+def test_close_payment_on_released_job_does_not_overwrite_reason(runtime):
+    # Task 4 리뷰가 지적한 경합: 이미 끝난 작업에 뒤늦게 도착한 종료 처리가 최종 사유를 덮으면 안 된다.
+    job = paying(runtime)
+    runtime.stop(job['id'], job)
+    eventually(lambda: not runtime.store.get(job['id'])['active'])
+    final = runtime.store.get(job['id'])
+    assert final['state'] == 'CLOSED_BY_USER' and final['reason'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
+    class Stuck(FakeBrowser):
+        async def close(self): raise RuntimeError('close failed')
+    runtime.clients[job['id']] = Stuck(runtime, final, {})
+    runtime._submit(runtime._close_payment(job['id'])).result(timeout=3)
+    assert runtime.store.get(job['id'])['reason'] == '예약 완료를 확인하지 못하고 작업을 끝냈습니다.'
+
+
 def test_once_then_manual_prepare_and_proceed(runtime):
     job = runtime.create(inputs('once'))
     wait_state(runtime, job['id'], 'AVAILABLE')

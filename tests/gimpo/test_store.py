@@ -237,6 +237,14 @@ def test_subframe_and_pre_payment_navigation_are_ignored(store):
     assert store.get(job['id'])['returnedFromPayment'] is False
 
 
+def test_complete_page_on_other_page_is_not_judged(store):
+    job = in_progress_job(store)
+    client = PlaywrightGimpoClient(SimpleNamespace(store=store), job, {})
+    page = Page()
+    navigate(client, page, 'https://park.airport.co.kr/reservation/resComplete.do')
+    assert store.get(job['id'])['state'] == 'PAYMENT_IN_PROGRESS'  # owner.loop 없이도 예외가 나지 않는다
+
+
 def test_payment_states_exclude_finished_states():
     assert PAYMENT_STATES == {'PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'}
 

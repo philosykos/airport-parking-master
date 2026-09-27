@@ -343,6 +343,58 @@ def test_background_confirmation_rejects_mismatch_and_preserves_manual_dialog(br
     assert client.forwarded == []
 
 
+def dispatched(runtime):
+    job = runtime.create(inputs())
+    eventually(lambda: runtime.store.get(job['id'])['state'] == READY, timeout=15)
+    client = runtime.clients[job['id']]
+    async def pay():
+        await client.page.evaluate('payment();')
+        await client.page.locator('#confirmOk').click()
+        await asyncio.sleep(.4)
+    runtime._submit(pay()).result(timeout=5)
+    assert runtime.store.get(job['id'])['paymentMayHaveBeenSent']
+    return job, client
+
+
+def arrive(runtime, client, path):
+    async def go():
+        await client.page.goto('https://park.airport.co.kr' + path)
+    runtime._submit(go()).result(timeout=5)
+
+
+def test_completion_page_reserves_and_closes_window(browser_runtime):
+    runtime = browser_runtime
+    runtime.completion_hold_sec = 0
+    job, client = dispatched(runtime)
+    arrive(runtime, client, '/reservation/resComplete.do')
+    eventually(lambda: not runtime.store.get(job['id'])['active'], timeout=10)
+    final = runtime.store.get(job['id'])
+    assert (final['state'], final['reservationNo']) == ('RESERVED', '1234AB5678')
+    assert client.closed
+
+
+@pytest.mark.parametrize('overrides', [{'__RESERVATION_NO__': 'x'}, {'__CAR_NUMBER__': '999가9999'}])
+def test_mismatched_completion_page_is_not_judged(browser_runtime, overrides):
+    runtime = browser_runtime
+    class Scenario(FixtureBrowser): pass
+    Scenario.completion_overrides = overrides
+    runtime.client_factory = Scenario
+    job, client = dispatched(runtime)
+    before = runtime.store.get(job['id'])['state']
+    arrive(runtime, client, '/reservation/resComplete.do')
+    eventually(lambda: runtime.store.get(job['id'])['reason'] == '예약확인 화면을 확인하지 못했습니다.', timeout=10)
+    assert runtime.store.get(job['id'])['state'] == before and runtime.store.get(job['id'])['active']
+
+
+def test_non_complete_airport_page_is_not_judged(browser_runtime):
+    runtime = browser_runtime
+    job, client = dispatched(runtime)
+    arrive(runtime, client, '/reservation/resView.do')
+    time.sleep(1)
+    current = runtime.store.get(job['id'])
+    assert current['state'] != 'RESERVED' and current['active'] and 'reservationNo' not in current
+
+
 def test_stop_during_transition_pause_never_opens_application(browser_runtime):
     runtime = browser_runtime
     class Paused(FixtureBrowser):

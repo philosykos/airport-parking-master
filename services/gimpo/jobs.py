@@ -46,8 +46,9 @@ class ProcessLease:
 
 
 class GimpoRuntime:
-    def __init__(self, config, client_factory=PlaywrightGimpoClient, *, notifier: Notifier):
+    def __init__(self, config, client_factory=PlaywrightGimpoClient, *, notifier: Notifier, completion_hold_sec=10):
         self.config, self.client_factory = config, client_factory
+        self.completion_hold_sec = completion_hold_sec  # 예약 완료 뒤 사용자가 공항 완료 화면을 볼 시간
         self.run_id = uuid.uuid4().hex
         self.command_lock = threading.RLock()
         self.lease = ProcessLease(config.directory)
@@ -123,6 +124,8 @@ class GimpoRuntime:
             return job
 
     async def _close_payment(self, job_id):
+        if not self.store.get(job_id)["active"]:
+            return  # 다른 경로가 이미 끝낸 작업이면 뒤늦게 닫으러 오지 않는다
         try:
             await self._close_client(job_id)
         except Conflict:
@@ -284,11 +287,12 @@ class GimpoRuntime:
             except Exception:
                 self.inputs.pop(job_id, None)
                 job = self.store.get(job_id)
-                if job["state"] == "CLOSED_BY_USER":
-                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
-                else:
-                    self.store.transition(job_id, "ERROR", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.",
-                                          expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
+                if job["active"]:  # 이미 끝난 작업의 최종 사유를 뒤늦은 닫기 실패로 덮지 않는다
+                    if job["state"] == "CLOSED_BY_USER":
+                        self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
+                    else:
+                        self.store.transition(job_id, "ERROR", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.",
+                                              expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})
                 raise Conflict("브라우저 정리 확인이 필요합니다.") from None
             self.clients.pop(job_id, None)
         if clear_inputs:
@@ -324,6 +328,47 @@ class GimpoRuntime:
         try:
             self.store.transition(job_id, "PAYMENT_RESULT_UNKNOWN", "결제 결과를 확인하지 못했습니다. 결제했다면 공항 사이트 예약조회에서 확인해주세요.",
                                   expected={"PAYMENT_DISPATCHING", "PAYMENT_IN_PROGRESS"})
+        except Conflict:
+            pass
+
+    def reserved(self, job_id, number):
+        """이벤트 루프에서 부른다. 예약 완료로 바꾸고, 잠시 뒤 예약창을 닫아 작업을 끝낸다."""
+        try:
+            self.store.transition(job_id, "RESERVED", f"공항 예약확인 화면에서 예약 완료를 확인했습니다(예약번호 {number}).",
+                                  expected=PAYMENT_STATES, reservationNo=number, commandId=uuid.uuid4().hex, commandStatus="DONE")
+        except Conflict:
+            return
+        # 이벤트 루프 위에서 불리므로 태스크를 바로 등록한다(_schedule은 다음 회차에야 등록해 종료와 엇갈릴 수 있다).
+        task = self.loop.create_task(self._finish_reserved(job_id))
+        self.tasks[job_id] = task
+        task.add_done_callback(lambda done: self.tasks.pop(job_id, None) if self.tasks.get(job_id) is done else None)
+
+    def completion_unverified(self, job_id):
+        try:
+            job = self.store.get(job_id)
+            self.store.transition(job_id, job["state"], "예약확인 화면을 확인하지 못했습니다.",
+                                  expected=PAYMENT_STATES, commandId=uuid.uuid4().hex)
+        except Conflict:
+            pass
+
+    async def _finish_reserved(self, job_id):
+        deadline = self.loop.time() + self.completion_hold_sec
+        client = self.clients.get(job_id)
+        while client is not None and self.loop.time() < deadline and await client.alive():
+            await asyncio.sleep(min(0.25, max(0.0, deadline - self.loop.time())))
+        await self._release_reserved(job_id)
+
+    async def _release_reserved(self, job_id):
+        client = self.clients.pop(job_id, None)
+        self.inputs.pop(job_id, None)
+        if client is not None:
+            try:
+                await asyncio.wait_for(client.close(), self.config.browser_timeout_sec)
+            except Exception:
+                pass  # 예약은 이미 끝났다. 남은 창은 사용자가 닫는다.
+        job = self.store.get(job_id)
+        try:
+            self.store.release(job_id, "RESERVED", job["reason"], {"RESERVED"})
         except Conflict:
             pass
 
@@ -404,7 +449,13 @@ class GimpoRuntime:
     async def _shutdown(self):
         job = self.store.active()
         if job:
-            if job["paymentMayHaveBeenSent"]:
+            if job["state"] == "RESERVED":
+                task = self.tasks.get(job["id"])
+                if task:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+                await self._release_reserved(job["id"])
+            elif job["paymentMayHaveBeenSent"]:
                 self.payment_unknown(job["id"])
             elif job["state"] == READY:
                 await self._finish_pre(job["id"], "INTERRUPTED", "프로그램이 종료되어 결제 대기를 끝냈습니다.", {READY})

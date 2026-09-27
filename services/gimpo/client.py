@@ -8,7 +8,7 @@ from typing import Protocol
 from urllib.parse import parse_qs, unquote, urlparse
 
 from services.gimpo.validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME, SEOUL
-from services.gimpo.store import Conflict, READY
+from services.gimpo.store import Conflict, PAYMENT_STATES, READY
 
 ORIGIN = "https://park.airport.co.kr"
 START_URL = ORIGIN + "/reservation/recheck.do"
@@ -147,6 +147,11 @@ class PlaywrightGimpoClient:
         target = urlparse(frame.url)
         if target.scheme != "https":
             return
+        if (page is self.page and target.hostname == "park.airport.co.kr" and target.path == COMPLETE_PATH
+                and job["paymentMayHaveBeenSent"] and job["state"] in PAYMENT_STATES):
+            # 콜백은 동기라 기다리지 않고, 문서를 다 읽은 뒤 판정하도록 예약만 한다.
+            self.owner.loop.create_task(self._verify_completion())
+            return
         if job["paymentMayHaveBeenSent"] and target.hostname != "park.airport.co.kr":
             self.progress_seen = True
             self._mark_progress()
@@ -161,6 +166,17 @@ class PlaywrightGimpoClient:
                                             expected={"PAYMENT_DISPATCHING"})
             except Conflict:
                 pass
+
+    async def _verify_completion(self):
+        try:
+            await self.page.wait_for_load_state("load")
+            number = OfficialContract.completion(await self.page.evaluate(COMPLETION_SCRIPT), self.inputs)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.owner.completion_unverified(self.job_id)
+            return
+        self.owner.reserved(self.job_id, number)
 
     async def _response(self, response):
         if urlparse(response.url).path != PAYMENT_PATH:
