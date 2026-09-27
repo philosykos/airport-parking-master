@@ -27,11 +27,9 @@
     align-items: center;
     gap: 12px;
 }
+/* 모바일에서는 감싸기가 배치에 끼어들지 않게 하고, PC에서만 카드로 그린다 */
 .log-card {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
+    display: contents;
 }
 .log-clear {
     display: inline-flex;
@@ -376,7 +374,7 @@ tr.log-row:hover .tag {
 /* ── PC: 로그를 흰 카드 하나로 ── */
 @media (min-width: 961px) {
     .log-panel { padding: 20px; gap: 16px; }
-    .log-card { background: #FFFFFF; border: 1px solid #E4E5EA; border-radius: 12px; overflow: hidden; }
+    .log-card { display: flex; flex-direction: column; flex: 1; min-height: 0; background: #FFFFFF; border: 1px solid #E4E5EA; border-radius: 12px; overflow: hidden; }
     .log-header { padding: 14px 20px; border-bottom: 1px solid #EEF0F3; }
     .log-title { font-size: 16px; }
     .log-scroll { padding: 0; }
