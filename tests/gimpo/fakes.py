@@ -73,6 +73,25 @@ class FixtureBrowser(PlaywrightGimpoClient):
     async def _pace(self, stage):
         self.pacing_stages.append(stage)
 
+    cdp_endpoint = None  # shared_chromium 픽스처가 채운다. 비어 있으면 운영과 같이 새로 띄운다.
+
+    async def _launch(self, playwright):
+        if self.cdp_endpoint:
+            return await playwright.chromium.connect_over_cdp(self.cdp_endpoint)
+        return await super()._launch(playwright)
+
+    async def close(self):
+        # 운영처럼 context를 먼저 닫되, 공유 Chromium에서는 남겨 둔 대화상자나 진행 중인 요청 때문에 닫기가
+        # 멈출 수 있어 잠깐만 기다린 뒤 드라이버를 멈춰 연결을 끊는다(연결이 만든 context는 함께 치워진다).
+        if self.cdp_endpoint:
+            if self.context:
+                try:
+                    await asyncio.wait_for(self.context.close(), 1)
+                except Exception:
+                    pass
+            self.context = self.browser = None
+        await super().close()
+
     async def _start(self):
         if self.context:
             return

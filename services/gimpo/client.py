@@ -95,7 +95,7 @@ class PlaywrightGimpoClient:
         from playwright.async_api import async_playwright
         from playwright_stealth import Stealth
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=self.headless)
+        self.browser = await self._launch(self.playwright)
         self.context = await self.browser.new_context(locale="ko-KR", timezone_id="Asia/Seoul", service_workers="block")
         await Stealth(navigator_languages_override=("ko-KR", "ko")).apply_stealth_async(self.context)
         self.context.set_default_timeout(self.owner.config.browser_timeout_sec * 1000)
@@ -103,6 +103,10 @@ class PlaywrightGimpoClient:
         await self.context.route("**/*", self._guard)
         self.context.on("page", self._on_page)
         self.page = await self.context.new_page()
+
+    async def _launch(self, playwright):
+        # 테스트는 이 지점만 바꿔 이미 떠 있는 브라우저에 붙는다(작업마다 Chromium을 새로 띄우지 않는다).
+        return await playwright.chromium.launch(headless=self.headless)
 
     def _cancel_signal(self, source):
         if source["page"] == self.page:

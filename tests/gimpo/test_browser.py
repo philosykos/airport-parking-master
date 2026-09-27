@@ -1,4 +1,9 @@
 import asyncio
+import json
+import subprocess
+import sys
+import time
+import urllib.request
 from dataclasses import replace
 
 import pytest
@@ -9,6 +14,45 @@ from services.gimpo.store import READY
 from tests.gimpo.fakes import FakeNotifier, FixtureBrowser
 from tests.gimpo.helpers import inputs, wait_state
 from tests.support.waiting import eventually
+
+
+@pytest.fixture(scope='module', autouse=True)
+def shared_chromium(tmp_path_factory):
+    # 이 기계에서는 Chromium 기동과 첫 페이지가 테스트당 수 초를 쓴다. 모듈에서 한 번만 띄우고
+    # 각 작업은 CDP로 붙어 새 context만 만든다(context를 닫으면 연결만 끊기고 브라우저는 남는다).
+    executable = subprocess.run(
+        [sys.executable, '-c', 'from playwright.sync_api import sync_playwright\n'
+         'with sync_playwright() as p: print(p.chromium.executable_path)'],
+        capture_output=True, text=True, check=True, timeout=60).stdout.strip()
+    profile = tmp_path_factory.mktemp('chromium')
+    process = subprocess.Popen(
+        [executable, '--headless', '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check',
+         '--disable-background-networking', '--disable-component-update', '--disable-sync', '--mute-audio',
+         f'--user-data-dir={profile}', 'about:blank'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        # Chromium은 열린 포트와 경로를 프로필의 DevToolsActivePort 파일에 쓴다.
+        active = profile / 'DevToolsActivePort'
+        deadline = time.monotonic() + 30
+        while not (active.exists() and len(active.read_text().split()) >= 2):
+            assert process.poll() is None and time.monotonic() < deadline, 'shared Chromium did not start'
+            time.sleep(.05)
+        port, path = active.read_text().split()[:2]
+        endpoint = f'ws://127.0.0.1:{port}{path}'
+        FixtureBrowser.cdp_endpoint = endpoint
+        yield endpoint
+        # 끊긴 연결의 context가 치워지지 않고 쌓이면 테스트끼리 섞인다: 처음 연 빈 페이지만 남아야 한다.
+        with urllib.request.urlopen(f'http://127.0.0.1:{port}/json/list', timeout=5) as response:
+            pages = [t['url'] for t in json.load(response) if t['type'] == 'page']
+        assert pages == ['about:blank'], pages
+    finally:
+        FixtureBrowser.cdp_endpoint = None
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
 
 
 @pytest.fixture
