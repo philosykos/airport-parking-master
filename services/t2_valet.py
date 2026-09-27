@@ -156,7 +156,8 @@ def redact_text(text, payload):
     ]
     # 한 값이 다른 값의 일부일 수 있으므로 긴 값부터 바꾼다
     for value, keep_head, keep_tail in sorted(fields, key=lambda f: len(f[0]), reverse=True):
-        if value:
+        # 한 글자 값은 본문 곳곳의 같은 글자를 전부 가리게 되므로 2자 이상만 가린다
+        if len(value) >= 2:
             text = text.replace(value, mask(value, keep_head, keep_tail))
     return PHONE_IN_TEXT.sub(lambda m: mask(m.group(0), 3, 4), text)
 

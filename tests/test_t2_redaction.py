@@ -65,6 +65,11 @@ def test_call_log_masks_personal_data_echoed_in_response_body(client, monkeypatc
     assert "010****5678" in entry["body"]
 
 
+def test_redact_text_does_not_mask_single_character_value():
+    text = '{"message": "홍 고객님 예약 확인"}'
+    assert t2_valet.redact_text(text, {"name": "홍", "phone": "", "carNumber": ""}) == text
+
+
 def test_do_single_call_masks_phone_before_truncating(monkeypatch):
     class Resp:
         status_code = 200

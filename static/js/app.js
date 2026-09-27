@@ -1018,7 +1018,8 @@ document.querySelectorAll('select').forEach(function(el) {
 
 /* ── 이벤트 연결: CSP(script-src 'self')가 인라인 onclick을 막으므로 여기서 건다 ── */
 function onClick(selector, handler) {
-    document.querySelector(selector).addEventListener('click', handler);
+    var el = document.querySelector(selector);
+    if (el) el.addEventListener('click', handler);
 }
 
 onClick('#btn-start', function() { startPolling(); });
