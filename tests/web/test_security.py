@@ -59,9 +59,22 @@ def test_get_is_not_origin_checked(client):
     assert resp.status_code == 200
 
 
-@pytest.mark.parametrize("path", ["/", "/t2-valet/", "/t2-valet/api/logs"])
+COMMON_PATHS = ["/", "/t2-valet/", "/t2-valet/api/logs", "/gimpo-parking/", "/gimpo-parking/api/options"]
+
+
+@pytest.mark.parametrize("path", COMMON_PATHS)
 def test_common_security_headers(client, path):
     headers = client.get(path).headers
     assert headers["X-Content-Type-Options"] == "nosniff"
     assert headers["X-Frame-Options"] == "DENY"
     assert headers["Referrer-Policy"] == "same-origin"
+
+
+@pytest.mark.parametrize("path", COMMON_PATHS)
+def test_every_response_sends_csp(client, path):
+    csp = client.get(path).headers["Content-Security-Policy"]
+    directives = dict(part.strip().split(" ", 1) for part in csp.split(";"))
+    assert directives["script-src"] == "'self'"
+    assert directives["object-src"] == "'none'"
+    assert directives["frame-ancestors"] == "'none'"
+    assert directives["connect-src"] == "'self'"

@@ -94,7 +94,7 @@ def test_completion_success_and_action_variants(ui_page):
             onDismiss: reason => dismissed.push(reason)}); }""")
     assert overlay.get_attribute('data-variant') == 'action'
     expect(page.locator('#completion-overlay .confetti-container')).to_be_hidden()
-    page.wait_for_function("document.activeElement.textContent === '공항 예약창 보기'")
+    page.wait_for_function("() => document.activeElement.textContent === '공항 예약창 보기'")
     page.keyboard.press('Tab')
     page.keyboard.press('Tab')
     assert page.evaluate('document.activeElement.textContent') == '공항 예약창 보기'
@@ -130,7 +130,7 @@ def test_select_picker_sheet_on_mobile_only(ui_page):
         picker.attach(document.body); }""")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.dispatch_event('#color', 'mousedown')
-    page.wait_for_function("document.getElementById('select-picker-overlay').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('select-picker-overlay').classList.contains('open')")
     assert page.locator('#select-picker-title').inner_text() == '색상'
     assert page.locator('.select-picker-item').all_inner_texts() == ['빨강', '파랑']
     page.locator('.select-picker-item', has_text='파랑').click()
@@ -156,7 +156,7 @@ def test_select_picker_sheet_closes_when_resized_from_mobile_to_desktop(ui_page)
     }""")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.dispatch_event('#color', 'mousedown')
-    page.wait_for_function("document.getElementById('select-picker-overlay').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('select-picker-overlay').classList.contains('open')")
     page.set_viewport_size({'width': 1280, 'height': 900})
     page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('select-picker-overlay'))")
     assert page.evaluate('document.body.style.overflow') == ''
@@ -191,7 +191,7 @@ def test_log_panel_renders_rows_detail_and_empty_state(ui_page):
     assert rows.nth(1).locator('.cell-status').get_attribute('data-tone') == 'error'
     assert rows.first.get_attribute('class') == 'log-row row-event'
     rows.nth(1).click()
-    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
     assert page.locator('#detail-json .json-key').inner_text() == '"a":'
     page.keyboard.press('Escape')
     assert not is_open(page, 'detail-overlay')
@@ -211,14 +211,14 @@ def test_log_panel_is_bottom_sheet_on_mobile_and_escape_closes_top_layer_only(ui
     assert page.locator('#log-fab-badge').inner_text() == '2'
     assert page.locator('#log-fab').get_attribute('aria-expanded') == 'false'
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     assert page.locator('#log-fab').get_attribute('aria-expanded') == 'true'
     panel_z = page.evaluate("document.getElementById('log-panel').style.zIndex")
     assert is_open(page, 'log-backdrop')
     assert page.evaluate("document.getElementById('log-backdrop').style.zIndex") == str(int(panel_z) - 1)
     page.locator('#log-body tr.log-row').first.focus()
     page.keyboard.press('Space')  # 행에서 Space도 Enter처럼 상세를 열고 스크롤은 막는다
-    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
     page.keyboard.press('Escape')
     assert not is_open(page, 'detail-overlay')
     assert is_open(page, 'log-panel')
@@ -231,7 +231,7 @@ def test_log_panel_is_bottom_sheet_on_mobile_and_escape_closes_top_layer_only(ui
     assert page.evaluate('document.body.style.overflow') == ''
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     page.locator('#log-panel .log-sheet-close').click()
     assert not is_open(page, 'log-panel')
     assert page.evaluate('document.body.style.overflow') == ''
@@ -244,7 +244,7 @@ def test_log_panel_sheet_closes_when_resized_from_mobile_to_desktop(ui_page):
     page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     page.set_viewport_size({'width': 1280, 'height': 900})
     page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('log-panel'))")
     assert page.evaluate('document.body.style.overflow') == ''
@@ -258,9 +258,9 @@ def test_focus_does_not_return_to_a_trigger_hidden_after_resize(ui_page):
     page.evaluate(f"() => {{ window.panel = new UI.LogPanel(document.getElementById('log-panel')); panel.render({ENTRIES}); }}")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     page.locator('#log-body tr.log-row').first.click()
-    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
     page.set_viewport_size({'width': 1280, 'height': 900})
     # 데스크톱으로 넓어지면서 아래 레이어(log-panel)가 먼저 닫히고, 그 트리거(#log-fab)를
     # 위 레이어(detail-overlay)가 물려받는다. #log-fab은 데스크톱에서 숨어 있다.
@@ -328,10 +328,10 @@ def test_toast_renders_above_open_layer(ui_page):
     page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     layer_z = page.evaluate("parseInt(document.getElementById('log-panel').style.zIndex, 10)")
     page.evaluate("UI.toast('알림', 'info')")
-    page.wait_for_function("document.querySelector('.toast')")
+    page.wait_for_function("() => document.querySelector('.toast')")
     toast_z = page.evaluate("parseInt(getComputedStyle(document.getElementById('toast-container')).zIndex, 10)")
     assert toast_z > layer_z
     assert not errors
@@ -343,7 +343,7 @@ def test_completion_overlay_stacks_above_open_log_sheet(ui_page):
     page.evaluate("window.panel = new UI.LogPanel(document.getElementById('log-panel'))")
     page.set_viewport_size({'width': 390, 'height': 844})
     page.click('#log-fab')
-    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
     page.evaluate("UI.completion.success({title: '예약이', highlight: '완료되었습니다'})")
     hit = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight - 40).closest('#completion-overlay') !== null")
     assert hit

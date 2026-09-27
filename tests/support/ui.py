@@ -31,4 +31,7 @@ def open_page(ui_context, base, width=1280, height=1000, init_script=None):
             page.add_init_script(init_script)
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
+        # CSP 위반은 예외가 아니라 콘솔 오류로만 나온다. 막힌 스크립트가 조용히 빠지지 않게 함께 모은다.
+        page.on('console', lambda message: errors.append(message.text)
+                if message.type == 'error' and 'Content Security Policy' in message.text else None)
         yield page, errors

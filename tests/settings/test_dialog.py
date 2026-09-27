@@ -161,7 +161,7 @@ def live_server(settings_services, ui_intervals):
 
 
 def wait_tests_enabled(page):
-    page.wait_for_function("[...document.querySelectorAll('#settings-dialog [data-test]')].every(button => !button.disabled)")
+    page.wait_for_function("() => [...document.querySelectorAll('#settings-dialog [data-test]')].every(button => !button.disabled)")
 
 
 def test_settings_dialog_states_and_mobile(settings_services, live_server, ui_context):
@@ -195,7 +195,7 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server, ui_co
         for notifier in notifiers:
             notifier.settings = replace(notifier.settings, enabled=False)
         page.goto(base + '/?settings=1')
-        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '설정 완료')")
+        page.wait_for_function("() => [...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '설정 완료')")
         assert dialog.is_visible()
         assert page.url == base + '/'
         assert page.locator('#telegram-state').inner_text() == '꺼짐'
@@ -205,7 +205,7 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server, ui_co
         for notifier in notifiers:
             notifier.settings = replace(notifier.settings, enabled=True, token='')
         page.goto(base + '/?settings=1')
-        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '미설정')")
+        page.wait_for_function("() => [...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '미설정')")
         assert page.locator('[data-service=t2] [data-test]').is_disabled()
 
         page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
@@ -255,7 +255,7 @@ def test_telegram_state_reflects_reporting_service_when_one_fails(settings_servi
         page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
         page.goto(base + '/?settings=1')
         page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
-        page.wait_for_function("!document.querySelector('[data-service=gimpo] [data-test]').disabled")
+        page.wait_for_function("() => !document.querySelector('[data-service=gimpo] [data-test]').disabled")
         assert page.locator('#telegram-state').inner_text() == '켜짐'
         assert not errors
 
@@ -315,7 +315,7 @@ def test_settings_dialog_fades_in_and_out(settings_services, live_server, ui_con
         assert any(float(d.rstrip('s')) > 0 for d in style['backdropDuration'].split(','))
         assert style['backdropColor'].startswith('rgba(15, 23, 42')
         page.keyboard.press('Escape')
-        page.wait_for_function("!document.getElementById('settings-dialog').open")
-        page.wait_for_function("getComputedStyle(document.getElementById('settings-dialog')).display === 'none'")
+        page.wait_for_function("() => !document.getElementById('settings-dialog').open")
+        page.wait_for_function("() => getComputedStyle(document.getElementById('settings-dialog')).display === 'none'")
         assert page.evaluate('document.activeElement.id') == 'open-settings'
         assert not errors

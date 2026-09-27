@@ -349,15 +349,6 @@ def test_frontend_has_no_inline_event_handlers():
         assert not re.search(r"\son[a-z]+\s*=\s*[\"']", text), path
 
 
-def test_t2_page_sends_csp(client):
-    csp = client.get("/t2-valet/").headers["Content-Security-Policy"]
-    directives = dict(part.strip().split(" ", 1) for part in csp.split(";"))
-    assert directives["script-src"] == "'self'"
-    assert directives["object-src"] == "'none'"
-    assert directives["frame-ancestors"] == "'none'"
-    assert directives["connect-src"] == "'self'"
-
-
 @pytest.mark.parametrize("path", ["/", "/t2-valet/"])
 def test_pretendard_css_is_integrity_pinned(client, path):
     html = client.get(path).get_data(as_text=True)

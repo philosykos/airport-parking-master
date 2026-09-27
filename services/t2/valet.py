@@ -26,27 +26,6 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 bp = Blueprint("t2_valet", __name__, url_prefix="/t2-valet")
 
-# T2 화면 CSP. 스크립트는 같은 출처 파일만 실행한다(인라인 onclick 금지).
-# 스타일은 템플릿과 JS가 style 속성을 써서 'unsafe-inline'을 둔다. 외부 CSS·폰트는 jsDelivr(Pretendard)와 Google Fonts만 받는다.
-CSP = "; ".join([
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
-    "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-])
-
-
-@bp.after_request
-def set_csp(response):
-    response.headers.setdefault("Content-Security-Policy", CSP)
-    return response
-
 # ── 설정 (config/t2_valet.toml) ──
 CONFIG_LABEL = config_label("t2_valet")
 

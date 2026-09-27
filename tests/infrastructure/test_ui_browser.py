@@ -49,3 +49,14 @@ def test_shared_page_helper_keeps_browser_and_closes_each_context(ui_browser, ui
         assert page.viewport_size == {'width': 1280, 'height': 1000}
         assert not errors
     assert ui_browser.is_connected() and ui_browser.contexts == []
+
+
+def test_shared_page_helper_reports_csp_violations(ui_context):
+    from tests.support.ui import open_page
+    with open_page(ui_context, 'https://isolation.invalid') as (page, errors):
+        page.route('https://isolation.invalid/', lambda route: route.fulfill(
+            body='<title>csp</title><script>window.inlineRan = true</script>',
+            content_type='text/html', headers={'Content-Security-Policy': "script-src 'self'"}))
+        page.goto('https://isolation.invalid/')
+        assert page.evaluate('window.inlineRan === undefined')
+        assert any('Content Security Policy' in error for error in errors), errors

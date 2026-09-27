@@ -35,16 +35,16 @@ def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
         page=context.new_page();errors=[]
         page.on('pageerror',lambda error:errors.append(str(error)))
         page.goto(base+'/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.fill('#carNumber','123가4567');page.fill('#phone','01012345678')
         assert page.locator('#agree01, #agree03, #agree04, #agree05, #autoProceedConsent').count() == 0
         page.click('#watch')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         job_id=runtime.store.active()['id']
         page.reload()
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         assert page.locator('#header-status-text').inner_text() == '결제 대기'
         assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert runtime.store.active()['id']==job_id
@@ -56,7 +56,7 @@ def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
         assert all(key.startswith('gimpo.completion.') for key in stored)
         assert '123가4567' not in json.dumps(stored, ensure_ascii=False)
         page.click('#stop')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#reprepare').count() == 0
         assert page.locator('#watch').is_enabled()
         assert not errors
@@ -64,7 +64,7 @@ def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert page.locator('#header-status').is_visible()
         page.click('#log-fab')
-        page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
         assert page.locator('#progress-card').is_visible()
 
 
@@ -86,18 +86,18 @@ def test_delayed_old_status_cannot_replace_new_work(ui_server, ui_context):
                 route.continue_()
         page.route('**/api/jobs/' + old['id'], hold_first)
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#watch')
-        page.wait_for_function("document.getElementById('check').disabled && document.getElementById('header-status-text').textContent !== '중지됨'")
+        page.wait_for_function("() => document.getElementById('check').disabled && document.getElementById('header-status-text').textContent !== '중지됨'")
         current = runtime.store.active()
         assert current and current['id'] != old['id']
         assert len(delayed) == 1
         delayed[0].fulfill(json=snapshot)
         page.wait_for_timeout(100)  # Allow the delayed response's JS continuation to run.
         assert page.locator('#check').is_disabled()
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         assert page.locator('#stop').is_visible()
         assert page.locator('#show-browser').is_visible()
@@ -147,15 +147,15 @@ def test_shared_time_picker_uses_wall_time_and_minute_step(zone, ui_context):
             picker.show();
         }''')
         columns = page.locator('.td-scroll-column-inner')
-        page.wait_for_function("document.querySelectorAll('.td-scroll-item.active').length === 2")
+        page.wait_for_function("() => document.querySelectorAll('.td-scroll-item.active').length === 2")
         assert page.locator('.td-scroll-item.active').all_text_contents() == ['12', '20']
         assert columns.nth(1).locator('[data-value]').all_text_contents() == ['00', '10', '20', '30', '40', '50']
         columns.nth(0).evaluate('(el) => { el.scrollTop = 14 * 36; }')
-        page.wait_for_function("document.querySelector('#g input').value === '2026-09-28 14:20'")
+        page.wait_for_function("() => document.querySelector('#g input').value === '2026-09-28 14:20'")
         assert page.locator('.td-icon-prev').evaluate("el => getComputedStyle(el, '::before').content") == '""'
         page.set_viewport_size({'width': 390, 'height': 844})
         page.evaluate('picker.hide(); picker.show()')
-        page.wait_for_function("getComputedStyle(picker._widget).flexDirection === 'column'")
+        page.wait_for_function("() => getComputedStyle(picker._widget).flexDirection === 'column'")
         assert page.locator('.td-scroll-time').is_visible()
 
 
@@ -165,13 +165,13 @@ def test_defaults_restore_and_shared_calendar_controls(client, ui_server, ui_con
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.select_option('#discountSelection', 'DC007')
-        page.wait_for_function("fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => d.phone === '01012345678' && d.discountSelection === 'DC007')")
+        page.wait_for_function("() => fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => d.phone === '01012345678' && d.discountSelection === 'DC007')")
         page.reload()
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         assert page.input_value('#carNumber') == '123가4567'
         assert page.input_value('#phone') == '01012345678'
         assert page.input_value('#discountSelection') == 'DC007'
@@ -180,7 +180,7 @@ def test_defaults_restore_and_shared_calendar_controls(client, ui_server, ui_con
         assert page.locator('label[for="exitAt"]').inner_text() == '출차시간'
         assert page.locator('#entry-picker .td-toggle .material-symbols-outlined').inner_text() == 'calendar_today'
         page.click('#entry-picker .td-toggle')
-        page.wait_for_function("document.querySelector('.tempus-dominus-widget.show .td-scroll-time') !== null")
+        page.wait_for_function("() => document.querySelector('.tempus-dominus-widget.show .td-scroll-time') !== null")
         assert page.locator('.tempus-dominus-widget.show .td-scroll-time').is_visible()
         page.goto(base + '/t2-valet/')
         assert page.locator('#departingAtPicker .td-toggle .material-symbols-outlined').inner_text() == 'calendar_today'
@@ -192,7 +192,7 @@ def test_environment_password_mask_and_reveal(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('toggle-password').disabled")
+        page.wait_for_function("() => !document.getElementById('toggle-password').disabled")
         field = page.locator('#reservationPassword')
         assert field.input_value() == 'PrivatePass44'
         assert field.get_attribute('type') == 'password'
@@ -215,7 +215,7 @@ def test_environment_password_mask_and_reveal(ui_server, ui_context):
         assert page.evaluate("new FormData(document.getElementById('reservation-form')).has('reservationPassword')") is False
         assert 'PrivatePass44' not in str(runtime.store.get_defaults())
         page.reload()
-        page.wait_for_function("!document.getElementById('toggle-password').disabled")
+        page.wait_for_function("() => !document.getElementById('toggle-password').disabled")
         assert field.get_attribute('type') == 'password'
 
 
@@ -228,11 +228,11 @@ def test_once_full_displays_one_result_row(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#check')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#log-body tr.log-row').count() == 1
         assert '1회 조회 결과: 만차입니다.' in page.locator('#log-body tr.log-row .body-cell').inner_text()
         assert page.get_by_text('1회 조회 결과: 만차입니다.', exact=False).count() == 1
@@ -240,7 +240,7 @@ def test_once_full_displays_one_result_row(ui_server, ui_context):
         assert page.locator('#job-actions').is_hidden()
         assert page.locator('#freshness').is_hidden()
         page.reload()
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#log-body tr.log-row').count() == 1
 
 
@@ -257,7 +257,7 @@ def test_summary_displays_discounted_price(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.querySelector('#summary').textContent.includes('52,000원')")
+        page.wait_for_function("() => document.querySelector('#summary').textContent.includes('52,000원')")
         assert '104,000원' not in page.locator('#summary').inner_text()
 
 
@@ -271,12 +271,12 @@ def test_saved_interval_survives_reload_with_previous_job(ui_server, ui_context)
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.fill('#intervalSeconds', '60')
         page.locator('#intervalSeconds').blur()
-        page.wait_for_function("fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => d.intervalSeconds === 60)")
+        page.wait_for_function("() => fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => d.intervalSeconds === 60)")
         page.reload()
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         assert page.input_value('#intervalSeconds') == '60'
         assert runtime.store.get_defaults()['intervalSeconds'] == 60
 
@@ -297,16 +297,16 @@ def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates, ui_co
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         assert page.input_value('#entryAt') == raw['entryAt']
         assert page.input_value('#exitAt') == raw['exitAt']
         assert page.input_value('#intervalSeconds') == '60'
         # Calendar/time widgets emit vp.change instead of native change.
         page.locator('#exit-picker').dispatch_event('vp.change')
-        page.wait_for_function("fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => !!d.entryAt && !!d.exitAt)")
+        page.wait_for_function("() => fetch('/gimpo-parking/api/defaults').then(r => r.json()).then(d => !!d.entryAt && !!d.exitAt)")
         assert runtime.store.get_defaults()['entryAt'] == raw['entryAt']
         page.reload()
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         assert page.input_value('#exitAt') == raw['exitAt']
 
 
@@ -317,7 +317,7 @@ def test_expired_saved_dates_use_current_booking_range(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         assert not page.input_value('#entryAt').startswith('2000-')
         assert not page.input_value('#exitAt').startswith('2000-')
         assert page.input_value('#intervalSeconds') == '60'
@@ -329,7 +329,7 @@ def test_password_fields_share_input_style(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('toggle-password').disabled")
+        page.wait_for_function("() => !document.getElementById('toggle-password').disabled")
         style = "el => { const s = getComputedStyle(el); return [s.height, s.backgroundColor, s.borderRadius]; }"
         assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
         page.click('#toggle-password')
@@ -342,7 +342,7 @@ def test_missing_fields_show_field_errors_without_starting(ui_server, ui_context
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.fill('#carNumber', '')
         page.click('#watch')
         page.locator('.toast-error').first.wait_for()
@@ -356,7 +356,7 @@ def test_date_field_error_clears_on_picker_change(ui_server, ui_context):
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.evaluate("document.getElementById('entryAt').closest('.field-group').classList.add('has-error')")
         page.evaluate("document.getElementById('entry-picker').dispatchEvent(new CustomEvent('vp.change', {bubbles: true}))")
         assert not page.evaluate("document.getElementById('entryAt').closest('.field-group').classList.contains('has-error')")
@@ -403,26 +403,26 @@ def test_payment_handoff_return_and_reserved_overlays(ui_server, ui_context):
             resolves = []
             page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
             page.goto(base + '/gimpo-parking/')
-            page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+            page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
             overlay = page.locator('#completion-overlay')
             assert overlay_variant(page) == 'action'
             assert '결제해주세요' in overlay.inner_text()
             overlay.get_by_role('button', name='닫기').click()
             page.reload()
-            page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+            page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
             wait_polls(page)
             assert overlay_variant(page) is None
 
             to_payment_progress(runtime, job['id'])
             runtime.store.mark_returned(job['id'])
-            page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+            page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
             assert '결과를 선택하면 예약창을 닫습니다' in overlay.inner_text()
             overlay.get_by_role('button', name='아직 결제 중').click()
             wait_polls(page)
             assert overlay_variant(page) is None and resolves == []
 
             page.reload()
-            page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+            page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
             overlay.get_by_role('button', name='예약 완료').click()
             eventually(lambda: runtime.store.get(job['id'])['state'] == 'CLOSED_BY_USER')
             wait_polls(page)  # 서버는 받아들였지만 브라우저 닫기가 붙잡혀 작업이 아직 활성인 구간
@@ -431,11 +431,11 @@ def test_payment_handoff_return_and_reserved_overlays(ui_server, ui_context):
             assert len(resolves) == 1
             HeldClose.gate.set()
             eventually(lambda: not runtime.store.get(job['id'])['active'])
-            page.wait_for_function("document.getElementById('completion-overlay').dataset.variant === 'success' && document.getElementById('completion-overlay').classList.contains('open')")
+            page.wait_for_function("() => document.getElementById('completion-overlay').dataset.variant === 'success' && document.getElementById('completion-overlay').classList.contains('open')")
             assert runtime.store.get(job['id'])['userReportedOutcome'] == 'reserved'
             overlay.get_by_role('button', name='확인').click()
             page.reload()
-            page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
+            page.wait_for_function("() => document.getElementById('header-status-text').textContent === '종료됨'")
             wait_polls(page)
             assert overlay_variant(page) is None
             stored = page.evaluate('({...localStorage})')
@@ -456,14 +456,14 @@ def test_result_choice_while_busy_is_not_recorded(ui_server, ui_context):
         resolves = []
         page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         page.evaluate('gimpoScreen.busy = true')
         page.locator('#completion-overlay').get_by_role('button', name='예약 완료').click()
         page.locator('.toast-info').first.wait_for()
         assert resolves == []
         assert not any(key.endswith('.result') for key in page.evaluate('Object.keys(localStorage)'))
         page.evaluate('gimpoScreen.busy = false')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         assert not errors
 
 
@@ -472,10 +472,10 @@ def test_open_payment_overlay_is_replaced_when_state_moves_on(ui_server, ui_cont
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         to_payment_progress(runtime, job['id'])
         runtime.store.mark_returned(job['id'])
-        page.wait_for_function("document.getElementById('completion-overlay').textContent.includes('결과를 선택하면')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').textContent.includes('결과를 선택하면')")
         assert overlay_variant(page) == 'action'
         assert not errors
 
@@ -485,11 +485,11 @@ def test_second_handoff_shows_payment_overlay_again(ui_server, ui_context):
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         runtime.store.transition(job['id'], 'RECHECKING', '최종 확인 중')
         runtime.store.ready(job['id'], job['generation'], job['summary'], runtime.store.clock(), 120)
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         assert overlay_variant(page) == 'action'
         assert not errors
 
@@ -514,7 +514,7 @@ def test_reserved_overlay_waits_until_browser_is_closed(ui_server, ui_context):
         assert '결과 기록' in runtime.store.get(job['id'])['reason']
         with open_page(ui_context, base) as (page, errors):
             page.goto(base + '/gimpo-parking/')
-            page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
+            page.wait_for_function("() => document.getElementById('header-status-text').textContent === '종료됨'")
             wait_polls(page)
             assert overlay_variant(page) != 'success'
             assert page.locator('#record-result').is_visible()
@@ -531,7 +531,7 @@ def test_old_reserved_job_is_not_celebrated_in_new_browser(ui_server, ui_context
     eventually(lambda: not runtime.store.get(job['id'])['active'])
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '종료됨'")
         wait_polls(page)
         assert overlay_variant(page) is None
         assert not errors
@@ -543,7 +543,7 @@ def test_completion_overlay_works_when_storage_is_blocked(ui_server, ui_context)
     blocked = "Object.defineProperty(window, 'localStorage', {get() { throw new DOMException('blocked', 'SecurityError'); }});"
     with open_page(ui_context, base, init_script=blocked) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         wait_polls(page)
         assert overlay_variant(page) is None
@@ -556,10 +556,10 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server, ui_context):
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         status_url = '**/api/jobs/' + job['id']
         page.route(status_url, lambda route: route.fulfill(status=503, body=''))
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '연결 끊김'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '연결 끊김'")
         assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         assert page.locator('#header-status-text').inner_text() == '연결 끊김'
         # 폴링이 아닌 렌더(명령 처리 등)도 다음 폴링이 성공하기 전까지는 연결 끊김을 유지한다.
@@ -569,7 +569,7 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server, ui_context):
         assert page.locator('#header-status-text').inner_text() == '연결 끊김'
         assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         page.unroute(status_url)
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert page.locator('#header-status-text').inner_text() == '결제 대기'
         assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
@@ -581,15 +581,15 @@ def test_successful_command_clears_disconnection_before_next_poll(ui_server, ui_
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         # 상태 조회(폴링) 엔드포인트만 끊는다. 명령 엔드포인트는 계속 정상 응답한다.
         page.route('**/api/jobs/' + job['id'], lambda route: route.fulfill(status=503, body=''))
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '연결 끊김'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '연결 끊김'")
         page.click('#stop')
         # 중지 명령은 STOPPING으로 즉시 응답하고(최종 STOPPED 전환은 폴링으로만 확인되지만, 폴링은 계속 막혀 있다),
         # 그 응답이 성공했다는 것만으로 다음 폴링을 기다리지 않고 곧바로 연결 끊김을 벗어나야 한다.
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지 중'")
         assert page.locator('#header-status').get_attribute('data-tone') != 'error'
         assert page.locator('#header-status-text').inner_text() == '중지 중'
         assert page.locator('#header-status').get_attribute('data-tone') != 'error'
@@ -601,7 +601,7 @@ def test_import_t2_failure_without_server_message_shows_fallback_text(ui_server,
     with open_page(ui_context, base) as (page, errors):
         page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, body=''))
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.click('#import-t2')
         page.locator('.toast-error').first.wait_for()
         assert 'T2 저장 정보를 불러오지 못했습니다.' in page.locator('.toast-error').first.inner_text()
@@ -614,7 +614,7 @@ def test_import_t2_failure_prefers_server_message(ui_server, ui_context):
     with open_page(ui_context, base) as (page, errors):
         page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, json={'error': message}))
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         page.click('#import-t2')
         page.locator('.toast-error').first.wait_for()
         text = page.locator('.toast-error').first.inner_text()
@@ -632,10 +632,10 @@ def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change
         resolves = []
         page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '예약 결과 확인 필요'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '예약 결과 확인 필요'")
         assert overlay_variant(page) is None
         page.click('#record-result')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         page.evaluate('gimpoScreen.busy = true')
         page.locator('#completion-overlay').get_by_role('button', name='예약 완료').click()
         page.locator('.toast-info').first.wait_for()
@@ -647,7 +647,7 @@ def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change
         elif change == 'hides_record_result':
             # 활성인 채로 결과 기록 버튼이 숨는 상태로 옮긴다.
             runtime.store.transition(job['id'], 'REVIEW_REQUIRED', 'test', expected={'PAYMENT_RESULT_UNKNOWN'})
-            page.wait_for_function("document.getElementById('record-result').hidden")
+            page.wait_for_function("() => document.getElementById('record-result').hidden")
             assert runtime.store.get(job['id'])['active'] is True
         wait_polls(page)
         assert overlay_variant(page) is None  # busy인 동안에는 다시 열지 않는다
@@ -674,7 +674,7 @@ def test_completion_keys_of_other_jobs_are_pruned(ui_server, ui_context):
             f"for (const key of {json.dumps(seeded)}) localStorage.setItem(key, '1'); localStorage.setItem('other.key', 'x'); }}")
     with open_page(ui_context, base, init_script=seed) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         wait_polls(page)
         assert sorted(page.evaluate('Object.keys(localStorage)')) == sorted([current, 'other.key'])
         assert overlay_variant(page) is None  # 현재 작업 기록은 남아 결제 안내를 다시 띄우지 않는다
@@ -685,13 +685,13 @@ def test_log_time_keeps_date_and_empty_summary_card_is_hidden(ui_server, ui_cont
     base, runtime = ui_server
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("!document.getElementById('check').disabled")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
         # 작업이 없으면 요약할 내용이 없으므로 카드를 숨긴다.
         assert not page.locator('#progress-card').is_visible()
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#check')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '예약 가능'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '예약 가능'")
         assert page.locator('#progress-card').is_visible()
         # 실행이 여러 날에 걸칠 수 있으므로 시간에 날짜를 함께 표시한다.
         times = page.locator('#log-body .cell-time').all_inner_texts()

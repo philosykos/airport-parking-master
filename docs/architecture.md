@@ -9,7 +9,8 @@
 한 PC에서 한 사용자가 쓰는 로컬 Flask 앱이다. `python app.py`로 debug와 reloader를 끄고
 단일 프로세스로 실행한다. 로그인이 없으므로 요청이 이 PC 브라우저의 이 앱 화면에서 왔는지가
 유일한 보안 경계다. `services/web_security.py`가 앱 전체에서 Host를 `localhost`·`127.0.0.1`로
-제한하고, 다른 출처의 상태 변경 요청을 거부하고, 공통 보안 헤더를 붙인다.
+제한하고, 다른 출처의 상태 변경 요청을 거부하고, CSP를 포함한 공통 보안 헤더를 붙인다. CSP는 같은
+출처의 스크립트 파일만 실행을 허용하므로 인라인 스크립트·이벤트 속성을 쓰지 않는다.
 
 `app.py`는 조립만 한다. 보안 훅을 걸고, 두 서비스의 Blueprint를 등록하고, 김포 서비스 객체를
 `app.extensions["gimpo"]`에 두고, 종료 신호를 받으면 김포 런타임과 T2 알림 큐를 닫는다.
@@ -35,7 +36,7 @@ flowchart LR
 |---|---|
 | `app.py` | 앱 조립, 설정 오류 시 종료, 종료 정리 |
 | `services/config.py` | 서비스별 TOML 읽기와 공용 검증 도우미([설정 규칙](configuration.md)) |
-| `services/web_security.py` | Host 제한, 다른 출처 요청 거부, 공통 보안 헤더 |
+| `services/web_security.py` | Host 제한, 다른 출처 요청 거부, CSP 등 공통 보안 헤더 |
 | `services/t2/` | 인천 T2 발렛 예약: 라우트·예약 API 호출·개인정보 가림(`valet.py`), 반복 워커(`scheduler.py`), 파일 저장(`storage.py`), 입력 검증(`validation.py`) |
 | `services/gimpo/` | 김포 예약: HTTP 컨트롤러(`parking.py`), 런타임과 명령(`jobs.py`), 작업 저장소(`store.py`), Playwright 어댑터(`client.py`), 입력 검증(`validation.py`), 설정·비밀값(`config.py`) |
 | `services/notifications/` | 공용 텔레그램 알림: 전송과 재시도 정책(`telegram.py`), 메시지 문안(`messages.py`), 메모리 큐(`background.py`), 김포용 영속 발송기(`outbox.py`) |
@@ -53,7 +54,6 @@ flowchart LR
   워커가 이어 돌지 않는다.
 - 기본 입력은 `user_data.json`, 호출 기록은 `logs/api_call.log`에 소유자 전용 권한으로 저장한다.
   기록에는 `redact_payload`·`redact_text`로 예약자명·차량번호·휴대폰을 가린 사본만 남긴다.
-- 화면 CSP는 T2 Blueprint의 `after_request`가 붙인다. 스크립트는 같은 출처 파일만 실행된다.
 
 ## 김포
 
