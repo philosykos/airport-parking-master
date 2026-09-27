@@ -5,7 +5,6 @@ import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from urllib.parse import urlparse
 
 import urllib3
 import requests as http_requests
@@ -320,9 +319,6 @@ def notification_status():
 
 @bp.post("/api/notifications/test")
 def notification_test():
-    origin = request.headers.get("Origin")
-    if origin and urlparse(origin).netloc != request.host:
-        return jsonify(error="현재 서비스 화면에서 요청해주세요."), 403
     if not isinstance(request.get_json(silent=True), dict):
         return jsonify(error="JSON 요청이 필요합니다."), 400
     result = NOTIFICATIONS.publish_test(ReservationMessages.test("인천공항 T2 발렛"))

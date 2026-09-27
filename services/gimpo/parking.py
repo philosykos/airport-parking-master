@@ -1,7 +1,6 @@
 """HTTP controller for the local Gimpo reservation coordinator."""
 import os
 import threading
-from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
@@ -70,10 +69,8 @@ def accepted(job):
 
 @bp.before_request
 def guard_request():
+    # 다른 출처 요청은 앱 전체 검사(services/web_security.py)가 먼저 거절한다
     if request.method not in {"GET", "HEAD", "OPTIONS"}:
-        origin = request.headers.get("Origin")
-        if origin and urlparse(origin).netloc != request.host:
-            return jsonify(error="현재 서비스 화면에서 요청해주세요."), 403
         if not request.is_json:
             return jsonify(error="JSON 요청이 필요합니다."), 400
 
