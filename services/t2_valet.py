@@ -9,6 +9,7 @@ import requests as http_requests
 from flask import Blueprint, jsonify, render_template, request
 
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
+from services.t2_input import FIELDS, MIN_INTERVAL_SEC, InputError, parse_interval, validate_fields
 from services.t2_scheduler import Scheduler
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -21,7 +22,6 @@ bp = Blueprint("t2_valet", __name__, url_prefix="/t2-valet")
 
 # ── 설정 (config/t2_valet.toml) ──
 CONFIG_LABEL = config_label("t2_valet")
-MIN_INTERVAL_SEC = 10
 
 # TOML 키: (예약 API 필드, 타입, 빈 문자열 허용 — 허용하면 None으로 보낸다)
 PAYLOAD_FIELDS = {
@@ -100,11 +100,13 @@ DEFAULT_HEADERS = {
 }
 
 def _load_user_data():
+    """저장된 기본값 사전. 없거나 깨졌거나 사전이 아니면 None."""
     try:
         with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
         return None
+    return data if isinstance(data, dict) else None
 
 
 def add_log(entry):
@@ -126,19 +128,9 @@ def load_logs_from_file():
     return logs
 
 
-def build_payload(data):
-    """프론트엔드 개별 필드를 API payload JSON으로 병합"""
-    payload = dict(CONFIG.payload)
-    payload["name"] = data.get("name", "")
-    payload["phone"] = data.get("phone", "")
-    payload["carNumber"] = data.get("carNumber", "")
-    payload["carModel"] = data.get("carModel", "")
-    payload["carBrand"] = data.get("carBrand", "")
-    payload["carColor"] = data.get("carColor", "")
-    payload["departingAt"] = data.get("departingAt", "")
-    payload["arrivedAt"] = data.get("arrivedAt", "")
-    payload["departingAir"] = data.get("departingAir", "")
-    return payload
+def build_payload(fields):
+    """검사를 마친 화면 필드를 설정의 고정 값에 합쳐 예약 API 페이로드를 만든다."""
+    return {**CONFIG.payload, **fields}
 
 
 def do_single_call(url, payload):
@@ -186,48 +178,44 @@ def index():
     return render_template("t2_valet.html")
 
 
+@bp.errorhandler(InputError)
+def input_error(e):
+    return jsonify({"error": str(e)}), 400
+
+
 @bp.route("/api/defaults")
 def defaults():
-    result = {"interval": str(CONFIG.interval_sec)}
-    user_data = _load_user_data()
-    if user_data:
-        fields = ["name", "phone", "carNumber", "carModel", "carBrand",
-                  "carColor", "departingAt", "arrivedAt", "departingAir"]
-        for f in fields:
-            result[f] = user_data.get(f, "")
-        if "interval" in user_data:
-            result["interval"] = user_data["interval"]
+    result = {"interval": str(CONFIG.interval_sec), "hasSavedData": False}
+    saved = _load_user_data()
+    if saved:
+        result.update({key: saved.get(key, "") for key in FIELDS})
+        if "interval" in saved:
+            result["interval"] = saved["interval"]
         result["hasSavedData"] = True
-    else:
-        result["hasSavedData"] = False
     return jsonify(result)
 
 
 @bp.route("/api/save-defaults", methods=["POST"])
 def save_defaults():
-    data = request.get_json()
+    data = request.get_json(silent=True)
     if not data:
-        return jsonify({"error": "데이터가 없습니다."}), 400
-    allowed = ["name", "phone", "carNumber", "carModel", "carBrand",
-               "carColor", "departingAt", "arrivedAt", "departingAir", "interval"]
-    save_data = {k: data[k] for k in allowed if k in data}
+        raise InputError("데이터가 없습니다.")
+    fields = validate_fields(data, require_contact=False)
+    saved = {key: value for key, value in fields.items() if key in data}
+    if "interval" in data:
+        saved["interval"] = str(parse_interval(data["interval"]))
     with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(save_data, f, ensure_ascii=False, indent=2)
+        json.dump(saved, f, ensure_ascii=False, indent=2)
     return jsonify({"message": "저장되었습니다."})
 
 
 @bp.route("/api/test", methods=["POST"])
 def test_call():
     """테스트 1회 호출"""
-    data = request.get_json()
-    if not data.get("name") or not data.get("phone"):
-        return jsonify({"error": "이름과 휴대전화는 필수입니다."}), 400
-
-    payload = build_payload(data)
-    entry = do_single_call(CONFIG.url, payload)
+    fields = validate_fields(request.get_json(silent=True), require_contact=True)
+    entry = do_single_call(CONFIG.url, build_payload(fields))
     entry["type"] = "test"
     add_log(entry)
-
     return jsonify({"result": entry})
 
 
@@ -236,15 +224,10 @@ def start():
     if scheduler.running:
         return jsonify({"error": "이미 실행 중입니다."}), 400
 
-    data = request.get_json()
-    if not data.get("name") or not data.get("phone"):
-        return jsonify({"error": "이름과 휴대전화는 필수입니다."}), 400
-
-    payload = build_payload(data)
-    interval_sec = int(data.get("interval", 30))
-
-    if interval_sec < 10:
-        return jsonify({"error": "호출 주기는 최소 10초 이상이어야 합니다."}), 400
+    data = request.get_json(silent=True)
+    fields = validate_fields(data, require_contact=True)
+    interval_sec = parse_interval(data.get("interval", CONFIG.interval_sec))
+    payload = build_payload(fields)
 
     def log_start():
         add_log({

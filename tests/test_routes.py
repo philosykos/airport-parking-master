@@ -3,6 +3,8 @@ import re
 import threading
 from pathlib import Path
 
+import pytest
+
 import app as app_module
 from services import t2_valet
 
@@ -244,3 +246,68 @@ def test_restart_during_inflight_call_keeps_one_worker(client, monkeypatch):
         assert client.get("/t2-valet/api/logs").get_json()["running"] is True
     finally:
         release.set()  # 중간에 실패해도 워커를 풀어 픽스처 정리 전에 끝나게 한다
+
+
+# ── 입력 검사 (t2_input) ──
+
+@pytest.mark.parametrize("path", ["/t2-valet/api/test", "/t2-valet/api/start"])
+@pytest.mark.parametrize("raw", ["null", "[]", '"x"', "{bad"])
+def test_non_object_json_is_400(client, path, raw):
+    resp = client.post(path, data=raw, content_type="application/json")
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "요청 본문은 JSON 객체여야 합니다."
+
+
+def test_start_rejects_non_integer_interval(client):
+    resp = client.post("/t2-valet/api/start",
+                       json={"name": "홍길동", "phone": "01012345678", "interval": "abc"})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "호출 주기는 정수여야 합니다."
+    assert client.get("/t2-valet/api/logs").get_json()["running"] is False
+
+
+def test_test_call_rejects_bad_field(client):
+    resp = client.post("/t2-valet/api/test",
+                       json={"name": "홍길동", "phone": "01012345678", "carBrand": {"x": 1}})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "제조사: 문자열이어야 합니다."
+
+
+def test_client_cannot_override_fixed_payload(client, monkeypatch):
+    captured = {}
+
+    def fake_call(url, payload):
+        captured.update(payload)
+        return {"time": "t", "type": "call", "status": 500, "body": "fake", "url": url, "payload": payload}
+    monkeypatch.setattr(t2_valet, "do_single_call", fake_call)
+    client.post("/t2-valet/api/test",
+                json={"name": "홍길동", "phone": "01012345678", "carType": "PREMIUM", "isCrew": True})
+    assert captured["carType"] == t2_valet.CONFIG.payload["carType"]
+    assert captured["isCrew"] == t2_valet.CONFIG.payload["isCrew"]
+
+
+def test_save_defaults_rejects_bad_types(client):
+    resp = client.post("/t2-valet/api/save-defaults", json={"name": ["홍길동"]})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "예약자명: 문자열이어야 합니다."
+    assert client.get("/t2-valet/api/defaults").get_json()["hasSavedData"] is False
+
+
+@pytest.mark.parametrize("raw", ["{}", "null"])
+def test_save_defaults_rejects_empty(client, raw):
+    resp = client.post("/t2-valet/api/save-defaults", data=raw, content_type="application/json")
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "데이터가 없습니다."
+
+
+def test_save_defaults_normalizes_interval(client):
+    client.post("/t2-valet/api/save-defaults", json={"name": "홍길동", "interval": 20})
+    assert client.get("/t2-valet/api/defaults").get_json()["interval"] == "20"
+
+
+@pytest.mark.parametrize("content", ["[1, 2]", '"text"', "{broken", ""])
+def test_defaults_ignores_unusable_saved_file(client, content):
+    Path(t2_valet.USER_DATA_FILE).write_text(content, encoding="utf-8")
+    resp = client.get("/t2-valet/api/defaults")
+    assert resp.status_code == 200
+    assert resp.get_json()["hasSavedData"] is False
