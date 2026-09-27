@@ -16,6 +16,8 @@ except ConfigError as e:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
+# 화면 폴링·새로고침 주기(ms). 템플릿이 <body> data 속성으로 내려 주고 JS가 읽는다.
+app.config.update(GIMPO_POLL_MS=1500, T2_POLL_MS=2000, SETTINGS_REFRESH_MS=3000)
 web_security.init_app(app)
 app.register_blueprint(t2_valet.bp)
 app.register_blueprint(gimpo_parking.bp)

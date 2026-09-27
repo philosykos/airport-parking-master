@@ -425,7 +425,7 @@
                     this.message(error.message);
                 }
             }
-            setTimeout(() => this.poll(), 1500);
+            setTimeout(() => this.poll(), Number(document.body.dataset.gimpoPollMs) || 1500);
         }
     }
     window.gimpoScreen = new ReservationScreen();

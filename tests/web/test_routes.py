@@ -11,6 +11,27 @@ from services.t2 import valet as t2_valet
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+# ── 화면 폴링 주기 ──
+
+INTERVAL_ATTRIBUTES = {'GIMPO_POLL_MS': 'data-gimpo-poll-ms', 'T2_POLL_MS': 'data-t2-poll-ms',
+                       'SETTINGS_REFRESH_MS': 'data-settings-refresh-ms'}
+
+
+@pytest.mark.parametrize('path', ['/', '/t2-valet/', '/gimpo-parking/'])
+def test_pages_render_configured_ui_intervals(client, monkeypatch, path):
+    # 운영 기본값은 바뀌면 안 되는 계약이다. 화면 테스트는 이 값을 짧게 바꿔 쓴다(conftest.UI_INTERVALS).
+    defaults = {'GIMPO_POLL_MS': 1500, 'T2_POLL_MS': 2000, 'SETTINGS_REFRESH_MS': 3000}
+    assert {key: app_module.app.config[key] for key in defaults} == defaults
+    html = client.get(path).get_data(as_text=True)
+    for key, attribute in INTERVAL_ATTRIBUTES.items():
+        assert f'{attribute}="{defaults[key]}"' in html
+    for index, key in enumerate(INTERVAL_ATTRIBUTES):
+        monkeypatch.setitem(app_module.app.config, key, 111 * (index + 1))
+    html = client.get(path).get_data(as_text=True)
+    for index, attribute in enumerate(INTERVAL_ATTRIBUTES.values()):
+        assert f'{attribute}="{111 * (index + 1)}"' in html
+
+
 # ── T2 화면 ──
 
 def test_t2_page_renders_form(client):
