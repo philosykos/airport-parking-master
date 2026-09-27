@@ -1,0 +1,8 @@
+{
+  "provenance": "2026-09-27 previous-session pre-payment captures; private values, cookies and headers omitted",
+  "availability": {"available": {"result": {"code": "00"}}, "full": {"result": {"code": "10"}}},
+  "duplicate": {"clear": {"code": "00"}, "duplicate": {"code": "10"}, "noShow": {"code": "20"}},
+  "payment": {"method": "POST", "path": "/reservation/payment.json", "contentType": "application/x-www-form-urlencoded", "forwardedDuringCapture": false},
+  "amounts": {"calculateAmt": "8000", "depositAmt": "10000", "paymentAmt": "10000", "receiptAmt": "-2000", "discountAmt": "0"},
+  "unverified": ["PG response", "reservation completion", "all discount eligibility results"]
+}

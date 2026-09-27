@@ -70,7 +70,7 @@ def test_start_rejects_interval_below_10(client):
     resp = client.post("/t2-valet/api/start",
                        json={"name": "홍길동", "phone": "01012345678", "interval": 5})
     assert resp.status_code == 400
-    assert resp.get_json()["error"] == "호출 주기는 최소 10초 이상이어야 합니다."
+    assert resp.get_json()["error"] == "예약 요청 간격은 10초 이상으로 입력해주세요."
 
 
 def test_stop_when_not_running(client):
@@ -144,14 +144,10 @@ def test_landing_lists_services(client):
     assert "<title>공항 주차 예약 서비스</title>" in html
 
 
-def test_landing_gmp_card_is_disabled(client):
+def test_landing_gmp_card_is_enabled(client):
     html = client.get("/").get_data(as_text=True)
-    match = re.search(r'<div class="service-card is-soon"[^>]*>', html)
-    assert match, "김포 카드 여는 태그가 없다"
-    tag = match.group(0)
-    assert 'role="group"' in tag
-    assert 'aria-disabled="true"' in tag
-    assert "href" not in tag
+    assert 'href="/gimpo-parking/"' in html
+    assert 'aria-disabled="true"' not in html
 
 
 def test_landing_does_not_load_t2_scripts(client):

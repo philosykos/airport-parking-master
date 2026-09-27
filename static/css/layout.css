@@ -19,7 +19,12 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
 }
+.app-header .title-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-settings { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: 16px; padding: 8px 10px; border-radius: var(--radius-md); color: var(--primary); font-size: 13px; font-weight: 600; text-decoration: none; }
+.header-settings:hover, .header-settings[aria-current=page] { background: var(--secondary-fixed); }
+.header-settings:focus-visible { outline: 3px solid var(--secondary-container); outline-offset: 3px; }
 .title-main {
     font-family: var(--font-headline);
     font-size: 24px;

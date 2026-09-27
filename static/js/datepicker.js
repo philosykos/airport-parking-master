@@ -1,6 +1,20 @@
 (function(global) {
     'use strict';
 
+    // Calendar values can represent server wall time, independent of the PC time zone/DST.
+    class WallClockDate extends Date {
+        constructor(...args) {
+            super(args.length > 1 ? Date.UTC(...args) : (args.length ? args[0] : Date.now()));
+        }
+        toLocaleDateString(locale, options) {
+            return super.toLocaleDateString(locale, {...options, timeZone: 'UTC'});
+        }
+    }
+    for (const name of ['FullYear', 'Month', 'Date', 'Day', 'Hours', 'Minutes', 'Seconds', 'Milliseconds']) {
+        WallClockDate.prototype['get' + name] = function() { return this['getUTC' + name](); };
+        if (name !== 'Day') WallClockDate.prototype['set' + name] = function(...args) { return this['setUTC' + name](...args); };
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
     function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -17,7 +31,7 @@
     }
 
     function daysInMonth(year, month) {
-        return new Date(year, month + 1, 0).getDate();
+        return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     }
 
     // ── Namespace (replaces tempusDominus.Namespace.events) ──────────────
@@ -33,14 +47,16 @@
     function VanillaPicker(containerEl, options) {
         this._containerEl  = containerEl;
         this._options      = options || {};
+        this._Date         = this._options.wallClock ? WallClockDate : Date;
         this._currentDate  = this._options.defaultDate
-            ? new Date(this._options.defaultDate)
-            : new Date();
-        this._viewDate     = new Date(this._currentDate);
+            ? new this._Date(this._options.defaultDate)
+            : new this._Date();
+        this._viewDate     = new this._Date(this._currentDate);
         this._isOpen       = false;
         this._rangeStart   = null;
         this._rangeEnd     = null;
-        this._minDate      = null;
+        this._minDate      = this._options.minDate ? new this._Date(this._options.minDate) : null;
+        this._maxDate      = this._options.maxDate ? new this._Date(this._options.maxDate) : null;
         this._widget       = null;
         this._calGrid      = null;
         this._switchBtn    = null;
@@ -124,10 +140,8 @@
             var year  = parseInt(target.dataset.year);
             var month = parseInt(target.dataset.month);
             var day   = parseInt(target.dataset.day);
-            var newDate = new Date(self._currentDate);
-            newDate.setFullYear(year);
-            newDate.setMonth(month);
-            newDate.setDate(day);
+            var newDate = new self._Date(self._currentDate);
+            newDate.setFullYear(year, month, day);
             self._setValue(newDate);
         });
 
@@ -141,11 +155,11 @@
         var grid    = this._calGrid;
         var year    = this._viewDate.getFullYear();
         var month   = this._viewDate.getMonth();
-        var today   = new Date();
+        var today   = this._options.now ? this._options.now() : new this._Date();
         var selected = this._currentDate;
 
         // Update header text
-        var headerDate = new Date(year, month, 1);
+        var headerDate = new this._Date(year, month, 1);
         this._switchBtn.textContent = headerDate.toLocaleDateString('ko-KR', {
             year: 'numeric', month: 'long'
         });
@@ -163,7 +177,7 @@
         });
 
         // First weekday of this month (0=Sun)
-        var firstDay = new Date(year, month, 1).getDay();
+        var firstDay = new this._Date(year, month, 1).getDay();
         // Days in previous month
         var prevMonthDays = daysInMonth(year, month - 1);
 
@@ -180,14 +194,14 @@
         var totalDays = daysInMonth(year, month);
         var rangeStart = this._rangeStart;
         var rangeEnd   = this._rangeEnd;
-        var todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        var maxDate = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate() - 1);
+        var todayStart = new this._Date(today.getFullYear(), today.getMonth(), today.getDate());
+        var maxDate = this._maxDate || new this._Date(today.getFullYear(), today.getMonth() + 2, today.getDate() - 1);
         var minDate = this._minDate
-            ? new Date(this._minDate.getFullYear(), this._minDate.getMonth(), this._minDate.getDate())
+            ? new this._Date(this._minDate.getFullYear(), this._minDate.getMonth(), this._minDate.getDate())
             : todayStart;
         for (var d = 1; d <= totalDays; d++) {
             var classes = '';
-            var cellDate = new Date(year, month, d);
+            var cellDate = new this._Date(year, month, d);
             if (cellDate < minDate || cellDate > maxDate) classes += ' disabled';
             if (isSameDay(cellDate, today))    classes += ' today';
             if (isSameDay(cellDate, selected)) classes += ' active';
@@ -195,8 +209,8 @@
             if (rangeEnd   && isSameDay(cellDate, rangeEnd))   classes += ' range-end';
             if (rangeStart && rangeEnd) {
                 var ts = cellDate.getTime();
-                var rs = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate()).getTime();
-                var re = new Date(rangeEnd.getFullYear(),   rangeEnd.getMonth(),   rangeEnd.getDate()).getTime();
+                var rs = new this._Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate()).getTime();
+                var re = new this._Date(rangeEnd.getFullYear(),   rangeEnd.getMonth(),   rangeEnd.getDate()).getTime();
                 if (ts > rs && ts < re) classes += ' in-range';
             }
             grid.appendChild(this._makeDay(year, month, d, classes.trim()));
@@ -216,6 +230,12 @@
     VanillaPicker.prototype._makeDay = function(year, month, day, extraClass) {
         var el = document.createElement('div');
         el.className = 'day' + (extraClass ? ' ' + extraClass : '');
+        var today = this._options.now ? this._options.now() : new this._Date();
+        var min = this._minDate || today;
+        var max = this._maxDate || new this._Date(today.getFullYear(), today.getMonth() + 2, today.getDate() - 1);
+        var cell = new this._Date(year, month, day);
+        if (cell < new this._Date(min.getFullYear(), min.getMonth(), min.getDate()) ||
+            cell > new this._Date(max.getFullYear(), max.getMonth(), max.getDate())) el.classList.add('disabled');
         el.textContent = day;
         el.dataset.year  = year;
         el.dataset.month = month;
@@ -225,9 +245,14 @@
 
     // ── setValue ──────────────────────────────────────────────────────────
     VanillaPicker.prototype._setValue = function(date) {
-        var d = (date instanceof Date) ? date : new Date(date);
+        var d = new this._Date(date);
+        if (this._options.validate && !this._options.validate(d)) {
+            this._input.setCustomValidity('예약 가능한 날짜와 10분 단위 시간을 확인해주세요.');
+            return;
+        }
+        this._input.setCustomValidity('');
         this._currentDate = d;
-        this._viewDate    = new Date(d);
+        this._viewDate    = new this._Date(d);
         this._updateInput();
         if (this._isOpen) this._renderCalendar();
         this._dispatch(VanillaPickerNamespace.events.change);
@@ -288,7 +313,14 @@
 
     // ── setMinDate ─────────────────────────────────────────────────────────
     VanillaPicker.prototype.setMinDate = function(date) {
-        this._minDate = date ? new Date(date) : null;
+        this._minDate = date ? new this._Date(date) : null;
+        if (this._isOpen) this._renderCalendar();
+    };
+
+    VanillaPicker.prototype.setLimits = function(min, max, validate) {
+        if (validate) this._options.validate = validate;
+        this._minDate = min ? new this._Date(min) : null;
+        this._maxDate = max ? new this._Date(max) : null;
         if (this._isOpen) this._renderCalendar();
     };
 
@@ -300,11 +332,11 @@
     };
 
     // ── Parse "yyyy-MM-dd HH:mm" string ────────────────────────────────
-    function parseDateTime(str) {
+    function parseDateTime(str, DateType) {
         var m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
         if (!m) return null;
-        var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-        if (isNaN(d.getTime())) return null;
+        var d = new DateType(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+        if (isNaN(d.getTime()) || d.getFullYear() !== +m[1] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3] || d.getHours() !== +m[4] || d.getMinutes() !== +m[5]) return null;
         return d;
     }
 
@@ -341,23 +373,26 @@
     VanillaPicker.prototype._applyInputValue = function() {
         var raw = this._input.value.trim();
         if (!raw) return;
-        var d = parseDateTime(raw);
+        var d = parseDateTime(raw, this._Date);
         if (d) {
-            var today = new Date();
-            var todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            var maxDate = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate() - 1);
-            if (d < todayStart || d > maxDate) {
-                this._updateInput();
+            var today = this._options.now ? this._options.now() : new this._Date();
+            var todayStart = new this._Date(today.getFullYear(), today.getMonth(), today.getDate());
+            var maxDate = this._maxDate || new this._Date(today.getFullYear(), today.getMonth() + 2, today.getDate() - 1);
+            if (d < (this._minDate || todayStart) || d > maxDate) {
+                if (this._options.validate) this._input.setCustomValidity('예약 가능한 날짜 범위를 확인해주세요.');
+                else this._updateInput();
                 return;
             }
             this._setValue(d);
         } else {
-            // Revert to current valid value
-            this._updateInput();
+            // Keep invalid input visible for configured validators.
+            if (this._options.validate) this._input.setCustomValidity('올바른 일시를 입력해주세요.');
+            else this._updateInput();
         }
     };
 
     // ── Expose globals ────────────────────────────────────────────────────
+    VanillaPicker.WallClockDate = WallClockDate;
     global.VanillaPicker          = VanillaPicker;
     global.VanillaPickerNamespace = VanillaPickerNamespace;
 

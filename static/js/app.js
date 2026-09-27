@@ -79,13 +79,13 @@ function validateInput(data) {
         setFieldError('phone'); valid = false;
     } else if (!/^010\d{8}$/.test(data.phone)) {
         setFieldError('phone'); valid = false;
-        errors.push('휴대폰 번호: 010XXXXXXXX (숫자 11자리)');
+        errors.push('휴대전화 번호는 010으로 시작하는 숫자 11자리로 입력해주세요.');
     }
     if (!data.carNumber) {
         setFieldError('carNumber'); valid = false;
     } else if (!/^\d{2,3}[가-하]\d{4}$/.test(data.carNumber)) {
         setFieldError('carNumber'); valid = false;
-        errors.push('차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)');
+        errors.push('차량번호 형식을 확인해주세요. 예: 12가3456, 123가4567');
     }
     if (!data.carModel) { setFieldError('carModel'); valid = false; }
     if (!data.carBrand) { setFieldError('carBrand'); valid = false; }
@@ -153,7 +153,7 @@ async function testCall() {
     const btn = document.getElementById('btn-test');
     btn.disabled = true;
     btn.classList.add('btn--loading');
-    btn.innerHTML = SVG_LOADER + ' 호출 중…';
+    btn.innerHTML = SVG_LOADER + ' 요청 중…';
 
     try {
         const resp = await fetch(API_BASE + '/test', {
@@ -168,11 +168,11 @@ async function testCall() {
         }
 
         if (!savedDefaults) {
-            if (confirm('입력한 예약 정보를 저장하시겠습니까?')) {
+            if (confirm('예약 정보를 저장할까요?')) {
                 await saveUserData(data);
             }
         } else if (hasTravelScheduleChanged(data)) {
-            if (confirm('여행일정이 변경되었습니다. 최신 여행정보로 업데이트하시겠습니까?')) {
+            if (confirm('변경한 예약 정보를 저장할까요?')) {
                 await saveUserData(data);
             }
         }
@@ -186,7 +186,7 @@ async function testCall() {
     } finally {
         btn.disabled = false;
         btn.classList.remove('btn--loading');
-        btn.innerHTML = SVG_ZAP + ' 테스트';
+        btn.innerHTML = SVG_ZAP + ' 1회 예약 요청';
     }
 }
 
@@ -231,38 +231,20 @@ async function stopPolling() {
     }
 }
 
+function renderStatusBadge(badge, running) {
+    if (!badge) return;
+    badge.innerHTML = '<span class="status-dot"></span><span class="status-label">' + (running ? '실행 중' : '대기') + '</span>';
+    badge.className = running ? 'log-status running' : 'log-status';
+}
+
 function updateUI(running) {
     document.getElementById('btn-start').disabled = running;
     document.getElementById('btn-stop').disabled = !running;
-
-    const badge = document.getElementById('status-badge');
-    const headerDot = document.getElementById('header-dot');
-    const headerText = document.getElementById('header-status-text');
-    const formPanel = document.querySelector('.form-panel');
-
-    var mobileBadge = document.getElementById('mobile-status-badge');
-
-    if (running) {
-        badge.innerHTML = '<span class="status-dot"></span><span class="status-label">실행 중</span>';
-        badge.className = 'log-status running';
-        headerDot.className = 'ping-ring active';
-        headerText.textContent = '스케줄 실행 중';
-        formPanel.classList.add('form-panel--active');
-        if (mobileBadge) {
-            mobileBadge.innerHTML = '<span class="status-dot"></span><span class="status-label">실행 중</span>';
-            mobileBadge.className = 'log-status running';
-        }
-    } else {
-        badge.innerHTML = '<span class="status-dot"></span><span class="status-label">대기</span>';
-        badge.className = 'log-status';
-        headerDot.className = 'ping-ring';
-        headerText.textContent = '대기 중';
-        formPanel.classList.remove('form-panel--active');
-        if (mobileBadge) {
-            mobileBadge.innerHTML = '<span class="status-dot"></span><span class="status-label">대기</span>';
-            mobileBadge.className = 'log-status';
-        }
-    }
+    renderStatusBadge(document.getElementById('status-badge'), running);
+    renderStatusBadge(document.getElementById('mobile-status-badge'), running);
+    document.getElementById('header-dot').className = running ? 'ping-ring active' : 'ping-ring';
+    document.getElementById('header-status-text').textContent = running ? '스케줄 실행 중' : '대기 중';
+    document.querySelector('.form-panel').classList.toggle('form-panel--active', running);
 }
 
 function startLogPolling() {
@@ -309,9 +291,10 @@ async function fetchLogs() {
 
 function typeTag(type) {
     const labels = {
-        test: '<span class="tag tag-test">Test</span>',
-        schedule: '<span class="tag tag-schedule">Sched</span>',
-        event: '<span class="tag tag-event">Event</span>',
+        test: '<span class="tag tag-test">1회 요청</span>',
+        schedule: '<span class="tag tag-schedule">자동 예약</span>',
+        event: '<span class="tag tag-event">상태</span>',
+        notification: '<span class="tag tag-event">알림</span>',
     };
     return labels[type] || '';
 }
@@ -675,7 +658,7 @@ function renderLogs(logs) {
     currentLogs = logs || [];
 
     if (!logs || logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>아직 예약 요청 내역이 없습니다</td></tr>';
         countEl.textContent = '0';
         updateMobileLogBadge(0);
         return;
@@ -775,7 +758,7 @@ async function clearLogs() {
     try {
         await fetch(API_BASE + '/logs/clear', { method: 'POST' });
         document.getElementById('log-body').innerHTML =
-            '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
+            '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>아직 예약 요청 내역이 없습니다</td></tr>';
         document.getElementById('log-count').textContent = '0';
         currentLogs = [];
         lastSuccessId = null;

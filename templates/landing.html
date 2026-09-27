@@ -17,11 +17,12 @@
         <div class="app-header-left">
             <span class="title-main">공항 주차 예약 서비스</span>
         </div>
+        {% include 'partials/settings_link.html' %}
     </nav>
 
     <main class="landing-main">
         <h1 class="landing-title">어느 공항을 예약할까요?</h1>
-        <p class="landing-subtitle">서비스를 선택하면 예약 화면으로 이동합니다</p>
+        <p class="landing-subtitle">이용할 주차 서비스를 선택해주세요.</p>
 
         <div class="service-grid">
             <a class="service-card is-active" href="{{ url_for('t2_valet.index') }}">
@@ -30,12 +31,12 @@
                 <p class="service-desc">T2 발렛파킹 자동 예약</p>
                 <span class="service-cta">예약하기 →</span>
             </a>
-            <div class="service-card is-soon" role="group" aria-disabled="true" aria-label="김포공항 국내선 예약주차장, 준비 중">
+            <a class="service-card is-active" href="{{ url_for('gimpo_parking.index') }}">
                 <span class="service-code">GMP</span>
                 <h2 class="service-name">김포공항 국내선 예약주차장</h2>
-                <p class="service-desc">국내선 예약주차장 자동 예약</p>
-                <span class="service-badge">준비 중</span>
-            </div>
+                <p class="service-desc">빈자리 조회 후 직접 결제</p>
+                <span class="service-cta">예약 준비하기 →</span>
+            </a>
         </div>
     </main>
 </body>

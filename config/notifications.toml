@@ -1,0 +1,4 @@
+# 모든 공항 서비스가 공유하는 알림 전송 정책.
+# ON/OFF는 공통 환경변수 TELEGRAM_ALARM_ENABLED (기본 false).
+[telegram]
+max_attempts = 3  # 명확한 일시 오류에만 재시도. 타임아웃/도착 여부 불명은 자동 재전송하지 않음.

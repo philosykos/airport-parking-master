@@ -1,0 +1,8 @@
+# 김포 예약: 현재 PC의 단일 프로세스와 화면 표시 Chromium만 지원.
+[request]
+interval_sec = 30
+handoff_max_age_sec = 120
+browser_timeout_sec = 30
+
+[storage]
+directory = "data/gimpo"
