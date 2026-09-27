@@ -12,8 +12,8 @@ from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
 from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
 from services.gimpo.validation import InputError, validate
 from services.notifications.outbox import NotificationOutbox
-from services.notifications.telegram import TelegramNotifier
-from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
+from services.notifications.telegram import Notifier
+from services.notifications.config import CONFIG as NOTIFICATION_CONFIG
 
 PREPAYMENT = frozenset({"DRAFT", "CHECKING", "WAITING_AVAILABLE", "AVAILABLE", "PREPARING", "PREPARED", "RECHECKING", READY})
 
@@ -46,7 +46,7 @@ class ProcessLease:
 
 
 class GimpoRuntime:
-    def __init__(self, config, client_factory=PlaywrightGimpoClient, notifier=None):
+    def __init__(self, config, client_factory=PlaywrightGimpoClient, *, notifier: Notifier):
         self.config, self.client_factory = config, client_factory
         self.run_id = uuid.uuid4().hex
         self.command_lock = threading.RLock()
@@ -59,8 +59,7 @@ class GimpoRuntime:
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run, name="gimpo-browser", daemon=True)
         self.thread.start()
-        self.outbox = NotificationOutbox(self.store, notifier or TelegramNotifier(TelegramSettings.from_environment()),
-                                          self.notification_valid, NOTIFICATION_CONFIG.max_attempts)
+        self.outbox = NotificationOutbox(self.store, notifier, self.notification_valid, NOTIFICATION_CONFIG.max_attempts)
         self.outbox.start()
         atexit.register(self.close)
 
@@ -357,6 +356,10 @@ class GimpoRuntime:
             await self._finish_pre(job_id, "HANDOFF_CANCELLED", "결제창이 닫혔거나 화면이 변경되었습니다. ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.", {READY})
             return False
         return True
+
+    def last_delivery(self):
+        events = self.store.events()
+        return events[-1] if events else None
 
     def notification_valid(self, event):
         if self.closing or event["runId"] != self.run_id:

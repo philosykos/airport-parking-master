@@ -57,7 +57,7 @@ def shared_chromium(tmp_path_factory):
 
 @pytest.fixture
 def browser_runtime(tmp_path):
-    runtime = GimpoRuntime(replace(CONFIG,directory=tmp_path/'data',browser_timeout_sec=5),FixtureBrowser,FakeNotifier())
+    runtime = GimpoRuntime(replace(CONFIG,directory=tmp_path/'data',browser_timeout_sec=5),FixtureBrowser,notifier=FakeNotifier())
     yield runtime
     # Tests release payment sessions explicitly, never leave test browsers behind.
     job=runtime.store.active()

@@ -5,11 +5,11 @@ import threading
 import uuid
 from collections import OrderedDict
 
-from services.notifications.telegram import Delivery, DeliveryPolicy
+from services.notifications.telegram import Delivery, DeliveryPolicy, Notifier
 
 
 class BackgroundNotifications:
-    def __init__(self, notifier, max_attempts=3, on_result=None):
+    def __init__(self, notifier: Notifier, max_attempts=3, on_result=None):
         self.notifier = notifier
         self.policy = DeliveryPolicy(max_attempts)
         self.on_result = on_result

@@ -38,7 +38,7 @@ class GimpoService:
         status = self.notifications.status()
         with self._lock:
             if self._runtime:
-                status["lastDelivery"] = self._runtime.outbox.status()["lastDelivery"]
+                status["lastDelivery"] = self._runtime.last_delivery()
         return status
 
     def test_notification(self):

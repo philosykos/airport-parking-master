@@ -21,7 +21,7 @@ from services.gimpo.store import READY
 @pytest.fixture
 def ui_server(client, ui_intervals, tmp_path, monkeypatch):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
-    runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,FakeNotifier())
+    runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,notifier=FakeNotifier())
     service=GimpoService(runtime.config);service._runtime=runtime
     monkeypatch.setitem(app.extensions,'gimpo',service)
     with run_app_server(app, runtime=runtime) as base:

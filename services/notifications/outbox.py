@@ -1,11 +1,11 @@
 """Serialized notification worker, independent of the browser event loop."""
 import threading
 from services.notifications.messages import ReservationMessages
-from services.notifications.telegram import DeliveryPolicy
+from services.notifications.telegram import DeliveryPolicy, Notifier
 
 
 class NotificationOutbox:
-    def __init__(self, store, notifier, validate_ready, max_attempts=3):
+    def __init__(self, store, notifier: Notifier, validate_ready, max_attempts=3):
         self.store, self.notifier = store, notifier
         self.validate_ready = validate_ready
         self.delivery_policy = DeliveryPolicy(max_attempts)
@@ -16,11 +16,6 @@ class NotificationOutbox:
         if not self.thread:
             self.thread = threading.Thread(target=self._run, name="gimpo-notifications", daemon=True)
             self.thread.start()
-
-    def status(self):
-        events = self.store.events()
-        return {"enabled": self.notifier.enabled, "configured": self.notifier.configured,
-                "lastDelivery": events[-1] if events else None}
 
     def _run(self):
         while not self.stop_event.is_set():

@@ -19,7 +19,7 @@ from tests.support.waiting import eventually
 
 @pytest.fixture
 def runtime(tmp_path):
-    instance = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, FakeNotifier())
+    instance = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
     yield instance
     instance.close()
 
