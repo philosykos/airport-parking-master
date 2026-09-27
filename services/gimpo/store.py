@@ -74,6 +74,7 @@ class JobStore:
             job = {"id": "GMP-" + uuid.uuid4().hex[:12], "runId": run_id,
                    "state": "CHECKING", "active": True, "inputVersion": 1, "generation": 1,
                    "handoffEpoch": 0, "stateVersion": 1, "paymentMayHaveBeenSent": False,
+                   "returnedFromPayment": False,
                    "paymentAttemptId": None, "handoffDeadline": None, "availabilityCheckedAt": None,
                    "inputs": {k: inputs[k] for k in PUBLIC_INPUT}, "summary": None,
                    "reason": "빈자리를 조회합니다.", "updatedAt": self.clock(), "logs": [],
@@ -165,7 +166,7 @@ class JobStore:
                 "active": True, "runId": run_id, "generation": job["generation"] + 1,
                 "inputVersion": job["inputVersion"] + 1, "summary": None, "handoffDeadline": None,
                 "inputs": {k: inputs[k] for k in PUBLIC_INPUT}, "commandId": uuid.uuid4().hex,
-                "commandStatus": "RUNNING"})
+                "returnedFromPayment": False, "commandStatus": "RUNNING"})
 
     def ready(self, job_id, generation, summary, checked_at, max_age):
         with self.transaction():
@@ -187,6 +188,17 @@ class JobStore:
             return self._transition(job, "PAYMENT_DISPATCHING", "사용자가 결제 진행을 시작했습니다.", {
                 "paymentMayHaveBeenSent": True, "paymentAttemptId": uuid.uuid4().hex,
                 "paymentDispatchedAt": self.clock()})
+
+    def mark_returned(self, job_id):
+        """PG 창에서 공항 사이트로 돌아온 것을 한 번만 기록한다. 완료 판정이 아니라 확인 요청 신호다."""
+        with self.transaction():
+            job = self._get(job_id)
+            if job["state"] != "PAYMENT_IN_PROGRESS" or job.get("returnedFromPayment"):
+                return None
+            # 새 commandId로 새 로그 행을 만들어 '결제를 마친 뒤…' 행이 덮이지 않게 한다.
+            return self._transition(job, job["state"],
+                                    "결제창에서 공항 사이트로 돌아왔습니다. 예약 내역을 확인한 뒤 결과를 기록해주세요.",
+                                    {"returnedFromPayment": True, "commandId": uuid.uuid4().hex})
 
     def release(self, job_id, state, reason, expected):
         # Called only after the owned browser context is closed.
