@@ -1,0 +1,15 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><body>
+<form id="reservationVO" method="post" action="/reservation/resInsert.do">
+<select id="parkingDivCd" name="parkingDivCd"><option value="PLT-002">김포공항</option></select>
+<select id="parkingNm" name="parkingNm"><option value="2">국내선 제2주차장 주차타워 2, 3층</option></select>
+<input id="resInDttm" name="resInDttm" readonly><input id="resOutDttm" name="resOutDttm" readonly>
+<button type="button" id="parkCheckBtn">조회</button><button id="requestBtn" style="display:none">다음</button>
+</form>
+<script>
+window.$ = arg => typeof arg === 'function' ? arg() : {val: value => document.querySelector(arg).value = value};
+async function rescheck() {
+ const result = await fetch('/reservation/reservationCheck.json', {method:'POST',body:new URLSearchParams(new FormData(document.getElementById('reservationVO')))}).then(r=>r.json());
+ if(result.result.code === '00') document.getElementById('requestBtn').style.display = 'block';
+}
+document.getElementById('parkCheckBtn').onclick = rescheck;
+</script></body></html>

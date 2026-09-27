@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>김포공항 국내선 예약주차장</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/gimpo_parking.css') }}">
+    <script defer src="{{ url_for('static', filename='js/datepicker.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/notification_status.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/gimpo_parking.js') }}"></script>
+</head>
+<body class="gimpo">
+<nav class="app-header"><div class="app-header-left"><a class="header-back" href="/" aria-label="서비스 선택으로 돌아가기">← 서비스 선택</a><span class="title-main">GMP · 김포공항</span></div>{% include 'partials/settings_link.html' %}</nav>
+<main class="gimpo-main">
+    <header class="gimpo-intro"><p class="eyebrow">DOMESTIC PARKING</p><h1>김포공항 국내선 예약주차장</h1><p>빈자리를 조회하고 예약 정보를 입력합니다. 결제는 이 PC에서 열린 공항 사이트에서 진행해주세요.</p></header>
+    <div id="message" role="status" aria-live="polite"></div>
+    <div class="gimpo-grid">
+    <section class="gimpo-card">
+        <h2>예약 정보</h2>
+        <form id="reservation-form" autocomplete="off">
+        <fieldset id="input-fields" disabled>
+            <div class="field-row"><div class="field-group"><label for="airportCode">공항</label><select id="airportCode" name="airportCode" required></select></div><div class="field-group"><label for="parkingId">주차장</label><select id="parkingId" name="parkingId" required></select></div></div>
+            <p id="date-policy" class="help"></p>
+            <div class="field-row">
+                <div class="field-group"><label for="entryAt">입차 · 서울 시간</label><div id="entry-picker" class="date-field"><input id="entryAt" name="entryAt" type="text" required placeholder="YYYY-MM-DD HH:mm"><button type="button" class="td-toggle" aria-label="입차 달력 열기">▦</button></div></div>
+                <div class="field-group"><label for="exitAt">출차 · 서울 시간</label><div id="exit-picker" class="date-field"><input id="exitAt" name="exitAt" type="text" required placeholder="YYYY-MM-DD HH:mm"><button type="button" class="td-toggle" aria-label="출차 달력 열기">▦</button></div></div>
+            </div>
+            <div class="field-row"><div class="field-group"><label for="carNumber">차량번호</label><input id="carNumber" name="carNumber" type="text" required maxlength="20" placeholder="123가4567"></div><div class="field-group"><label for="phone">휴대전화 번호</label><input id="phone" name="phone" type="tel" required maxlength="20" placeholder="01012345678"></div></div>
+            <div class="field-row"><div class="field-group"><label for="reservationPassword">예약 비밀번호</label><input id="reservationPassword" name="reservationPassword" type="password" autocomplete="new-password" required minlength="4" maxlength="128" pattern="[A-Za-z0-9]{4,128}" placeholder="영문·숫자 4~128자리"></div><div class="field-group"><label for="passwordConfirmation">비밀번호 확인</label><input id="passwordConfirmation" name="passwordConfirmation" type="password" autocomplete="new-password" required minlength="4" maxlength="128"></div></div>
+            <div class="field-row"><div class="field-group"><label for="discountSelection">할인 구분</label><select id="discountSelection" name="discountSelection"></select></div><div class="field-group"><label for="intervalSeconds">조회 간격(초)</label><input id="intervalSeconds" name="intervalSeconds" type="number" required min="30" max="3600" step="1"></div></div>
+            <div class="agreements"><p><a href="https://park.airport.co.kr/reservation/recheck.do" target="_blank" rel="noopener noreferrer">이용안내 및 약관 보기 ↗</a></p>
+                <label><input type="checkbox" id="agree01" required> 주차예약 이용안내를 읽고 동의합니다.</label>
+                <label><input type="checkbox" id="agree04" required> 취소·미입차 시 수수료를 확인하고 동의합니다.</label>
+                <label><input type="checkbox" id="agree05" required> 개인정보 수집·이용에 동의합니다.</label>
+                <label><input type="checkbox" id="agree03" required> 예약주차존 위치와 외부 구역 주차 시 환불 제한을 확인했습니다.</label>
+            </div>
+        </fieldset>
+                <label><input type="checkbox" id="autoProceedConsent"> 입력한 정보로 결제 대기 단계까지 자동 진행하는 데 동의합니다.</label>
+
+        <div class="actions"><button type="submit" id="check" disabled>빈자리 조회</button><button type="button" id="watch" class="primary" disabled>결제 대기까지 자동 진행</button></div>
+        </form>
+        <details class="saved"><summary>정보 불러오기·저장</summary><p class="help">비밀번호와 동의 항목은 저장하지 않습니다.</p><label><input id="saveConsent" type="checkbox"> 차량번호·연락처를 이 PC에 저장합니다.</label><div class="actions"><button id="save" type="button">정보 저장</button><button id="load" type="button">김포 정보 불러오기</button><button id="import-t2" type="button">T2 차량·연락처 가져오기</button></div></details>
+    </section>
+    <section class="gimpo-card status-panel" aria-labelledby="status-title">
+        <div class="status-heading"><h2 id="status-title">진행 상황</h2><span id="state" class="status-pill">연결 중</span></div>
+        <p id="job-id" class="help"></p><p id="reason">진행 상태를 불러오는 중입니다.</p>
+        <dl id="summary"></dl><p id="freshness" class="help"></p>
+        <p class="handoff-note">결제 전에는 예약이 완료되지 않습니다. 결제는 이 PC에서 진행해주세요.</p>
+        <div class="actions" id="job-actions"><button id="prepare" hidden>예약 정보 입력</button><button id="proceed" hidden>결제 대기까지 진행</button><button id="stop" hidden>중지</button><button id="show-browser" hidden class="primary">공항 예약창 보기</button><button id="reprepare" hidden>다시 준비</button></div>
+        <details id="resolution" hidden><summary>예약 결과 확인 및 종료</summary><p class="help">종료해도 공항 예약은 취소되지 않습니다.</p><label for="outcome">공항 사이트에서 확인한 예약 결과</label><select id="outcome"><option value="">선택</option><option value="reserved">예약 완료</option><option value="not_reserved">예약되지 않음</option><option value="unknown">확인하지 못함</option></select><label><input id="resolve-consent" type="checkbox"> 선택한 결과를 기록하고 예약창을 닫습니다.</label><button id="resolve">기록 후 종료</button></details>
+        <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button id="resend" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
+        <h3>작업 로그</h3><ol id="logs" aria-live="polite"></ol>
+    </section>
+    </div>
+</main>
+</body></html>

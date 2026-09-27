@@ -29,3 +29,22 @@ def client(tmp_path, monkeypatch):
     t2_valet.scheduler.stop()
     if t2_valet.scheduler.thread is not None:
         t2_valet.scheduler.thread.join(timeout=2)
+
+
+@pytest.fixture(autouse=True)
+def no_external_http(monkeypatch, tmp_path):
+    # Global default: every Python HTTP transport is blocked, not only the T2 client.
+    import requests
+    from services import notification_config
+    from services.background_notifications import BackgroundNotifications
+    from services.notification_config import TelegramSettings
+    from services.telegram_notifier import TelegramNotifier
+    monkeypatch.setenv("TELEGRAM_ALARM_ENABLED", "false")
+    monkeypatch.setattr(notification_config, 'ENV_PATH', tmp_path / '.env')
+    monkeypatch.delenv('TELEGRAM_BOT_TOKEN', raising=False)
+    monkeypatch.delenv('TELEGRAM_CHAT_ID', raising=False)
+    notifications = BackgroundNotifications(TelegramNotifier(TelegramSettings()))
+    monkeypatch.setattr(t2_valet, "NOTIFICATIONS", notifications)
+    monkeypatch.setattr(requests.sessions.Session, "request", _block_network)
+    yield
+    notifications.close()

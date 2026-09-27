@@ -1,0 +1,26 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><body>
+<form id="reservationVO">__FIELDS__
+<input id="carNo" name="carNo"><input id="mobile" name="mobile"><input id="password" name="password" type="password"><input id="passwordCk" type="password">
+<select id="discountCd" name="discountCd"><option value="DC001">일반</option></select>
+<input type="checkbox" style="display:none" id="agree01"><input type="checkbox" style="display:none" id="agree03"><input type="checkbox" style="display:none" id="agree04"><input type="checkbox" style="display:none" id="agree05">
+<button type="button" id="reservationBtn">예약</button></form>
+<div id="confirm" style="display:none"><p id="confirmMassage">결제 하시겠습니까?</p><button id="confirmOk">확인</button><button id="confirmNo">취소</button></div>
+<script>
+window.$ = arg => typeof arg === 'function' ? arg() : {val: value => document.querySelector(arg).value = value};
+const form = document.getElementById('reservationVO');
+function payment() {
+ document.getElementById('confirm').style.display = 'block';
+ // Reproduces the official page's accumulated-handler behavior.
+ document.getElementById('confirmOk').addEventListener('click', () => fetch('/reservation/payment.json', {method:'POST',body:new URLSearchParams(new FormData(form))}).catch(()=>{}));
+}
+document.getElementById('confirmNo').onclick = () => document.getElementById('confirm').style.display = 'none';
+document.getElementById('reservationBtn').onclick = async () => {
+ const duplicate = await fetch('/reservation/duplicateReservation.json?' + new URLSearchParams(new FormData(form))).then(r=>r.json());
+ if(duplicate.code !== '00') return;
+ const f = new FormData(form);
+ if(!confirm(`작성 내용을 다시 한번 확인해주세요. ${f.get('resInDttm')} ${f.get('resOutDttm')} 국내선 제2주차장 주차타워 2, 3층 ${f.get('carNo')} ${f.get('mobile')}`)) return;
+ const last = await fetch('/reservation/reservationCheck.json', {method:'POST',body:new URLSearchParams(f)}).then(r=>r.json());
+ if(last.result.code !== '00') return;
+ if(Number(f.get('paymentAmt')) <= 0) {form.method='POST';form.action='/reservation/insertAction.do';form.submit();} else payment();
+};
+</script></body></html>

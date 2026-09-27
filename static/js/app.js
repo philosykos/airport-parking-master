@@ -11,14 +11,14 @@ const SVG_LOADER = '<svg class="spin-icon" width="15" height="15" viewBox="0 0 2
 const SVG_EMPTY = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>';
 const SVG_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>';
-const EMPTY_LOG_ROW = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
+const EMPTY_LOG_ROW = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>아직 예약 요청 내역이 없습니다</td></tr>';
 
 // 예약 입력 필드. 서버의 services/t2_input.py FIELDS와 같은 목록·같은 형식 규칙을 쓴다.
 const FORM_FIELDS = ['name', 'phone', 'carNumber', 'carModel', 'carBrand', 'carColor', 'departingAt', 'arrivedAt', 'departingAir'];
 const DATE_FIELDS = ['departingAt', 'arrivedAt'];
 const FORMAT_RULES = {
-    phone: { pattern: /^010\d{8}$/, message: '휴대폰 번호: 010XXXXXXXX (숫자 11자리)' },
-    carNumber: { pattern: /^\d{2,3}[가-힣]\d{4}$/, message: '차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)' }
+    phone: { pattern: /^010\d{8}$/, message: '휴대전화 번호는 010으로 시작하는 숫자 11자리로 입력해주세요.' },
+    carNumber: { pattern: /^\d{2,3}[가-힣]\d{4}$/, message: '차량번호 형식을 확인해주세요. 예: 12가3456, 123가4567' }
 };
 const OVERLAY_IDS = ['detail-overlay', 'log-sheet-overlay', 'select-picker-overlay'];
 
@@ -163,7 +163,7 @@ async function testCall() {
     const btn = document.getElementById('btn-test');
     btn.disabled = true;
     btn.classList.add('btn--loading');
-    btn.innerHTML = SVG_LOADER + ' 호출 중…';
+    btn.innerHTML = SVG_LOADER + ' 요청 중…';
 
     try {
         const result = await apiPost('/test', data);
@@ -173,11 +173,11 @@ async function testCall() {
         }
 
         if (!savedDefaults) {
-            if (confirm('입력한 예약 정보를 저장하시겠습니까?')) {
+            if (confirm('예약 정보를 저장할까요?')) {
                 await saveUserData(data);
             }
         } else if (hasTravelScheduleChanged(data)) {
-            if (confirm('여행일정이 변경되었습니다. 최신 여행정보로 업데이트하시겠습니까?')) {
+            if (confirm('변경한 예약 정보를 저장할까요?')) {
                 await saveUserData(data);
             }
         }
@@ -191,7 +191,7 @@ async function testCall() {
     } finally {
         btn.disabled = false;
         btn.classList.remove('btn--loading');
-        btn.innerHTML = SVG_ZAP + ' 테스트';
+        btn.innerHTML = SVG_ZAP + ' 1회 예약 요청';
     }
 }
 
@@ -301,9 +301,10 @@ function showReservationSuccess() {
 
 function typeTag(type) {
     const labels = {
-        test: '<span class="tag tag-test">Test</span>',
-        schedule: '<span class="tag tag-schedule">Sched</span>',
-        event: '<span class="tag tag-event">Event</span>',
+        test: '<span class="tag tag-test">1회 요청</span>',
+        schedule: '<span class="tag tag-schedule">자동 예약</span>',
+        event: '<span class="tag tag-event">상태</span>',
+        notification: '<span class="tag tag-event">알림</span>',
     };
     return labels[type] || '';
 }

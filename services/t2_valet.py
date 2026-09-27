@@ -2,14 +2,20 @@ import functools
 import json
 import os
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from urllib.parse import urlparse
 
 import urllib3
 import requests as http_requests
 from flask import Blueprint, jsonify, render_template, request
 
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
+from services.background_notifications import BackgroundNotifications
+from services.notification_config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
+from services.notification_messages import ReservationMessages
+from services.telegram_notifier import TelegramNotifier
 from services.t2_input import FIELDS, MIN_INTERVAL_SEC, InputError, parse_interval, validate_fields
 from services.t2_scheduler import Scheduler
 from services.t2_storage import LogStore, UserDataStore
@@ -182,14 +188,39 @@ def do_single_call(url, payload):
     return entry
 
 
-def poll_once(url, payload):
-    """예약 API를 한 번 호출해 기록한다. 예약에 성공(HTTP 200)하면 True를 돌려 스케줄을 끝낸다."""
+def _notification_result(result):
+    success_message = "테스트 알림을 발송했습니다." if result.get("eventId", "").startswith("TEST-") else "T2 예약 완료 알림을 발송했습니다."
+    log_store.append({"time": now_text(), "type": "notification",
+                      "status": result["status"], "body": result["error"] or success_message})
+
+
+NOTIFICATIONS = BackgroundNotifications(
+    TelegramNotifier(TelegramSettings.from_environment()),
+    max_attempts=NOTIFICATION_CONFIG.max_attempts, on_result=_notification_result)
+
+
+def new_event_id():
+    return "ICN-T2-" + uuid.uuid4().hex[:12]
+
+
+def notify_reservation_completed(payload, event_id):
+    # Only the explicit message fields are used; raw API responses/PII are never sent.
+    try:
+        return NOTIFICATIONS.publish(event_id, ReservationMessages.t2_completed(payload, event_id))
+    except Exception:
+        _notification_result({"status": "FAILED", "error": "예약 완료 알림을 처리하지 못했습니다. 예약 요청은 다시 실행하지 않습니다."})
+        return {"status": "FAILED"}
+
+
+def poll_once(url, payload, event_id):
+    """예약 API를 한 번 호출해 기록한다. 예약에 성공(HTTP 200)하면 알림을 보내고 True를 돌려 스케줄을 끝낸다."""
     entry = do_single_call(url, payload)
     entry["type"] = "schedule"
     log_store.append(entry)
     if entry["status"] != 200:
         return False
-    log_store.append(event("SUCCESS", "예약 성공! 스케줄러를 자동 종료합니다."))
+    log_store.append(event("SUCCESS", "예약이 완료되어 자동 예약을 종료합니다."))
+    notify_reservation_completed(payload, event_id)
     return True
 
 
@@ -232,9 +263,12 @@ def save_defaults():
 def test_call():
     """테스트 1회 호출"""
     fields = validate_fields(request.get_json(silent=True), require_contact=True)
-    entry = do_single_call(CONFIG.url, build_payload(fields))
+    payload = build_payload(fields)
+    entry = do_single_call(CONFIG.url, payload)
     entry["type"] = "test"
     log_store.append(entry)
+    if entry["status"] == 200:
+        notify_reservation_completed(payload, new_event_id())
     return jsonify({"result": entry})
 
 
@@ -249,11 +283,12 @@ def start():
     payload = build_payload(fields)
 
     def log_start():
-        log_store.append(event("START", f"스케줄 시작 (주기: {interval_sec}초)"))
+        log_store.append(event("START", f"자동 예약 시작 ({interval_sec}초 간격)"))
 
-    if not scheduler.start(functools.partial(poll_once, CONFIG.url, payload), interval_sec, on_start=log_start):
+    job = functools.partial(poll_once, CONFIG.url, payload, new_event_id())
+    if not scheduler.start(job, interval_sec, on_start=log_start):
         return jsonify({"error": "이미 실행 중입니다."}), 400
-    return jsonify({"message": "호출을 시작합니다."})
+    return jsonify({"message": "자동 예약을 시작합니다."})
 
 
 @bp.route("/api/stop", methods=["POST"])
@@ -261,8 +296,8 @@ def stop():
     if not scheduler.stop():
         return jsonify({"error": "실행 중이 아닙니다."}), 400
 
-    log_store.append(event("STOP", "스케줄 중지"))
-    return jsonify({"message": "호출을 중지합니다."})
+    log_store.append(event("STOP", "자동 예약 중지"))
+    return jsonify({"message": "자동 예약을 중지합니다."})
 
 
 @bp.route("/api/logs")
@@ -274,3 +309,21 @@ def logs():
 def clear_logs():
     log_store.clear()
     return jsonify({"message": "로그를 초기화했습니다."})
+
+
+@bp.get("/api/notifications/status")
+def notification_status():
+    response = jsonify(NOTIFICATIONS.status())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@bp.post("/api/notifications/test")
+def notification_test():
+    origin = request.headers.get("Origin")
+    if origin and urlparse(origin).netloc != request.host:
+        return jsonify(error="현재 서비스 화면에서 요청해주세요."), 403
+    if not isinstance(request.get_json(silent=True), dict):
+        return jsonify(error="JSON 요청이 필요합니다."), 400
+    result = NOTIFICATIONS.publish_test(ReservationMessages.test("인천공항 T2 발렛"))
+    return jsonify(result), 202

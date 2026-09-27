@@ -51,15 +51,15 @@ def validate_fields(data, *, require_contact):
 
 
 def parse_interval(value):
-    """호출 주기(초). 정수 또는 숫자 문자열만 받는다. bool은 int의 하위 타입이라 따로 막는다."""
+    """예약 요청 간격(초). 정수 또는 숫자 문자열만 받는다. bool은 int의 하위 타입이라 따로 막는다."""
     if type(value) is int:
         seconds = value
     elif isinstance(value, str) and re.fullmatch(r"[0-9]{1,9}", value):
         seconds = int(value)
     else:
-        raise InputError("호출 주기는 정수여야 합니다.")
+        raise InputError("예약 요청 간격은 정수로 입력해주세요.")
     if seconds < MIN_INTERVAL_SEC:
-        raise InputError(f"호출 주기는 최소 {MIN_INTERVAL_SEC}초 이상이어야 합니다.")
+        raise InputError(f"예약 요청 간격은 {MIN_INTERVAL_SEC}초 이상으로 입력해주세요.")
     if seconds > MAX_INTERVAL_SEC:
-        raise InputError(f"호출 주기는 {MAX_INTERVAL_SEC}초 이하여야 합니다.")
+        raise InputError(f"예약 요청 간격은 {MAX_INTERVAL_SEC}초 이하로 입력해주세요.")
     return seconds

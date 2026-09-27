@@ -7,7 +7,7 @@ from services.config import ConfigError, find_legacy_env_keys
 from services import web_security
 
 try:
-    from services import t2_valet
+    from services import t2_valet, gimpo_parking
 except ConfigError as e:
     print(f"[설정 오류] {e}")
     sys.exit(1)
@@ -17,11 +17,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
 web_security.init_app(app)
 app.register_blueprint(t2_valet.bp)
+app.register_blueprint(gimpo_parking.bp)
+app.extensions["gimpo"] = gimpo_parking.GimpoService()
 
 
 @app.route("/")
 def landing():
     return render_template("landing.html")
+
+
+@app.get("/settings/")
+def settings():
+    response = app.make_response(render_template("settings.html",
+        telegram_enabled=t2_valet.NOTIFICATIONS.notifier.enabled))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def warn_legacy_env(env_path):
@@ -32,5 +42,14 @@ def warn_legacy_env(env_path):
 
 if __name__ == "__main__":
     warn_legacy_env(os.path.join(BASE_DIR, ".env"))
-    # 디버그 모드는 브라우저에서 코드를 실행하는 Werkzeug 디버거를 켜므로 끈다
-    app.run(debug=False, port=8080)
+    import signal
+    def shutdown(signum, frame):
+        app.extensions["gimpo"].close()
+        t2_valet.NOTIFICATIONS.close()
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, shutdown)
+    try:
+        app.run(debug=False, use_reloader=False, port=8080)
+    finally:
+        app.extensions["gimpo"].close()
+        t2_valet.NOTIFICATIONS.close()
