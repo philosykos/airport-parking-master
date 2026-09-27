@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import sync_playwright
 
+from tests.conftest import open_page
+
 STYLE_PROBES = {
     '.app-header': ['height', 'backgroundColor'],
     '.btn-start': ['height', 'backgroundColor', 'borderRadius', 'fontSize'],
@@ -28,9 +30,7 @@ def computed(page):
 def test_t2_and_gimpo_share_component_styles(client, t2_server):
     base = t2_server
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={'width': 1280, 'height': 900})
-        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        browser, page, errors = open_page(p, base, width=1280, height=900)
         results = {}
         for path, ready in (('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),
                             ('/gimpo-parking/', "() => !document.getElementById('check').disabled")):
@@ -39,6 +39,7 @@ def test_t2_and_gimpo_share_component_styles(client, t2_server):
             page.wait_for_function(ready)
             results[path] = computed(page)
         browser.close()
+    assert not errors
     assert results['/t2-valet/'] == results['/gimpo-parking/']
 
 
@@ -47,12 +48,11 @@ def test_t2_and_gimpo_share_component_styles(client, t2_server):
 def test_no_horizontal_scroll(client, t2_server, path, width):
     base = t2_server
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={'width': width, 'height': 800})
-        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        browser, page, errors = open_page(p, base, width=width, height=800)
         page.goto(base + path)
         page.wait_for_load_state('networkidle')
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert not errors
         browser.close()
 
 
@@ -64,9 +64,7 @@ def test_no_horizontal_scroll(client, t2_server, path, width):
 def test_header_status_badge_label_not_clipped(client, t2_server, path, ready, width):
     base = t2_server
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={'width': width, 'height': 800})
-        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+        browser, page, errors = open_page(p, base, width=width, height=800)
         page.goto(base + path)
         page.wait_for_load_state('networkidle')
         page.wait_for_function(ready)
@@ -81,6 +79,7 @@ def test_header_status_badge_label_not_clipped(client, t2_server, path, ready, w
             page.evaluate("() => UI.statusBadge.set({label: '스케줄 실행 중', tone: 'running'})")
             assert not_clipped()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert not errors
         browser.close()
 
 
@@ -90,13 +89,10 @@ def test_capture_screens(client, t2_server):
     out = Path(os.environ['UI_CAPTURE_DIR'])
     out.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
-        browser = p.chromium.launch()
         for name, width, height in [('desk', 1440, 900), ('mob', 390, 844)]:
-            page = browser.new_page(viewport={'width': width, 'height': height})
-            page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+            browser, page, errors = open_page(p, base, width=width, height=height)
             for path in ['', 't2-valet/', 'gimpo-parking/']:
                 page.goto(base + '/' + path)
                 page.wait_for_load_state('networkidle')
                 page.screenshot(path=str(out / f"{name}_{path.strip('/') or 'landing'}.png"), full_page=True)
-            page.close()
-        browser.close()
+            browser.close()
