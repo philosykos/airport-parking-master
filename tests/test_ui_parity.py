@@ -4,8 +4,6 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import sync_playwright
 
-from tests.test_t2_ui import t2_server  # noqa: F401  (픽스처 재사용)
-
 STYLE_PROBES = {
     '.app-header': ['height', 'backgroundColor'],
     '.btn-start': ['height', 'backgroundColor', 'borderRadius', 'fontSize'],

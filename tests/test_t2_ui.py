@@ -1,38 +1,7 @@
-import threading
-from dataclasses import replace
-
-import pytest
 from playwright.sync_api import sync_playwright
-from werkzeug.serving import make_server
 
-from app import app
-from services.gimpo.config import CONFIG
-from services.gimpo.parking import GimpoService
 from services.t2 import valet as t2_valet
-
-
-@pytest.fixture
-def t2_server(client, tmp_path, monkeypatch):
-    # client 픽스처가 T2 저장소·스케줄러·외부 호출을 tmp_path와 가짜로 바꿔 둔다.
-    # 설정 팝업이 김포 알림 상태도 읽으므로 김포 서비스도 임시 경로로 바꾼다.
-    service = GimpoService(replace(CONFIG, directory=tmp_path / 'gimpo'))
-    monkeypatch.setitem(app.extensions, 'gimpo', service)
-    server = make_server('127.0.0.1', 0, app, threaded=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield f'http://127.0.0.1:{server.server_port}'
-    server.shutdown()
-    thread.join()
-    service.close()
-
-
-def open_page(p, base, width=1280):
-    browser = p.chromium.launch()
-    page = browser.new_page(viewport={'width': width, 'height': 900})
-    page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-    errors = []
-    page.on('pageerror', lambda error: errors.append(str(error)))
-    return browser, page, errors
+from tests.conftest import open_page
 
 
 def overlay_open(page):
@@ -41,7 +10,7 @@ def overlay_open(page):
 
 def test_required_fields_show_field_errors_and_toast(t2_server):
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_load_state('networkidle')
         page.click('#btn-start')
@@ -58,7 +27,7 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server):
     t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'schedule', 'status': 601,
                                'body': '{"result":{"message":"중복"}}', 'url': 'https://example.invalid/reserve', 'payload': {'name': '홍*동'}})
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_function("() => document.getElementById('log-count').textContent === '1'")
         assert not overlay_open(page)
@@ -84,7 +53,7 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server):
 
 def test_completion_overlay_waits_for_open_settings_dialog(t2_server):
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_function("() => document.getElementById('log-count').textContent === '0'")
         page.click('#open-settings')
@@ -103,7 +72,7 @@ def test_completion_overlay_waits_for_open_settings_dialog(t2_server):
 
 def test_mobile_sheet_picker_and_settings_keep_inputs(t2_server):
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server, width=390)
+        browser, page, errors = open_page(p, t2_server, width=390, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_load_state('networkidle')
         page.fill('#name', '홍길동')
@@ -128,7 +97,7 @@ def test_mobile_sheet_picker_and_settings_keep_inputs(t2_server):
 
 def test_polling_survives_failed_log_request_after_start(t2_server):
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_load_state('networkidle')
         page.fill('#name', '홍길동')
@@ -159,7 +128,7 @@ def test_polling_survives_failed_log_request_after_start(t2_server):
 
 def test_stop_shows_idle_immediately_even_if_logs_request_fails(t2_server):
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_load_state('networkidle')
         page.fill('#name', '홍길동')
@@ -183,7 +152,7 @@ def test_empty_payload_omits_request_payload_section(t2_server):
     t2_valet.log_store.append({'time': '2026-01-01 00:00:01', 'type': 'test', 'status': 200,
                                'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {'name': '홍길동'}})
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         page.goto(t2_server + '/t2-valet/')
         page.wait_for_function("() => document.getElementById('log-count').textContent === '2'")
         rows = page.locator('#log-body tr.log-row')
@@ -205,7 +174,7 @@ def test_clear_logs_ignores_stale_log_response(t2_server):
     t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
                                'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}})
     with sync_playwright() as p:
-        browser, page, errors = open_page(p, t2_server)
+        browser, page, errors = open_page(p, t2_server, height=900)
         # app.js는 건드리지 않고, 붙잡아 둔 응답을 푼 뒤 그 fetch가 실제로 settle됐는지
         # 확인하기 위해 페이지가 로드되기 전에 window.fetch를 감싸 둔다.
         page.add_init_script("""

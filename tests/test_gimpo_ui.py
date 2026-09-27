@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 from playwright.sync_api import sync_playwright
-from werkzeug.serving import make_server
 
 from app import app
 from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.parking import GimpoService
+from tests.conftest import open_page, run_app_server
 from tests.gimpo_fakes import FakeBrowser, FakeNotifier
 from tests.test_gimpo_jobs import eventually, inputs, wait_state
 from services.gimpo.store import READY
@@ -23,10 +23,9 @@ def ui_server(client, tmp_path, monkeypatch):
     runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,FakeNotifier())
     service=GimpoService(runtime.config);service._runtime=runtime
     monkeypatch.setitem(app.extensions,'gimpo',service)
-    server=make_server('127.0.0.1',0,app,threaded=True)
-    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    yield f'http://127.0.0.1:{server.server_port}',runtime
-    server.shutdown();thread.join();runtime.close()
+    with run_app_server(app) as base:
+        yield base, runtime
+    runtime.close()
 
 
 def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path):
@@ -427,17 +426,6 @@ class HeldClose(FakeBrowser):
         await super().close()
 
 
-def open_gimpo(p, base, init_script=None, width=1280):
-    browser = p.chromium.launch()
-    page = browser.new_page(viewport={'width': width, 'height': 1000})
-    page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-    if init_script:
-        page.add_init_script(init_script)
-    errors = []
-    page.on('pageerror', lambda error: errors.append(str(error)))
-    return browser, page, errors
-
-
 def overlay_variant(page):
     return page.evaluate("(() => { const o = document.getElementById('completion-overlay'); return o.classList.contains('open') ? o.dataset.variant : null; })()")
 
@@ -463,7 +451,7 @@ def test_payment_handoff_return_and_reserved_overlays(ui_server):
     try:
         job = wait_state(runtime, runtime.create(inputs())['id'], READY)
         with sync_playwright() as p:
-            browser, page, errors = open_gimpo(p, base)
+            browser, page, errors = open_page(p, base)
             resolves = []
             page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
             page.goto(base + '/gimpo-parking/')
@@ -518,7 +506,7 @@ def test_result_choice_while_busy_is_not_recorded(ui_server):
     to_payment_progress(runtime, job['id'])
     runtime.store.mark_returned(job['id'])
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         resolves = []
         page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
         page.goto(base + '/gimpo-parking/')
@@ -538,7 +526,7 @@ def test_open_payment_overlay_is_replaced_when_state_moves_on(ui_server):
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
         to_payment_progress(runtime, job['id'])
@@ -552,7 +540,7 @@ def test_open_payment_overlay_is_replaced_when_state_moves_on(ui_server):
 def test_payment_overlay_is_above_open_mobile_sheet(ui_server):
     base, runtime = ui_server
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base, width=390)
+        browser, page, errors = open_page(p, base, width=390)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
         page.fill('#carNumber', '123가4567')
@@ -571,7 +559,7 @@ def test_second_handoff_shows_payment_overlay_again(ui_server):
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
@@ -602,7 +590,7 @@ def test_reserved_overlay_waits_until_browser_is_closed(ui_server):
         eventually(lambda: '다시 눌러주세요' in runtime.store.get(job['id'])['reason'])
         assert '결과 기록' in runtime.store.get(job['id'])['reason']
         with sync_playwright() as p:
-            browser, page, errors = open_gimpo(p, base)
+            browser, page, errors = open_page(p, base)
             page.goto(base + '/gimpo-parking/')
             page.wait_for_function("document.getElementById('state').textContent === '종료됨'")
             wait_polls(page)
@@ -621,7 +609,7 @@ def test_old_reserved_job_is_not_celebrated_in_new_browser(ui_server):
     runtime.resolve(job['id'], runtime.store.get(job['id']), 'reserved', True)
     eventually(lambda: not runtime.store.get(job['id'])['active'])
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('state').textContent === '종료됨'")
         wait_polls(page)
@@ -635,7 +623,7 @@ def test_completion_overlay_works_when_storage_is_blocked(ui_server):
     wait_state(runtime, runtime.create(inputs())['id'], READY)
     blocked = "Object.defineProperty(window, 'localStorage', {get() { throw new DOMException('blocked', 'SecurityError'); }});"
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base, init_script=blocked)
+        browser, page, errors = open_page(p, base, init_script=blocked)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
@@ -650,7 +638,7 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server):
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
         status_url = '**/api/jobs/' + job['id']
@@ -676,7 +664,7 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server):
 def test_import_t2_failure_without_server_message_shows_fallback_text(ui_server):
     base, runtime = ui_server
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, body=''))
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -691,7 +679,7 @@ def test_import_t2_failure_prefers_server_message(ui_server):
     base, runtime = ui_server
     message = 'T2 설정 파일을 읽을 수 없습니다.'
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         page.route('**/t2-valet/api/defaults', lambda route: route.fulfill(status=500, json={'error': message}))
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -710,7 +698,7 @@ def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change
     runtime.store.dispatch_payment(job['id'], runtime.store.get(job['id']))
     runtime.store.transition(job['id'], 'PAYMENT_RESULT_UNKNOWN', 'test', expected={'PAYMENT_DISPATCHING'})
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base)
+        browser, page, errors = open_page(p, base)
         resolves = []
         page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
         page.goto(base + '/gimpo-parking/')
@@ -756,7 +744,7 @@ def test_completion_keys_of_other_jobs_are_pruned(ui_server):
     seed = ("if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); "
             f"for (const key of {json.dumps(seeded)}) localStorage.setItem(key, '1'); localStorage.setItem('other.key', 'x'); }}")
     with sync_playwright() as p:
-        browser, page, errors = open_gimpo(p, base, init_script=seed)
+        browser, page, errors = open_page(p, base, init_script=seed)
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
         wait_polls(page)

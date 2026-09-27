@@ -1,8 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from types import SimpleNamespace
 
 import pytest
 
+from services.gimpo.client import PlaywrightGimpoClient
 from services.gimpo.store import Conflict, JobStore, READY
 from services.gimpo.validation import validate
 from tests.test_gimpo_validation import NOW, valid_input
@@ -150,10 +152,6 @@ def test_explicit_stop_gets_one_separate_row(store):
     store.release(job['id'], 'STOPPED', '중지했습니다.', {'STOPPING'})
     assert [row['message'] for row in store.get(job['id'])['logs']] == ['만차', '중지했습니다.']
 
-
-from types import SimpleNamespace
-
-from services.gimpo.client import PlaywrightGimpoClient
 
 RETURN_REASON = '결제창에서 공항 사이트로 돌아왔습니다. 예약 내역을 확인한 뒤 결과를 기록해주세요.'
 PROGRESS_REASON = '공항 결제창에서 결제를 마친 뒤 예약 내역을 확인해주세요.'

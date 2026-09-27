@@ -3,7 +3,6 @@ from dataclasses import replace
 
 import pytest
 from playwright.sync_api import sync_playwright
-from werkzeug.serving import make_server
 
 from app import app
 from services.t2 import valet as t2_valet
@@ -13,6 +12,7 @@ from services.gimpo.parking import GimpoService
 from services.notifications.config import TelegramSettings
 from services.notifications.messages import ReservationMessages
 from services.notifications.telegram import Delivery
+from tests.conftest import open_page, run_app_server
 from tests.test_gimpo_jobs import eventually
 from tests.test_notifications import TransportNotifier
 
@@ -152,21 +152,8 @@ def test_every_page_offers_settings_dialog(client, path):
 
 @pytest.fixture
 def live_server():
-    server = make_server('127.0.0.1', 0, app, threaded=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    yield f'http://127.0.0.1:{server.server_port}'
-    server.shutdown()
-    thread.join()
-
-
-def open_browser(p, base, width=1280):
-    browser = p.chromium.launch()
-    page = browser.new_page(viewport={'width': width, 'height': 1000})
-    page.context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-    errors = []
-    page.on('pageerror', lambda error: errors.append(str(error)))
-    return browser, page, errors
+    with run_app_server(app) as base:
+        yield base
 
 
 def wait_tests_enabled(page):
@@ -177,7 +164,7 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server):
     service, _, notifiers = settings_services(True)
     base = live_server
     with sync_playwright() as p:
-        browser, page, errors = open_browser(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/')
         dialog = page.locator('#settings-dialog')
         assert not dialog.is_visible()
@@ -231,7 +218,7 @@ def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live
     settings_services(True)
     base = live_server
     with sync_playwright() as p:
-        browser, page, errors = open_browser(p, base)
+        browser, page, errors = open_page(p, base)
         page.goto(base + '/')
         page.evaluate("""() => {
             window.telegramWrites = 0;
@@ -261,7 +248,7 @@ def test_send_test_failure_reenables_button_before_next_refresh(settings_service
     settings_services(True)
     base = live_server
     with sync_playwright() as p:
-        browser, page, errors = open_browser(p, base)
+        browser, page, errors = open_page(p, base)
         page.route('**/t2-valet/api/notifications/test', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
         page.goto(base + '/?settings=1')
         wait_tests_enabled(page)
@@ -276,7 +263,7 @@ def test_closing_dialog_during_test_send_stops_status_requests(settings_services
     settings_services(True)
     base = live_server
     with sync_playwright() as p:
-        browser, page, errors = open_browser(p, base)
+        browser, page, errors = open_page(p, base)
         held = []
         page.route('**/t2-valet/api/notifications/test', lambda route: held.append(route))
         page.goto(base + '/?settings=1')
