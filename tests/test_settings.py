@@ -2,6 +2,8 @@ import threading
 from dataclasses import replace
 
 import pytest
+from playwright.sync_api import sync_playwright
+from werkzeug.serving import make_server
 
 from app import app
 from services.t2 import valet as t2_valet
@@ -146,3 +148,105 @@ def test_every_page_offers_settings_dialog(client, path):
     assert 'id="open-settings"' in html
     assert '<dialog class="settings-dialog" id="settings-dialog"' in html
     assert 'href="/settings/"' not in html
+
+
+@pytest.fixture
+def live_server():
+    server = make_server('127.0.0.1', 0, app, threaded=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f'http://127.0.0.1:{server.server_port}'
+    server.shutdown()
+    thread.join()
+
+
+def open_browser(p, base, width=1280):
+    browser = p.chromium.launch()
+    page = browser.new_page(viewport={'width': width, 'height': 1000})
+    page.context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    return browser, page, errors
+
+
+def wait_tests_enabled(page):
+    page.wait_for_function("[...document.querySelectorAll('#settings-dialog [data-test]')].every(button => !button.disabled)")
+
+
+def test_settings_dialog_states_and_mobile(settings_services, live_server):
+    service, _, notifiers = settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_browser(p, base)
+        page.goto(base + '/')
+        dialog = page.locator('#settings-dialog')
+        assert not dialog.is_visible()
+        page.click('#open-settings')
+        wait_tests_enabled(page)
+        assert page.url == base + '/'
+        assert all(not notifier.calls for notifier in notifiers)
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        page.locator('[data-service=t2] [data-test]').click()
+        page.locator('[data-service=t2] [data-test-result]').filter(has_text='전송 완료').wait_for()
+        assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
+        page.set_viewport_size({'width': 390, 'height': 844})
+        page.get_by_text('봇·수신자 설정', exact=True).click()
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert dialog.bounding_box()['width'] >= 389
+        assert 'PRIVATE_' not in page.locator('body').inner_text()
+        page.keyboard.press('Escape')
+        assert not dialog.is_visible()
+        assert page.evaluate('document.activeElement.id') == 'open-settings'
+        polled = []
+        page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
+        page.wait_for_timeout(3500)
+        assert polled == []
+
+        for notifier in notifiers:
+            notifier.settings = replace(notifier.settings, enabled=False)
+        page.goto(base + '/?settings=1')
+        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '설정 완료')")
+        assert dialog.is_visible()
+        assert page.url == base + '/'
+        assert page.locator('#telegram-state').inner_text() == '꺼짐'
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert page.locator('[data-service=gimpo] [data-test]').is_disabled()
+
+        for notifier in notifiers:
+            notifier.settings = replace(notifier.settings, enabled=True, token='')
+        page.goto(base + '/?settings=1')
+        page.wait_for_function("[...document.querySelectorAll('[data-connection]')].every(node => node.textContent === '미설정')")
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
+        assert page.locator('[data-service=t2] [data-test]').is_disabled()
+        assert len(notifiers[0].calls) == 1 and not notifiers[1].calls
+        assert not errors and service._runtime is None
+        browser.close()
+
+
+def test_closing_dialog_during_test_send_stops_status_requests(settings_services, live_server):
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_browser(p, base)
+        held = []
+        page.route('**/t2-valet/api/notifications/test', lambda route: held.append(route))
+        page.goto(base + '/?settings=1')
+        wait_tests_enabled(page)
+        page.locator('[data-service=t2] [data-test]').click()
+        for _ in range(50):
+            if held:
+                break
+            page.wait_for_timeout(50)
+        assert held
+        page.keyboard.press('Escape')
+        polled = []
+        page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
+        held[0].continue_()
+        page.wait_for_timeout(1500)
+        assert polled == []
+        assert not errors
+        browser.close()
