@@ -1,12 +1,13 @@
 import pytest
 import requests
 
-from services.gimpo.store import JobStore
+from services.gimpo.store import CORRECTION_CAUSES, JobStore, READY
+from services.gimpo.validation import validate
 from services.notifications.outbox import NotificationOutbox
 from services.notifications.telegram import Delivery, TelegramNotifier
 from services.notifications.config import TelegramSettings
 from tests.gimpo.fakes import FakeNotifier
-from tests.gimpo.helpers import ready_job
+from tests.gimpo.helpers import NOW, ready_job, valid_input
 
 
 @pytest.fixture
@@ -43,18 +44,65 @@ def test_timeout_unknown_manual_resend_deduplicates(store):
     assert len(notifier.sent)==2
 
 
-def test_state_changes_while_sending_create_correction_once(store):
+def sent_ready(store):
+    job = ready_job(store)
+    event = store.claim_event(store.events()[0]['id'])
+    store.finish_event(event['id'], 'SENT', message_id=7)
+    return job
+
+
+@pytest.mark.parametrize('state,cause', [('HANDOFF_EXPIRED', 'EXPIRED'), ('SESSION_EXPIRED', 'INTERRUPTED'),
+    ('ERROR', 'INTERRUPTED'), ('REVIEW_REQUIRED', 'INTERRUPTED'), ('INTERRUPTED', 'INTERRUPTED'),
+    ('PAYMENT_DISPATCHING', None), ('HANDOFF_CANCELLED', None), ('STOPPING', None)])
+def test_correction_follows_cause_table(store, state, cause):
+    job = sent_ready(store)
+    if state == 'PAYMENT_DISPATCHING':
+        store.dispatch_payment(job['id'], job)
+    else:
+        store.transition(job['id'], state, 'changed')
+    corrections = [e for e in store.events() if e['kind'] == 'CORRECTION']
+    assert CORRECTION_CAUSES.get(state) == cause
+    assert [(e['cause'], e['replyTo']) for e in corrections] == ([(cause, 7)] if cause else [])
+
+
+def test_correction_once_per_ready_even_after_more_changes(store):
+    job = sent_ready(store)
+    store.transition(job['id'], 'HANDOFF_EXPIRED', 'expired')
+    store.release(job['id'], 'HANDOFF_EXPIRED', 'expired', {'HANDOFF_EXPIRED'})
+    corrections = [e for e in store.events() if e['kind'] == 'CORRECTION']
+    assert len(corrections) == 1 and corrections[0]['status'] == 'PENDING'
+    notifier = FakeNotifier()
+    NotificationOutbox(store, notifier, lambda e: True).deliver_one()
+    assert notifier.sent[0][0].startswith('[김포공항 국내선 주차] 결제 대기 시간 초과')
+
+
+def test_correction_only_for_current_handoff(store):
+    job = sent_ready(store)
+    store.transition(job['id'], 'HANDOFF_CANCELLED', 'cancelled')
+    store.release(job['id'], 'HANDOFF_CANCELLED', 'cancelled', {'HANDOFF_CANCELLED'})
+    job = store.restart(job['id'], store.get(job['id']), validate(valid_input(), now=NOW), 'run1')
+    store.transition(job['id'], 'RECHECKING', 'test')
+    job = store.ready(job['id'], job['generation'], job['summary'] or {'parkingName': 'p', 'entryAt': 'a', 'exitAt': 'b',
+                      'calculateAmt': 1, 'depositAmt': 1}, 1000, 120)
+    second = [e for e in store.events() if e['kind'] == 'READY' and e['generation'] == 2][0]
+    store.finish_event(store.claim_event(second['id'])['id'], 'SENT', message_id=8)
+    store.transition(job['id'], 'HANDOFF_EXPIRED', 'expired')
+    assert [e['parentId'] for e in store.events() if e['kind'] == 'CORRECTION'] == [second['id']]
+
+
+@pytest.mark.parametrize('state,expected', [('HANDOFF_CANCELLED', 1), ('HANDOFF_EXPIRED', 2)])
+def test_state_change_while_sending_uses_cause(store, state, expected):
     job = ready_job(store)
     class DuringSend(FakeNotifier):
-        def send(self,text,reply_to=None):
-            if not self.sent: store.transition(job['id'],'HANDOFF_CANCELLED','cancelled')
-            return super().send(text,reply_to)
-    notifier=DuringSend()
-    outbox=NotificationOutbox(store,notifier,lambda e:True)
-    outbox.deliver_one();outbox.deliver_one();outbox.deliver_one()
-    assert len(notifier.sent)==2
-    assert notifier.sent[1][1]==1
-    assert len([e for e in store.events() if e['kind']=='CORRECTION'])==1
+        def send(self, text, reply_to=None):
+            if not self.sent: store.transition(job['id'], state, 'changed')
+            return super().send(text, reply_to)
+    notifier = DuringSend()
+    outbox = NotificationOutbox(store, notifier, lambda e: True)
+    outbox.deliver_one(); outbox.deliver_one(); outbox.deliver_one()
+    assert len(notifier.sent) == expected
+    if expected == 2:
+        assert notifier.sent[1][1] == 1 and '결제 대기 시간 초과' in notifier.sent[1][0]
 
 
 def test_sent_restart_correction_without_browser(store):
@@ -65,7 +113,7 @@ def test_sent_restart_correction_without_browser(store):
     outbox.validate_ready=lambda e:False
     outbox.deliver_one();store.recover('third-run');outbox.deliver_one()
     assert len(notifier.sent)==2
-    assert '이전 실행이 종료' in notifier.sent[1][0]
+    assert '결제 대기 중단' in notifier.sent[1][0]
 
 
 def test_retry_exhaustion_and_no_browser_probe_for_corrections(store):
@@ -128,7 +176,7 @@ def test_resend_preserves_history_for_correction(store, initial, resend_status):
         store.claim_event(event['id'])
         if resend_status != 'SENDING':
             store.finish_event(event['id'], resend_status)
-    store.transition(job['id'], 'HANDOFF_CANCELLED', 'cancelled')
+    store.transition(job['id'], 'HANDOFF_EXPIRED', 'expired')
     if resend_status == 'SENDING':
         store.finish_event(event['id'], 'FAILED')
     corrections = [e for e in store.events() if e['kind'] == 'CORRECTION']
@@ -138,7 +186,7 @@ def test_resend_preserves_history_for_correction(store, initial, resend_status):
     outbox = NotificationOutbox(store, notifier, lambda e: False)
     outbox.deliver_one()
     assert len(notifier.sent) == 1
-    assert '결제 안내 변경' in notifier.sent[0][0]
+    assert '결제 대기 시간 초과' in notifier.sent[0][0]
 
 
 def test_resend_history_survives_recovery(store):

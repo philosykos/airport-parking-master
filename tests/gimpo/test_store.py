@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from services.gimpo.client import PlaywrightGimpoClient
-from services.gimpo.store import Conflict, JobStore, READY
+from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY
 from services.gimpo.validation import validate
 from tests.gimpo.helpers import NOW, ready_job, valid_input
 
@@ -147,8 +147,8 @@ def test_explicit_stop_gets_one_separate_row(store):
     assert [row['message'] for row in store.get(job['id'])['logs']] == ['만차', '중지했습니다.']
 
 
-RETURN_REASON = '결제창에서 공항 사이트로 돌아왔습니다. 예약 내역을 확인한 뒤 결과를 기록해주세요.'
-PROGRESS_REASON = '공항 결제창에서 결제를 마친 뒤 예약 내역을 확인해주세요.'
+RETURN_REASON = '결제창에서 공항 사이트로 돌아왔습니다.'
+PROGRESS_REASON = '공항 결제창에서 결제를 진행하고 있습니다.'
 
 
 def in_progress_job(store):
@@ -235,3 +235,50 @@ def test_subframe_and_pre_payment_navigation_are_ignored(store):
     navigate(client, page, 'https://park.airport.co.kr/reservation/resInsert.do')
     client._observe_navigation(page, Frame('https://park.airport.co.kr/other'))
     assert store.get(job['id'])['returnedFromPayment'] is False
+
+
+def test_payment_states_exclude_finished_states():
+    assert PAYMENT_STATES == {'PAYMENT_DISPATCHING', 'PAYMENT_IN_PROGRESS', 'PAYMENT_RESULT_UNKNOWN'}
+
+
+def test_recover_keeps_reserved_and_releases_slot(store):
+    job = ready_job(store)
+    store.dispatch_payment(job['id'], job)
+    reason = '공항 예약확인 화면에서 예약 완료를 확인했습니다(예약번호 1234AB5678).'
+    store.transition(job['id'], 'RESERVED', reason, reservationNo='1234AB5678')
+    store.recover('run2')
+    recovered = store.get(job['id'])
+    assert (recovered['state'], recovered['active'], recovered['reason']) == ('RESERVED', False, reason)
+    assert not [e for e in store.events() if e['kind'] == 'CORRECTION']
+
+
+def test_recover_of_payment_job_makes_no_correction(store):
+    job = ready_job(store)
+    event = store.claim_event(store.events()[0]['id'])
+    store.finish_event(event['id'], 'SENT', message_id=1)
+    store.dispatch_payment(job['id'], job)
+    store.recover('run2')
+    assert store.active()['state'] == 'PAYMENT_RESULT_UNKNOWN'
+    assert not [e for e in store.events() if e['kind'] == 'CORRECTION']
+
+
+def test_clear_logs_only_for_finished_job(store):
+    job = ready_job(store)
+    with pytest.raises(Conflict, match='진행 중인 작업의 로그는 지울 수 없습니다.'):
+        store.clear_logs(job['id'])
+    store.release(job['id'], 'STOPPED', '중지했습니다. 예약은 완료되지 않았습니다.', {READY})
+    before = store.get(job['id'])
+    cleared = store.clear_logs(job['id'])
+    assert cleared['logs'] == [] and cleared['stateVersion'] == before['stateVersion'] + 1
+    assert (cleared['state'], cleared['reason'], cleared['summary']) == (before['state'], before['reason'], before['summary'])
+    assert store.get(job['id'])['logs'] == []
+    with pytest.raises(KeyError):
+        store.clear_logs('GMP-missing')
+
+
+def test_store_messages_do_not_ask_to_record_result(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    with pytest.raises(Conflict, match='진행 중인 작업이 있습니다. 작업을 중지하거나 끝난 뒤 다시 시도해주세요.'):
+        store.create(validate(valid_input(), now=NOW), 'run1')
+    with pytest.raises(Conflict, match='이 작업은 다시 시작할 수 없습니다. 진행 중인 작업이 있다면 먼저 끝내주세요.'):
+        store.restart(job['id'], job, validate(valid_input(), now=NOW), 'run1')
