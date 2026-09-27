@@ -12,18 +12,18 @@ import requests as http_requests
 from flask import Blueprint, jsonify, render_template, request
 
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
-from services.background_notifications import BackgroundNotifications
-from services.notification_config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
-from services.notification_messages import ReservationMessages
-from services.telegram_notifier import TelegramNotifier
-from services.t2_input import FIELDS, MIN_INTERVAL_SEC, InputError, parse_interval, validate_fields
-from services.t2_scheduler import Scheduler
-from services.t2_storage import LogStore, UserDataStore
+from services.notifications.background import BackgroundNotifications
+from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
+from services.notifications.messages import ReservationMessages
+from services.notifications.telegram import TelegramNotifier
+from services.t2.scheduler import Scheduler
+from services.t2.storage import LogStore, UserDataStore
+from services.t2.validation import FIELDS, MIN_INTERVAL_SEC, InputError, parse_interval, validate_fields
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 파일 경로는 services/ 가 아니라 프로젝트 루트 기준
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 파일 경로는 이 파일(services/t2/)이 아니라 프로젝트 루트 기준
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 bp = Blueprint("t2_valet", __name__, url_prefix="/t2-valet")
 
@@ -113,7 +113,7 @@ def parse_config(raw):
 
 CONFIG = parse_config(load_toml("t2_valet"))
 
-# 개인정보 파일(소유자 전용). 경로는 services/ 가 아니라 프로젝트 루트 기준
+# 개인정보 파일(소유자 전용). 경로는 프로젝트 루트 기준
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, mode=0o700, exist_ok=True)
 log_store = LogStore(os.path.join(LOG_DIR, "api_call.log"))

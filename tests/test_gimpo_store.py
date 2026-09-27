@@ -3,8 +3,8 @@ from threading import Barrier
 
 import pytest
 
-from services.gimpo_store import Conflict, JobStore, READY
-from services.gimpo_validation import validate
+from services.gimpo.store import Conflict, JobStore, READY
+from services.gimpo.validation import validate
 from tests.test_gimpo_validation import NOW, valid_input
 
 

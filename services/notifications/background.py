@@ -5,7 +5,7 @@ import threading
 import uuid
 from collections import OrderedDict
 
-from services.telegram_notifier import Delivery, DeliveryPolicy
+from services.notifications.telegram import Delivery, DeliveryPolicy
 
 
 class BackgroundNotifications:

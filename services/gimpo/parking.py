@@ -5,14 +5,14 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
-from services.gimpo_config import CONFIG
-from services.gimpo_jobs import GimpoRuntime, RuntimeUnavailable
-from services.gimpo_store import Conflict
-from services.gimpo_validation import AIRPORT, DEFAULT_FIELDS, PARKING, PARKING_NAME, InputError, policy, validate
-from services.background_notifications import BackgroundNotifications
-from services.notification_config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
-from services.notification_messages import ReservationMessages
-from services.telegram_notifier import TelegramNotifier
+from services.gimpo.config import CONFIG
+from services.gimpo.jobs import GimpoRuntime, RuntimeUnavailable
+from services.gimpo.store import Conflict
+from services.gimpo.validation import AIRPORT, DEFAULT_FIELDS, PARKING, PARKING_NAME, InputError, policy, validate
+from services.notifications.background import BackgroundNotifications
+from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
+from services.notifications.messages import ReservationMessages
+from services.notifications.telegram import TelegramNotifier
 
 bp = Blueprint("gimpo_parking", __name__, url_prefix="/gimpo-parking")
 

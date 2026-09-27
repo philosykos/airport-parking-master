@@ -5,8 +5,8 @@ import time
 from typing import Protocol
 from urllib.parse import parse_qs, unquote, urlparse
 
-from services.gimpo_validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME
-from services.gimpo_store import Conflict, READY
+from services.gimpo.validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME
+from services.gimpo.store import Conflict, READY
 
 ORIGIN = "https://park.airport.co.kr"
 START_URL = ORIGIN + "/reservation/recheck.do"

@@ -3,9 +3,9 @@ import dataclasses
 import pytest
 
 from app import app as flask_app
-from services import t2_valet
-from services.t2_scheduler import Scheduler
-from services.t2_storage import LogStore, UserDataStore
+from services.t2 import valet as t2_valet
+from services.t2.scheduler import Scheduler
+from services.t2.storage import LogStore, UserDataStore
 
 TEST_URL = "https://example.invalid/reserve"
 
@@ -35,10 +35,10 @@ def client(tmp_path, monkeypatch):
 def no_external_http(monkeypatch, tmp_path):
     # Global default: every Python HTTP transport is blocked, not only the T2 client.
     import requests
-    from services import notification_config
-    from services.background_notifications import BackgroundNotifications
-    from services.notification_config import TelegramSettings
-    from services.telegram_notifier import TelegramNotifier
+    from services.notifications import config as notification_config
+    from services.notifications.background import BackgroundNotifications
+    from services.notifications.config import TelegramSettings
+    from services.notifications.telegram import TelegramNotifier
     monkeypatch.setenv("TELEGRAM_ALARM_ENABLED", "false")
     monkeypatch.setattr(notification_config, 'ENV_PATH', tmp_path / '.env')
     monkeypatch.delenv('TELEGRAM_BOT_TOKEN', raising=False)

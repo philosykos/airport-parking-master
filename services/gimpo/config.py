@@ -30,7 +30,7 @@ def parse_config(raw):
     directory = tables["storage"].get("directory")
     if not isinstance(directory, str) or not directory.strip():
         fail(label, "storage.directory", "빈 값이 아닌 경로여야 합니다")
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     return GimpoConfig(integer("request", "interval_sec", 30, 3600),
                        integer("request", "handoff_max_age_sec", 10, 600),
                        integer("request", "browser_timeout_sec", 5, 120),

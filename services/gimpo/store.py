@@ -6,7 +6,7 @@ import time
 import uuid
 from contextlib import contextmanager
 
-from services.gimpo_validation import PUBLIC_INPUT
+from services.gimpo.validation import PUBLIC_INPUT
 
 PAYMENT_STATES = frozenset({"PAYMENT_DISPATCHING", "PAYMENT_IN_PROGRESS", "PAYMENT_RESULT_UNKNOWN", "RESERVED", "PAYMENT_FAILED"})
 RESTARTABLE = frozenset({"STOPPED", "HANDOFF_CANCELLED", "HANDOFF_EXPIRED", "SESSION_EXPIRED", "INTERRUPTED", "REVIEW_REQUIRED", "ERROR"})

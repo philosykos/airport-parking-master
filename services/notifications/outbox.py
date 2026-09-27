@@ -1,7 +1,7 @@
 """Serialized notification worker, independent of the browser event loop."""
 import threading
-from services.notification_messages import ReservationMessages
-from services.telegram_notifier import DeliveryPolicy
+from services.notifications.messages import ReservationMessages
+from services.notifications.telegram import DeliveryPolicy
 
 
 class NotificationOutbox:

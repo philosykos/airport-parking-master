@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from services.gimpo_client import PlaywrightGimpoClient
-from services.telegram_notifier import Delivery
+from services.gimpo.client import PlaywrightGimpoClient
+from services.notifications.telegram import Delivery
 
 FIXTURES = Path(__file__).parent / "fixtures" / "gimpo"
 

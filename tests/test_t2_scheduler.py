@@ -1,6 +1,6 @@
 import threading
 
-from services.t2_scheduler import Scheduler
+from services.t2.scheduler import Scheduler
 
 
 def gated_job():

@@ -7,7 +7,7 @@ from dotenv import dotenv_values
 
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
 
-ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
+ENV_PATH = Path(__file__).resolve().parents[2] / '.env'
 
 
 @dataclass(frozen=True)

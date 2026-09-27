@@ -2,9 +2,10 @@ import copy
 
 import pytest
 
-from services import config, t2_valet
+from services import config
+from services.t2 import valet as t2_valet
 from services.config import ConfigError, find_legacy_env_keys, load_toml
-from services.t2_valet import parse_config
+from services.t2.valet import parse_config
 
 
 def valid_raw():

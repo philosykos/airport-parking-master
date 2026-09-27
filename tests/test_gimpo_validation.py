@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from services.config import ConfigError, load_toml
-from services.gimpo_config import parse_config
-from services.gimpo_validation import AGREEMENTS, InputError, SEOUL, policy, validate
+from services.gimpo.config import parse_config
+from services.gimpo.validation import AGREEMENTS, InputError, SEOUL, policy, validate
 
 NOW = datetime(2026, 9, 27, 10, 0, tzinfo=SEOUL)
 

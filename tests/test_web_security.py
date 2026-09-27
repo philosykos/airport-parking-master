@@ -1,6 +1,6 @@
 import pytest
 
-from services import t2_valet
+from services.t2 import valet as t2_valet
 
 POST_PATHS = ["/t2-valet/api/stop", "/t2-valet/api/logs/clear", "/t2-valet/api/start",
               "/t2-valet/api/test", "/t2-valet/api/save-defaults"]

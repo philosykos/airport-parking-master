@@ -4,7 +4,7 @@ from typing import Protocol
 
 import requests
 
-from services.notification_config import TelegramSettings
+from services.notifications.config import TelegramSettings
 
 
 @dataclass(frozen=True)

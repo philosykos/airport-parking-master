@@ -3,9 +3,9 @@ from dataclasses import replace
 
 import pytest
 
-from services.gimpo_config import CONFIG
-from services.gimpo_jobs import GimpoRuntime
-from services.gimpo_store import READY
+from services.gimpo.config import CONFIG
+from services.gimpo.jobs import GimpoRuntime
+from services.gimpo.store import READY
 from tests.gimpo_fakes import FakeNotifier, FixtureBrowser
 from tests.test_gimpo_jobs import eventually, inputs, wait_state
 

@@ -13,7 +13,7 @@ const SVG_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>';
 const EMPTY_LOG_ROW = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>아직 예약 요청 내역이 없습니다</td></tr>';
 
-// 예약 입력 필드. 서버의 services/t2_input.py FIELDS와 같은 목록·같은 형식 규칙을 쓴다.
+// 예약 입력 필드. 서버의 services/t2/validation.py FIELDS와 같은 목록·같은 형식 규칙을 쓴다.
 const FORM_FIELDS = ['name', 'phone', 'carNumber', 'carModel', 'carBrand', 'carColor', 'departingAt', 'arrivedAt', 'departingAir'];
 const DATE_FIELDS = ['departingAt', 'arrivedAt'];
 const FORMAT_RULES = {

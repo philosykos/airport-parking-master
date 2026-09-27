@@ -4,12 +4,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from services import t2_valet
-from services.background_notifications import BackgroundNotifications
+from services.t2 import valet as t2_valet
+from services.notifications.background import BackgroundNotifications
 from services.config import ConfigError
-from services.notification_config import NotificationConfig, TelegramSettings
-from services.notification_messages import ReservationMessages
-from services.telegram_notifier import Delivery, TelegramNotifier
+from services.notifications.config import NotificationConfig, TelegramSettings
+from services.notifications.messages import ReservationMessages
+from services.notifications.telegram import Delivery, TelegramNotifier
 from tests.test_gimpo_jobs import eventually
 
 
@@ -62,7 +62,7 @@ def test_service_credentials_are_ignored(monkeypatch):
 
 def test_dotenv_common_settings_with_environment_precedence(monkeypatch):
     import os
-    from services import notification_config
+    from services.notifications import config as notification_config
     monkeypatch.delenv('TELEGRAM_ALARM_ENABLED')
     notification_config.ENV_PATH.write_text(
         'export TELEGRAM_ALARM_ENABLED=true\nTELEGRAM_BOT_TOKEN="file-token"\n'
@@ -76,7 +76,7 @@ def test_dotenv_common_settings_with_environment_precedence(monkeypatch):
 
 
 def test_unreadable_dotenv_keeps_default_off(monkeypatch):
-    from services import notification_config
+    from services.notifications import config as notification_config
     monkeypatch.delenv('TELEGRAM_ALARM_ENABLED')
     notification_config.ENV_PATH.mkdir()
     assert TelegramSettings.from_environment() == TelegramSettings()

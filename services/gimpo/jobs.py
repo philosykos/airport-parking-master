@@ -6,12 +6,12 @@ import os
 import threading
 import uuid
 
-from services.gimpo_client import BrowserFault, PlaywrightGimpoClient
-from services.gimpo_store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
-from services.gimpo_validation import InputError, validate
-from services.notification_outbox import NotificationOutbox
-from services.telegram_notifier import TelegramNotifier
-from services.notification_config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
+from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
+from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
+from services.gimpo.validation import InputError, validate
+from services.notifications.outbox import NotificationOutbox
+from services.notifications.telegram import TelegramNotifier
+from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
 
 PREPAYMENT = frozenset({"DRAFT", "CHECKING", "WAITING_AVAILABLE", "AVAILABLE", "PREPARING", "PREPARED", "RECHECKING", READY})
 

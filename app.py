@@ -7,7 +7,8 @@ from services.config import ConfigError, find_legacy_env_keys
 from services import web_security
 
 try:
-    from services import t2_valet, gimpo_parking
+    from services.t2 import valet as t2_valet
+    from services.gimpo import parking as gimpo_parking
 except ConfigError as e:
     print(f"[설정 오류] {e}")
     sys.exit(1)

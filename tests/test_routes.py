@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import app as app_module
-from services import t2_valet
+from services.t2 import valet as t2_valet
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 

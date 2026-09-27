@@ -6,11 +6,11 @@ from datetime import datetime
 
 import pytest
 
-from services.gimpo_config import CONFIG
-from services.gimpo_jobs import GimpoRuntime, ProcessLease, RuntimeUnavailable
-from services.gimpo_parking import GimpoService
-from services.gimpo_store import Conflict, READY
-from services.gimpo_validation import SEOUL, validate
+from services.gimpo.config import CONFIG
+from services.gimpo.jobs import GimpoRuntime, ProcessLease, RuntimeUnavailable
+from services.gimpo.parking import GimpoService
+from services.gimpo.store import Conflict, READY
+from services.gimpo.validation import SEOUL, validate
 from tests.gimpo_fakes import FakeBrowser, FakeNotifier
 from tests.test_gimpo_validation import valid_input
 
@@ -116,7 +116,7 @@ def test_stop_during_inflight_check_cannot_create_ready(runtime):
 
 def test_notifications_fail_without_closing_browser(runtime):
     runtime.outbox.notifier.configured = False
-    from services.telegram_notifier import Delivery
+    from services.notifications.telegram import Delivery
     runtime.outbox.notifier.results = [Delivery('FAILED', error='configuration')]
     job = ready(runtime)
     eventually(lambda:any(e['status']=='FAILED' for e in runtime.store.events(job['id'])))

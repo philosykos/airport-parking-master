@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from services import t2_valet
+from services.t2 import valet as t2_valet
 
 
 @pytest.mark.parametrize("value, head, tail, expected", [

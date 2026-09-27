@@ -1,6 +1,6 @@
 import pytest
 
-from services.t2_input import InputError, parse_interval, validate_fields
+from services.t2.validation import InputError, parse_interval, validate_fields
 
 VALID = {"name": "홍길동", "phone": "01012345678", "carNumber": "12가3456", "carModel": "그랜저",
          "carBrand": "HY", "carColor": "BLACK", "departingAt": "2026-10-01 09:00",

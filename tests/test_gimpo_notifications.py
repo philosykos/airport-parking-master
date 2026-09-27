@@ -1,10 +1,10 @@
 import pytest
 import requests
 
-from services.gimpo_store import JobStore
-from services.notification_outbox import NotificationOutbox
-from services.telegram_notifier import Delivery, TelegramNotifier
-from services.notification_config import TelegramSettings
+from services.gimpo.store import JobStore
+from services.notifications.outbox import NotificationOutbox
+from services.notifications.telegram import Delivery, TelegramNotifier
+from services.notifications.config import TelegramSettings
 from tests.gimpo_fakes import FakeNotifier
 from tests.test_gimpo_store import ready_job
 
@@ -37,7 +37,7 @@ def test_timeout_unknown_manual_resend_deduplicates(store):
     assert len(notifier.sent)==1
     event = store.events()[0]
     store.resend(job['id'],job,event['id'],event['round'])
-    from services.gimpo_store import Conflict
+    from services.gimpo.store import Conflict
     with pytest.raises(Conflict): store.resend(job['id'],job,event['id'],event['round'])
     outbox.deliver_one()
     assert len(notifier.sent)==2

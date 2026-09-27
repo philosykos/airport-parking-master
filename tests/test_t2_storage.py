@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from services.t2_storage import LogStore, UserDataStore, write_private
+from services.t2.storage import LogStore, UserDataStore, write_private
 
 
 def mode(path):

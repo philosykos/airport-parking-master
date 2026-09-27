@@ -6,13 +6,13 @@ from playwright.sync_api import sync_playwright
 from werkzeug.serving import make_server
 
 from app import app
-from services import t2_valet
-from services.background_notifications import BackgroundNotifications
-from services.gimpo_config import CONFIG
-from services.gimpo_parking import GimpoService
-from services.notification_config import TelegramSettings
-from services.notification_messages import ReservationMessages
-from services.telegram_notifier import Delivery
+from services.t2 import valet as t2_valet
+from services.notifications.background import BackgroundNotifications
+from services.gimpo.config import CONFIG
+from services.gimpo.parking import GimpoService
+from services.notifications.config import TelegramSettings
+from services.notifications.messages import ReservationMessages
+from services.notifications.telegram import Delivery
 from tests.test_gimpo_jobs import eventually
 from tests.test_notifications import TransportNotifier
 

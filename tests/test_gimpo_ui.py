@@ -7,12 +7,12 @@ from playwright.sync_api import sync_playwright
 from werkzeug.serving import make_server
 
 from app import app
-from services.gimpo_config import CONFIG
-from services.gimpo_jobs import GimpoRuntime
-from services.gimpo_parking import GimpoService
+from services.gimpo.config import CONFIG
+from services.gimpo.jobs import GimpoRuntime
+from services.gimpo.parking import GimpoService
 from tests.gimpo_fakes import FakeBrowser, FakeNotifier
 from tests.test_gimpo_jobs import eventually, inputs, wait_state
-from services.gimpo_store import READY
+from services.gimpo.store import READY
 
 
 @pytest.fixture
