@@ -9,6 +9,8 @@ from services.t2.storage import LogStore, UserDataStore
 
 TEST_URL = "https://example.invalid/reserve"
 
+pytest_plugins = ['tests.ui_browser']
+
 
 def _block_network(*args, **kwargs):
     raise RuntimeError("테스트에서 외부 호출 차단")

@@ -2,7 +2,6 @@ import threading
 from dataclasses import replace
 
 import pytest
-from playwright.sync_api import sync_playwright
 from werkzeug.serving import make_server
 
 from app import app
@@ -15,6 +14,7 @@ from services.notifications.messages import ReservationMessages
 from services.notifications.telegram import Delivery
 from tests.test_gimpo_jobs import eventually
 from tests.test_notifications import TransportNotifier
+from tests.ui_cleanup import cleanup_ui_server
 
 ENDPOINTS = ('/t2-valet/api/notifications', '/gimpo-parking/api/notifications')
 
@@ -149,16 +149,16 @@ def test_settings_navigation_preserves_reservation_inputs(client, path, new_tab)
     assert (parser.settings.get('target') == '_blank') is new_tab
 
 
-def test_settings_browser_states_and_mobile(settings_services, tmp_path):
+def test_settings_browser_states_and_mobile(settings_services, tmp_path, monkeypatch, ui_context):
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     service, _, notifiers = settings_services(True)
     server = make_server('127.0.0.1', 0, app, threaded=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     base = f'http://127.0.0.1:{server.server_port}'
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page(viewport={'width':1280, 'height':1000})
+        with ui_context(viewport={'width':1280, 'height':1000}) as context:
+            page = context.new_page()
             page.context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
@@ -196,6 +196,7 @@ def test_settings_browser_states_and_mobile(settings_services, tmp_path):
             assert not errors and service._runtime is None
 
             # Click the real navigation: opening settings must preserve unsaved inputs.
+            page.route('**/gimpo-parking/api/defaults', lambda route: route.fulfill(json={}))
             page.route('**/gimpo-parking/api/jobs/active', lambda route: route.fulfill(json={'job': None, 'recent': None}))
             for path in ('/t2-valet/', '/gimpo-parking/'):
                 page.goto(base + path)
@@ -203,7 +204,8 @@ def test_settings_browser_states_and_mobile(settings_services, tmp_path):
                 page.fill('#carNumber', '123가4567')
                 page.fill('#phone', '01012345678')
                 if path == '/gimpo-parking/':
-                    page.fill('#reservationPassword', 'PrivatePass44')
+                    page.wait_for_function("document.getElementById('reservationPassword').value === 'PrivatePass44'")
+                    assert page.locator('#reservationPassword').get_attribute('readonly') is not None
                 with page.expect_popup() as opened:
                     page.locator('.header-settings').click()
                 settings_page = opened.value
@@ -225,7 +227,5 @@ def test_settings_browser_states_and_mobile(settings_services, tmp_path):
             page.wait_for_url(base + '/settings/')
             assert len(page.context.pages) == 1
             assert not errors and service._runtime is None
-            browser.close()
     finally:
-        server.shutdown()
-        thread.join()
+        cleanup_ui_server(server, thread, service)

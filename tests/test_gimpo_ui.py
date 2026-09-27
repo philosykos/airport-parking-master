@@ -3,7 +3,6 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
 from werkzeug.serving import make_server
 
 from app import app
@@ -11,6 +10,7 @@ from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.parking import GimpoService
 from tests.gimpo_fakes import FakeBrowser, FakeNotifier
+from tests.ui_cleanup import cleanup_ui_server
 from tests.test_gimpo_jobs import eventually, inputs, wait_state
 from services.gimpo.store import READY
 
@@ -19,19 +19,22 @@ from services.gimpo.store import READY
 def ui_server(tmp_path, monkeypatch):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,FakeNotifier())
-    service=GimpoService(runtime.config);service._runtime=runtime
-    monkeypatch.setitem(app.extensions,'gimpo',service)
-    server=make_server('127.0.0.1',0,app,threaded=True)
-    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    yield f'http://127.0.0.1:{server.server_port}',runtime
-    server.shutdown();thread.join();runtime.close()
+    server = thread = None
+    try:
+        service = GimpoService(runtime.config)
+        service._runtime = runtime
+        monkeypatch.setitem(app.extensions, 'gimpo', service)
+        server = make_server('127.0.0.1', 0, app, threaded=True)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        yield f'http://127.0.0.1:{server.server_port}', runtime
+    finally:
+        cleanup_ui_server(server, thread, runtime)
 
 
-def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path):
+def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path, ui_context):
     base,runtime=ui_server
-    with sync_playwright() as p:
-        browser=p.chromium.launch()
-        context=browser.new_context(timezone_id='America/New_York', viewport={'width':1280,'height':1000})
+    with ui_context(timezone_id='America/New_York', viewport={'width':1280,'height':1000}) as context:
         context.route('**/*',lambda route: route.continue_() if route.request.url.startswith(base+'/') else route.abort())
         page=context.new_page();errors=[]
         page.on('pageerror',lambda error:errors.append(str(error)))
@@ -59,19 +62,16 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path):
         assert not errors
         page.set_viewport_size({'width':390,'height':844})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        browser.close()
 
 
-def test_delayed_old_status_cannot_replace_new_work(ui_server):
+def test_delayed_old_status_cannot_replace_new_work(ui_server, ui_context):
     base, runtime = ui_server
     old = runtime.create(inputs())
     old = wait_state(runtime, old['id'], READY)
     runtime.stop(old['id'], old)
     eventually(lambda: not runtime.store.get(old['id'])['active'])
     snapshot = {'job': runtime.store.get(old['id']), 'notifications': [], 'browserAvailable': False}
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context()
+    with ui_context() as context:
         context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page = context.new_page()
         delayed = []
@@ -96,15 +96,13 @@ def test_delayed_old_status_cannot_replace_new_work(ui_server):
         page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
         assert page.locator('#stop').is_visible()
         assert page.locator('#show-browser').is_visible()
-        browser.close()
 
 
 @pytest.mark.parametrize('zone',['Asia/Seoul','America/New_York','Pacific/Honolulu'])
-def test_calendar_wall_time_and_t2_default(zone):
+def test_calendar_wall_time_and_t2_default(zone, ui_context):
     script=Path('static/js/datepicker.js').read_text()
-    with sync_playwright() as p:
-        browser=p.chromium.launch()
-        page=browser.new_page(timezone_id=zone)
+    with ui_context(timezone_id=zone) as context:
+        page = context.new_page()
         page.set_content('<div id="g"><input></div><div id="t"><input></div>')
         page.add_script_tag(content=script)
         result=page.evaluate('''() => {
@@ -124,14 +122,12 @@ def test_calendar_wall_time_and_t2_default(zone):
             return {before,after,disabled,invalid,defaultUnchanged};
         }''')
         assert result=={'before':'2026-03-08 02:30','after':'2026-03-08 02:40','disabled':True,'invalid':True,'defaultUnchanged':True}
-        browser.close()
 
 
 @pytest.mark.parametrize('zone', ['Asia/Seoul', 'America/New_York'])
-def test_shared_time_picker_uses_wall_time_and_minute_step(zone):
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(timezone_id=zone)
+def test_shared_time_picker_uses_wall_time_and_minute_step(zone, ui_context):
+    with ui_context(timezone_id=zone) as context:
+        page = context.new_page()
         page.set_content('<div id="g"><input></div>')
         for name in ['tokens', 'form']:
             page.add_style_tag(content=Path(f'static/css/{name}.css').read_text())
@@ -156,14 +152,12 @@ def test_shared_time_picker_uses_wall_time_and_minute_step(zone):
         page.evaluate('picker.hide(); picker.show()')
         page.wait_for_function("getComputedStyle(picker._widget).flexDirection === 'column'")
         assert page.locator('.td-scroll-time').is_visible()
-        browser.close()
 
 
-def test_defaults_restore_and_shared_calendar_controls(ui_server):
+def test_defaults_restore_and_shared_calendar_controls(ui_server, ui_context):
     base, runtime = ui_server
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -185,14 +179,12 @@ def test_defaults_restore_and_shared_calendar_controls(ui_server):
         assert page.locator('.tempus-dominus-widget.show .td-scroll-time').is_visible()
         page.goto(base + '/t2-valet/')
         assert page.locator('#departingAtPicker .td-toggle .material-symbols-outlined').inner_text() == 'calendar_today'
-        browser.close()
 
 
-def test_environment_password_mask_and_reveal(ui_server):
+def test_environment_password_mask_and_reveal(ui_server, ui_context):
     base, runtime = ui_server
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('toggle-password').disabled")
@@ -220,17 +212,15 @@ def test_environment_password_mask_and_reveal(ui_server):
         page.reload()
         page.wait_for_function("!document.getElementById('toggle-password').disabled")
         assert field.get_attribute('type') == 'password'
-        browser.close()
 
 
-def test_once_full_displays_one_result_row(ui_server):
+def test_once_full_displays_one_result_row(ui_server, ui_context):
     base, runtime = ui_server
     class Full(FakeBrowser):
         available = False
     runtime.client_factory = Full
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -247,10 +237,9 @@ def test_once_full_displays_one_result_row(ui_server):
         page.reload()
         page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
         assert page.locator('#logs li').count() == 1
-        browser.close()
 
 
-def test_summary_displays_discounted_price(ui_server):
+def test_summary_displays_discounted_price(ui_server, ui_context):
     base, runtime = ui_server
     class Discounted(FakeBrowser):
         async def prepare(self, **kwargs):
@@ -259,25 +248,22 @@ def test_summary_displays_discounted_price(ui_server):
     runtime.client_factory = Discounted
     job = runtime.create(inputs())
     wait_state(runtime, job['id'], READY)
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("document.querySelector('#summary').textContent.includes('52,000원')")
         assert '104,000원' not in page.locator('#summary').inner_text()
-        browser.close()
 
 
-def test_saved_interval_survives_reload_with_previous_job(ui_server):
+def test_saved_interval_survives_reload_with_previous_job(ui_server, ui_context):
     base, runtime = ui_server
     job = runtime.create(inputs())
     job = wait_state(runtime, job['id'], READY)
     runtime.stop(job['id'], job)
     eventually(lambda: not runtime.store.get(job['id'])['active'])
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -288,11 +274,10 @@ def test_saved_interval_survives_reload_with_previous_job(ui_server):
         page.wait_for_function("!document.getElementById('check').disabled")
         assert page.input_value('#intervalSeconds') == '60'
         assert runtime.store.get_defaults()['intervalSeconds'] == 60
-        browser.close()
 
 
 @pytest.mark.parametrize('saved_dates', [True, False])
-def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates):
+def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates, ui_context):
     base, runtime = ui_server
     raw = inputs()
     job = runtime.create(raw)
@@ -303,9 +288,8 @@ def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates):
     if saved_dates:
         defaults.update(entryAt=raw['entryAt'], exitAt=raw['exitAt'])
     runtime.store.save_defaults(defaults)
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
@@ -319,19 +303,16 @@ def test_dates_restore_from_defaults_or_legacy_job(ui_server, saved_dates):
         page.reload()
         page.wait_for_function("!document.getElementById('check').disabled")
         assert page.input_value('#exitAt') == raw['exitAt']
-        browser.close()
 
 
-def test_expired_saved_dates_use_current_booking_range(ui_server):
+def test_expired_saved_dates_use_current_booking_range(ui_server, ui_context):
     base, runtime = ui_server
     runtime.store.save_defaults({'entryAt': '2000-01-01 10:00', 'exitAt': '2000-01-01 14:00', 'intervalSeconds': 60})
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
+    with ui_context() as context:
+        page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("!document.getElementById('check').disabled")
         assert not page.input_value('#entryAt').startswith('2000-')
         assert not page.input_value('#exitAt').startswith('2000-')
         assert page.input_value('#intervalSeconds') == '60'
-        browser.close()

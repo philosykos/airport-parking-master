@@ -5,3 +5,6 @@ __pycache__/
 .superpowers/
 .claude/worktrees/
 data/gimpo/
+
+.test-runs/
+.pytest_cache/
