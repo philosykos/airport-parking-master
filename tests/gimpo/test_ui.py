@@ -525,10 +525,10 @@ def test_completion_overlay_stays_closed_after_reload(ui_server, ui_context):
         page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
         wait_polls(page)
         assert overlay_variant(page) is None
-        stored = page.evaluate('() => Object.keys(localStorage)')
+        stored = page.evaluate('() => Object.entries(localStorage)')
         assert stored
-        assert all(key.startswith(f"gimpo.completion.{job['id']}.") for key in stored)
-        assert 'PrivatePass44' not in json.dumps(stored, ensure_ascii=False)
+        assert all(key.startswith(f"gimpo.completion.{job['id']}.") for key, _ in stored)
+        assert 'PrivatePass44' not in json.dumps(stored, ensure_ascii=False)  # 키와 값 모두
         assert not errors
 
 
@@ -665,8 +665,30 @@ def test_legacy_reserved_outcome_shows_closed(ui_server, ui_context):
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("() => document.getElementById('header-status-text').textContent === '종료됨'")
+        wait_polls(page)  # 첫 렌더만이 아니라 폴링을 거친 뒤에도 옛 결과 기록으로 완료 안내를 띄우지 않는다
         assert page.locator('#header-status').get_attribute('data-tone') == 'idle'
-        assert page.evaluate("document.getElementById('completion-overlay').classList.contains('open')") is False
+        assert notice(page) == '예약 완료를 확인하지 못하고 작업을 끝냈습니다. 결제했다면 공항 사이트 예약조회에서 예약 내역을 확인해주세요.'
+        assert overlay_variant(page) is None
+        assert not errors
+
+
+def test_notice_strip_for_unknown_result_and_closing_window(ui_server, ui_context):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    runtime.store.dispatch_payment(job['id'], job)
+    runtime.store.transition(job['id'], 'PAYMENT_RESULT_UNKNOWN', 'test')
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('job-notice').dataset.tone === 'warn'")
+        assert notice(page) == '결제 결과를 확인하지 못했습니다. 결제했다면 공항 사이트 예약조회에서 확인해주세요.'
+        expect(page.locator('#job-notice #show-browser')).to_be_visible()
+        assert page.locator('#stop').is_enabled()
+        # 예약창을 닫지 못해 닫는 중으로 남으면 회색 띠로 다시 누르라고 안내하고, 중지를 누를 수 있다.
+        runtime.store.transition(job['id'], 'CLOSED_BY_USER', '예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.')
+        page.wait_for_function("() => document.getElementById('job-notice').dataset.tone === 'idle'")
+        assert notice(page) == '공항 예약창을 닫고 있습니다. 닫히지 않으면 중지를 다시 눌러주세요.'
+        assert page.locator('#show-browser').is_hidden()
+        assert page.locator('#stop').is_visible() and page.locator('#stop').is_enabled()
         assert not errors
 
 
@@ -683,4 +705,24 @@ def test_log_clear_empties_table_and_disables(ui_server, ui_context):
         page.wait_for_function("() => document.querySelectorAll('#log-body tr.log-row').length === 0")
         page.wait_for_timeout(2 * 200)  # 폴링이 옛 로그를 다시 그리지 않는다
         assert page.locator('#log-body tr.log-row').count() == 0 and page.locator('#log-clear').is_disabled()
+        assert not errors
+
+
+BUTTONS = """() => { const grid = document.querySelector('.action-grid').getBoundingClientRect();
+    return [...document.querySelectorAll('.action-grid > button:not([hidden])')].map(b => { const r = b.getBoundingClientRect();
+        return {id: b.id, top: Math.round(r.top), share: r.width / grid.width}; }); }"""
+
+
+def test_mobile_action_buttons_fill_rows(ui_server, ui_context):
+    # 모바일 2열에서 셋째 버튼이 반 폭으로 홀로 서지 않고 한 줄을 다 쓴다. PC는 한 줄에 같은 폭이다.
+    base, _ = ui_server
+    with open_page(ui_context, base, width=390, height=844) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        first, second, third = page.evaluate(BUTTONS)
+        assert first['top'] == second['top'] < third['top']
+        assert abs(first['share'] - second['share']) < 0.01 and third['share'] > 0.99
+        page.set_viewport_size({'width': 1440, 'height': 900})
+        buttons = page.evaluate(BUTTONS)
+        assert len({b['top'] for b in buttons}) == 1 and max(b['share'] for b in buttons) - min(b['share'] for b in buttons) < 0.01
         assert not errors

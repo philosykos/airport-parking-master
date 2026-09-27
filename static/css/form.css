@@ -517,6 +517,13 @@ select {
 .action-grid > [hidden] {
     display: none;
 }
+/* 모바일 2열에서 보이는 버튼이 홀수면 마지막 버튼이 반 폭으로 홀로 서므로 한 줄을 다 쓴다.
+   첫 칸은 시작·중지 중 하나만 보이므로, 자식 수가 짝수일 때 보이는 버튼이 홀수다. */
+@media (max-width: 960px) {
+    .action-grid > :last-child:nth-child(even) {
+        grid-column: 1 / -1;
+    }
+}
 
 /* ── Buttons Base ── */
 button {

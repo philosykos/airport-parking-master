@@ -208,3 +208,18 @@ def test_start_stop_share_one_slot_and_clear_disables_without_logs(t2_server, ui
         page.evaluate("t2Screen.updateUI(true)")
         assert page.locator('#btn-start').is_hidden() and page.locator('#btn-stop').is_visible()
         assert not errors
+
+
+BUTTONS = """() => { const grid = document.querySelector('.action-grid').getBoundingClientRect();
+    return [...document.querySelectorAll('.action-grid > button:not([hidden])')].map(b => { const r = b.getBoundingClientRect();
+        return {id: b.id, top: Math.round(r.top), share: r.width / grid.width}; }); }"""
+
+
+def test_mobile_action_buttons_keep_two_columns(t2_server, ui_context):
+    # 보이는 버튼이 둘이면 모바일에서도 한 줄 두 칸 그대로다(김포의 셋째 버튼 규칙이 번지지 않는다).
+    with open_page(ui_context, t2_server, width=390, height=844) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_load_state('networkidle')
+        first, second = page.evaluate(BUTTONS)
+        assert first['top'] == second['top'] and abs(first['share'] - second['share']) < 0.01 and first['share'] < 0.6
+        assert not errors
