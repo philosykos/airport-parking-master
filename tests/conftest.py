@@ -5,6 +5,7 @@ import pytest
 from app import app as flask_app
 from services import t2_valet
 from services.t2_scheduler import Scheduler
+from services.t2_storage import LogStore, UserDataStore
 
 TEST_URL = "https://example.invalid/reserve"
 
@@ -18,8 +19,8 @@ def client(tmp_path, monkeypatch):
     # 설정 파일의 실제 URL 대신 테스트용 URL을 쓰고, 외부 호출 자체도 막는다
     monkeypatch.setattr(t2_valet, "CONFIG", dataclasses.replace(t2_valet.CONFIG, url=TEST_URL))
     monkeypatch.setattr(t2_valet.http_requests, "post", _block_network)
-    monkeypatch.setattr(t2_valet, "LOG_FILE", str(tmp_path / "api_call.log"))
-    monkeypatch.setattr(t2_valet, "USER_DATA_FILE", str(tmp_path / "user_data.json"))
+    monkeypatch.setattr(t2_valet, "log_store", LogStore(str(tmp_path / "api_call.log")))
+    monkeypatch.setattr(t2_valet, "user_store", UserDataStore(str(tmp_path / "user_data.json")))
     monkeypatch.setattr(t2_valet, "scheduler", Scheduler())
     flask_app.config["TESTING"] = True
     with flask_app.test_client() as c:

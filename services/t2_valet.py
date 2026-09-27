@@ -1,6 +1,6 @@
 import functools
-import json
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -11,12 +11,12 @@ from flask import Blueprint, jsonify, render_template, request
 from services.config import config_label, fail, load_toml, reject_unknown, require_table
 from services.t2_input import FIELDS, MIN_INTERVAL_SEC, InputError, parse_interval, validate_fields
 from services.t2_scheduler import Scheduler
+from services.t2_storage import LogStore, UserDataStore
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # 파일 경로는 services/ 가 아니라 프로젝트 루트 기준
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-USER_DATA_FILE = os.path.join(BASE_DIR, "user_data.json")
 
 bp = Blueprint("t2_valet", __name__, url_prefix="/t2-valet")
 
@@ -85,10 +85,11 @@ def parse_config(raw):
 
 CONFIG = parse_config(load_toml("t2_valet"))
 
-# 로그 파일
+# 개인정보 파일(소유자 전용). 경로는 services/ 가 아니라 프로젝트 루트 기준
 LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILE = os.path.join(LOG_DIR, "api_call.log")
+os.makedirs(LOG_DIR, mode=0o700, exist_ok=True)
+log_store = LogStore(os.path.join(LOG_DIR, "api_call.log"))
+user_store = UserDataStore(os.path.join(BASE_DIR, "user_data.json"))
 
 # 워커 수명 관리
 scheduler = Scheduler()
@@ -99,33 +100,35 @@ DEFAULT_HEADERS = {
     "Accept": "application/json, text/plain, */*",
 }
 
-def _load_user_data():
-    """저장된 기본값 사전. 없거나 깨졌거나 사전이 아니면 None."""
-    try:
-        with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    return data if isinstance(data, dict) else None
+PHONE_IN_TEXT = re.compile(r"01[016789][-\s]?[0-9]{3,4}[-\s]?[0-9]{4}")
 
 
-def add_log(entry):
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+def now_text():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def load_logs_from_file():
-    """로그 파일에서 전체 로그를 읽어 반환"""
-    logs = []
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    logs.append(json.loads(line))
-    except FileNotFoundError:
-        pass
-    return logs
+def event(status, body):
+    return {"time": now_text(), "type": "event", "status": status, "body": body}
+
+
+def mask(value, keep_head, keep_tail=0):
+    """앞 keep_head자와 뒤 keep_tail자만 남기고 가운데를 *로 가린다. 남길 것보다 짧으면 전부 가린다."""
+    if len(value) <= keep_head + keep_tail:
+        return "*" * len(value)
+    return value[:keep_head] + "*" * (len(value) - keep_head - keep_tail) + value[len(value) - keep_tail:]
+
+
+def redact_payload(payload):
+    """로그·화면용 페이로드 사본. 예약자명·휴대폰·차량번호를 가린다. 예약 API에는 원본을 보낸다."""
+    return {**payload,
+            "name": mask(payload.get("name", ""), 1),
+            "phone": mask(payload.get("phone", ""), 3, 4),
+            "carNumber": mask(payload.get("carNumber", ""), 3)}
+
+
+def redact_text(text):
+    """응답 본문·오류 문구에 섞인 휴대폰 번호를 가린다."""
+    return PHONE_IN_TEXT.sub(lambda m: mask(m.group(0), 3, 4), text)
 
 
 def build_payload(fields):
@@ -134,42 +137,24 @@ def build_payload(fields):
 
 
 def do_single_call(url, payload):
-    """1회 HTTP POST 호출 후 로그 엔트리 반환"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    """1회 HTTP POST 호출 후 로그 엔트리 반환. 엔트리에는 개인정보를 가린 사본만 담는다."""
+    entry = {"time": now_text(), "type": "call", "url": url, "payload": redact_payload(payload)}
     try:
         resp = http_requests.post(url, json=payload, headers=DEFAULT_HEADERS, timeout=10, verify=False)
-        return {
-            "time": timestamp,
-            "type": "call",
-            "status": resp.status_code,
-            "body": resp.text[:2000],
-            "url": url,
-            "payload": payload,
-        }
+        entry.update(status=resp.status_code, body=redact_text(resp.text[:2000]))
     except Exception as e:
-        return {
-            "time": timestamp,
-            "type": "call",
-            "status": "ERROR",
-            "body": str(e)[:2000],
-            "url": url,
-            "payload": payload,
-        }
+        entry.update(status="ERROR", body=redact_text(str(e)[:2000]))
+    return entry
 
 
 def poll_once(url, payload):
     """예약 API를 한 번 호출해 기록한다. 예약에 성공(HTTP 200)하면 True를 돌려 스케줄을 끝낸다."""
     entry = do_single_call(url, payload)
     entry["type"] = "schedule"
-    add_log(entry)
+    log_store.append(entry)
     if entry["status"] != 200:
         return False
-    add_log({
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "type": "event",
-        "status": "SUCCESS",
-        "body": "예약 성공! 스케줄러를 자동 종료합니다.",
-    })
+    log_store.append(event("SUCCESS", "예약 성공! 스케줄러를 자동 종료합니다."))
     return True
 
 
@@ -186,7 +171,7 @@ def input_error(e):
 @bp.route("/api/defaults")
 def defaults():
     result = {"interval": str(CONFIG.interval_sec), "hasSavedData": False}
-    saved = _load_user_data()
+    saved = user_store.load()
     if saved:
         result.update({key: saved.get(key, "") for key in FIELDS})
         if "interval" in saved:
@@ -204,8 +189,7 @@ def save_defaults():
     saved = {key: value for key, value in fields.items() if key in data}
     if "interval" in data:
         saved["interval"] = str(parse_interval(data["interval"]))
-    with open(USER_DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(saved, f, ensure_ascii=False, indent=2)
+    user_store.save(saved)
     return jsonify({"message": "저장되었습니다."})
 
 
@@ -215,7 +199,7 @@ def test_call():
     fields = validate_fields(request.get_json(silent=True), require_contact=True)
     entry = do_single_call(CONFIG.url, build_payload(fields))
     entry["type"] = "test"
-    add_log(entry)
+    log_store.append(entry)
     return jsonify({"result": entry})
 
 
@@ -230,12 +214,7 @@ def start():
     payload = build_payload(fields)
 
     def log_start():
-        add_log({
-            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "type": "event",
-            "status": "START",
-            "body": f"스케줄 시작 (주기: {interval_sec}초)",
-        })
+        log_store.append(event("START", f"스케줄 시작 (주기: {interval_sec}초)"))
 
     if not scheduler.start(functools.partial(poll_once, CONFIG.url, payload), interval_sec, on_start=log_start):
         return jsonify({"error": "이미 실행 중입니다."}), 400
@@ -247,21 +226,16 @@ def stop():
     if not scheduler.stop():
         return jsonify({"error": "실행 중이 아닙니다."}), 400
 
-    add_log({
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "type": "event",
-        "status": "STOP",
-        "body": "스케줄 중지",
-    })
+    log_store.append(event("STOP", "스케줄 중지"))
     return jsonify({"message": "호출을 중지합니다."})
 
 
 @bp.route("/api/logs")
 def logs():
-    return jsonify({"logs": load_logs_from_file(), "running": scheduler.running})
+    return jsonify({"logs": log_store.recent(), "running": scheduler.running})
 
 
 @bp.route("/api/logs/clear", methods=["POST"])
 def clear_logs():
-    open(LOG_FILE, "w").close()
+    log_store.clear()
     return jsonify({"message": "로그를 초기화했습니다."})

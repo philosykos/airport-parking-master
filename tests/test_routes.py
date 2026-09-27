@@ -111,11 +111,11 @@ def test_save_defaults_roundtrip(client):
     data = client.get("/t2-valet/api/defaults").get_json()
     assert data["name"] == "홍길동"
     assert data["hasSavedData"] is True
-    assert Path(t2_valet.USER_DATA_FILE).exists()
+    assert Path(t2_valet.user_store.path).exists()
 
 
 def test_clear_logs_empties_log(client):
-    t2_valet.add_log({"time": "t", "type": "event", "status": "START", "body": "x"})
+    t2_valet.log_store.append({"time": "t", "type": "event", "status": "START", "body": "x"})
     assert client.get("/t2-valet/api/logs").get_json()["logs"] != []
     resp = client.post("/t2-valet/api/logs/clear")
     assert resp.status_code == 200
@@ -124,8 +124,8 @@ def test_clear_logs_empties_log(client):
 
 def test_data_paths_are_project_root():
     # client fixture를 쓰지 않으므로 monkeypatch 전 원래 값이다.
-    assert Path(t2_valet.USER_DATA_FILE).parent == PROJECT_ROOT
-    assert Path(t2_valet.LOG_DIR).parent == PROJECT_ROOT
+    assert Path(t2_valet.user_store.path).parent == PROJECT_ROOT
+    assert Path(t2_valet.log_store.path).parent == PROJECT_ROOT / "logs"
 
 
 # ── 옛 경로 ──
@@ -307,7 +307,7 @@ def test_save_defaults_normalizes_interval(client):
 
 @pytest.mark.parametrize("content", ["[1, 2]", '"text"', "{broken", ""])
 def test_defaults_ignores_unusable_saved_file(client, content):
-    Path(t2_valet.USER_DATA_FILE).write_text(content, encoding="utf-8")
+    Path(t2_valet.user_store.path).write_text(content, encoding="utf-8")
     resp = client.get("/t2-valet/api/defaults")
     assert resp.status_code == 200
     assert resp.get_json()["hasSavedData"] is False
