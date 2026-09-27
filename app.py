@@ -1,7 +1,7 @@
 import os
 import sys
 
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, url_for
 
 from services.config import ConfigError, find_legacy_env_keys
 from services import web_security
@@ -29,10 +29,8 @@ def landing():
 
 @app.get("/settings/")
 def settings():
-    response = app.make_response(render_template("settings.html",
-        telegram_enabled=t2_valet.NOTIFICATIONS.notifier.enabled))
-    response.headers["Cache-Control"] = "no-store"
-    return response
+    # 설정은 모든 화면의 레이어 팝업이다. 옛 주소는 랜딩에서 팝업을 연다.
+    return redirect(url_for("landing", settings=1))
 
 
 def warn_legacy_env(env_path):

@@ -1,28 +1,13 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>설정 · 공항 주차 예약</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" crossorigin>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-    <script src="{{ url_for('static', filename='js/notification_status.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
-</head>
-<body class="settings">
-    <nav class="app-header" aria-label="주 메뉴">
-        <div class="app-header-left"><a class="title-main settings-brand" href="{{ url_for('landing') }}">공항 주차 예약 서비스</a></div>
-        {% include 'partials/settings_link.html' %}
-    </nav>
-    <main class="settings-main">
-        <a class="settings-back" href="{{ url_for('landing') }}">← 서비스 선택</a>
-        <h1>설정</h1>
+<dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <div class="settings-dialog-header">
+        <h2 id="settings-title">설정</h2>
+        <button type="button" class="settings-close" data-settings-close aria-label="설정 닫기"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+    </div>
+    <div class="settings-dialog-body">
         <section class="settings-card" aria-labelledby="telegram-title">
             <div class="settings-heading">
-                <h2 id="telegram-title">텔레그램 알림</h2>
-                <span class="settings-badge{% if telegram_enabled %} is-on{% endif %}" id="telegram-state">{{ '켜짐' if telegram_enabled else '꺼짐' }}</span>
+                <h3 id="telegram-title">텔레그램 알림</h3>
+                <span class="settings-badge" id="telegram-state">확인 중</span>
             </div>
             <p class="settings-help">모든 서비스에 적용 · 기본값 꺼짐</p>
             <details>
@@ -39,13 +24,13 @@
             </details>
         </section>
         <section class="settings-card" aria-labelledby="services-title">
-            <h2 id="services-title">서비스별 전송 상태</h2>
+            <h3 id="services-title">서비스별 전송 상태</h3>
             {% for key, name, description, endpoint in [
                 ('t2', '인천공항 T2 발렛', '예약 완료', 't2_valet'),
                 ('gimpo', '김포공항 국내선 주차', '결제 대기 · 결제 안내 변경', 'gimpo_parking')
             ] %}
             <article class="notification-service" data-service="{{ key }}" data-status-url="{{ url_for(endpoint + '.notification_status') }}" data-test-url="{{ url_for(endpoint + '.notification_test') }}" aria-labelledby="{{ key }}-title">
-                <div class="settings-heading"><h3 id="{{ key }}-title">{{ name }}</h3><span class="settings-badge" data-connection>확인 중</span></div>
+                <div class="settings-heading"><h4 id="{{ key }}-title">{{ name }}</h4><span class="settings-badge" data-connection>확인 중</span></div>
                 <p class="settings-help">{{ description }}</p>
                 <div class="notification-actions">
                     <div role="status" aria-live="polite"><p data-delivery>전송 내역 확인 중</p><p data-test-result hidden></p><p data-error hidden></p></div>
@@ -55,7 +40,5 @@
             </article>
             {% endfor %}
         </section>
-        <noscript><p>설정 상태를 확인하려면 JavaScript를 켜주세요.</p></noscript>
-    </main>
-</body>
-</html>
+    </div>
+</dialog>
