@@ -100,6 +100,7 @@
     opacity: 0.75;
     animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
+.status-badge[data-tone="idle"] { background: var(--surface-container-low); color: var(--text-muted); }
 .status-badge[data-tone="idle"] .ping-dot { background: var(--text-muted); }
 .status-badge[data-tone="success"] { background: var(--success-bg); color: #047857; }
 .status-badge[data-tone="success"] .ping-dot { background: var(--success); }

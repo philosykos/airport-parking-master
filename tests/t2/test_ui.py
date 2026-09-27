@@ -35,7 +35,7 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server, ui_context):
         page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         assert page.locator('#completion-overlay').get_attribute('data-variant') == 'success'
         tones = page.locator('#log-body .cell-status').evaluate_all('nodes => nodes.map(node => node.dataset.tone)')
-        assert tones == ['error', 'error', 'success', 'error']
+        assert tones == ['error', 'error', 'success', 'warning']
         page.locator('#completion-overlay button').click()
         # evaluate가 fetchLogs의 promise를 기다리고 완료 안내는 그 안에서 동기로 열리므로, 한 프레임만 넘기고 본다.
         page.evaluate('t2Screen.fetchLogs()')
@@ -108,11 +108,11 @@ def test_polling_survives_failed_log_request_after_start(t2_server, ui_context):
 
         page.route('**/t2-valet/api/logs', fail_once)
         page.click('#btn-start')
-        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '스케줄 실행 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '자동 예약 중'")
         page.wait_for_function("() => Number(document.getElementById('log-count').textContent) >= 1", timeout=10000)
         assert failed
         page.click('#btn-stop')
-        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert not errors
 
 
@@ -127,10 +127,10 @@ def test_stop_shows_idle_immediately_even_if_logs_request_fails(t2_server, ui_co
         page.select_option('#carBrand', 'HY')
         page.select_option('#carColor', 'WHITE')
         page.click('#btn-start')
-        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '스케줄 실행 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '자동 예약 중'")
         page.route('**/t2-valet/api/logs', lambda route: route.fulfill(status=503, json={'error': 'busy'}))
         page.click('#btn-stop')
-        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert not errors
 
 
@@ -222,4 +222,89 @@ def test_mobile_action_buttons_keep_two_columns(t2_server, ui_context):
         page.wait_for_load_state('networkidle')
         first, second = page.evaluate(BUTTONS)
         assert first['top'] == second['top'] and abs(first['share'] - second['share']) < 0.01 and first['share'] < 0.6
+        assert not errors
+
+
+def test_header_badge_tracks_run_state_across_stop_refresh_and_clear(t2_server, ui_context):
+    with open_page(ui_context, t2_server, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_load_state('networkidle')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'idle'
+        page.fill('#name', '홍길동')
+        page.fill('#phone', '01012345678')
+        page.fill('#carNumber', '12가3456')
+        page.fill('#carModel', '그랜저')
+        page.select_option('#carBrand', 'HY')
+        page.select_option('#carColor', 'WHITE')
+        page.click('#btn-start')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '자동 예약 중'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'running'
+        page.click('#btn-stop')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'idle'
+        page.reload()
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'idle'
+        page.click('#log-clear')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'idle'
+        assert not errors
+
+
+def test_success_event_sets_badge_to_success_tone(t2_server, ui_context):
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'event', 'status': 'START', 'body': '자동 예약 시작 (30초 간격)'})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:05', 'type': 'event', 'status': 'SUCCESS', 'body': '예약이 완료되어 자동 예약을 종료합니다.'})
+    with open_page(ui_context, t2_server, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '예약 완료'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'success'
+        assert not errors
+
+
+def test_badge_idle_tone_matches_log_chip_idle_colors(t2_server, ui_context):
+    with open_page(ui_context, t2_server, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        colors = page.evaluate("""() => {
+            const badge = getComputedStyle(document.getElementById('header-status'));
+            const chip = document.createElement('span');
+            chip.className = 'cell-status';
+            chip.dataset.tone = 'idle';
+            document.body.appendChild(chip);
+            const chipStyle = getComputedStyle(chip);
+            const result = {badgeBg: badge.backgroundColor, badgeColor: badge.color,
+                            chipBg: chipStyle.backgroundColor, chipColor: chipStyle.color};
+            chip.remove();
+            return result;
+        }""")
+        assert colors['badgeBg'] == colors['chipBg']
+        assert colors['badgeColor'] == colors['chipColor']
+        assert not errors
+
+
+def test_log_status_chips_use_korean_labels_and_keep_raw_code_in_detail(t2_server, ui_context):
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'event', 'status': 'START', 'body': '자동 예약 시작 (30초 간격)'})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:01', 'type': 'schedule', 'status': 601,
+                               'body': '{"result":{"message":"입력하신 기간에 이미 중복된 예약이 존재합니다.","code":601}}',
+                               'url': 'https://example.invalid/reserve', 'payload': {}})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:02', 'type': 'test', 'status': 200,
+                               'body': '{"result":{"code":200}}', 'url': 'https://example.invalid/reserve', 'payload': {}})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:03', 'type': 'test', 'status': 'ERROR', 'body': 'timeout'})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:04', 'type': 'notification', 'status': 'FAILED', 'body': '봇 토큰과 수신자 ID를 설정해주세요.'})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:05', 'type': 'event', 'status': 'STOP', 'body': '자동 예약 중지'})
+    with open_page(ui_context, t2_server, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '6'")
+        labels = page.locator('#log-body .cell-status').all_inner_texts()
+        # 표는 최신 순이다: STOP, notification, ERROR, 200, 601, START
+        assert labels == ['중지', '전송 실패', '연결 오류', '예약 성공', '중복 예약', '시작']
+        rows = page.locator('#log-body tr.log-row')
+        assert rows.nth(4).locator('.body-cell').inner_text() == '입력하신 기간에 이미 중복된 예약이 존재합니다.'
+        rows.nth(4).click()
+        page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
+        detail_text = page.locator('#detail-json').inner_text()
+        assert '입력하신 기간에 이미 중복된 예약이 존재합니다.' in detail_text
+        assert '601' in detail_text
+        assert '상태 코드' in page.locator('.detail-section-title').all_inner_texts()
         assert not errors

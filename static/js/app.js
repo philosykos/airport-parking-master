@@ -14,19 +14,40 @@
         event: ['상태', 'event'], notification: ['알림', 'event']};
     const NOTIFICATION_TONES = {SENT: 'success', FAILED: 'error', UNKNOWN: 'error', DISABLED: 'idle', CANCELLED: 'idle',
         PENDING: 'running', SENDING: 'running', RETRYING: 'running'};
+    const EVENT_STATUS = {START: {label: '시작', tone: 'running'}, STOP: {label: '중지', tone: 'idle'},
+        SUCCESS: {label: '예약 완료', tone: 'success'}};
+    const CALL_STATUS = {200: {label: '예약 성공', tone: 'success'}, 601: {label: '중복 예약', tone: 'warning'}};
+
+    // 예약 API 호출(test/schedule/call) 행의 상태 칩. 원래 코드는 상세의 "상태 코드"에만 남긴다.
+    function callStatus(status) {
+        if (status === 'ERROR') return {label: '연결 오류', tone: 'error'};
+        return CALL_STATUS[status] || {label: '요청 실패', tone: 'error'};
+    }
+
+    // body가 JSON이고 result.message가 문자열이면 그 값을, 아니면 body를 그대로 로그 내용 칸에 보인다.
+    function summaryText(body) {
+        if (body == null) return '';
+        const text = String(body);
+        try {
+            const parsed = JSON.parse(text);
+            if (parsed && typeof parsed === 'object' && typeof parsed.result?.message === 'string') return parsed.result.message;
+        } catch (_) { /* JSON이 아니면 원문 그대로 */ }
+        return text;
+    }
 
     function toEntry(log) {
         const [label, variant] = TYPES[log.type] || ['기록', 'event'];
-        let tone;
-        if (log.type === 'event') tone = 'info';
-        else if (log.type === 'notification') tone = NOTIFICATION_TONES[log.status] || 'idle';
-        else tone = typeof log.status === 'number' && log.status >= 200 && log.status < 300 ? 'success' : 'error';
         const body = log.body == null ? '' : String(log.body);
+        let status;
+        if (log.type === 'event') status = EVENT_STATUS[log.status] || {label: String(log.status ?? '—'), tone: 'idle'};
+        else if (log.type === 'notification') status = {label: window.NotificationStatus.label(log.status), tone: NOTIFICATION_TONES[log.status] || 'idle'};
+        else status = callStatus(log.status);
         const detail = [];
         if (log.url) detail.push({title: 'REQUEST URL', kind: 'url', method: log.method || 'POST', body: log.url});
         if (log.payload && Object.keys(log.payload).length) detail.push({title: 'REQUEST PAYLOAD', kind: 'json', body: JSON.stringify(log.payload)});
         detail.push({title: log.url ? 'RESPONSE BODY' : '내용', kind: log.url ? 'json' : 'text', body});
-        return {time: log.time, type: {label, variant}, status: {label: String(log.status ?? '—'), tone}, summary: body, detail};
+        if (log.type !== 'event' && log.type !== 'notification') detail.push({title: '상태 코드', kind: 'text', body: String(log.status)});
+        return {time: log.time, type: {label, variant}, status, summary: summaryText(log.body), detail};
     }
 
     // 스케줄이 성공하면 200 로그 뒤에 SUCCESS 이벤트가 붙으므로 뒤에서부터 찾는다.
@@ -35,6 +56,18 @@
             if (logs[i].status === 200) return logs[i].time + '-' + logs[i].type;
         }
         return null;
+    }
+
+    // 실행 중이 아닐 때 헤더 배지: 가장 최근 event 행으로 정한다. 새로고침해도 같은 결과가 나오도록
+    // 서버에서 받은 로그 배열을 그대로 쓴다(사용자가 방금 누른 중지는 stop()이 곧바로 반영한다).
+    function idleBadge(logs) {
+        for (let i = (logs || []).length - 1; i >= 0; i--) {
+            if (logs[i].type !== 'event') continue;
+            if (logs[i].status === 'SUCCESS') return {label: '예약 완료', tone: 'success'};
+            if (logs[i].status === 'STOP') return {label: '중지됨', tone: 'idle'};
+            break;
+        }
+        return {label: '대기 중', tone: 'idle'};
     }
 
     const toPickerDate = value => new Date(value.substring(0, 16).replace(' ', 'T'));
@@ -47,6 +80,7 @@
             this.savedDefaults = null;
             this.lastSuccessId = null;
             this.initialLogsFetched = false;
+            this.logs = [];
             this.logPanel = new UI.LogPanel($('log-panel'));
             this.runToggle = new UI.RunToggle($('btn-start'), $('btn-stop'));
             new UI.SelectPicker($('select-picker-overlay')).attach(document.querySelector('.form-panel'));
@@ -145,12 +179,15 @@
             return false;
         }
 
-        updateUI(running) {
+        // logs를 주면(서버가 준 로그 배열) 그 값으로 배지를 다시 정하고 캐시에 남긴다. 생략하면 마지막으로
+        // 받은 로그로 다시 정한다(예: start()/stop()에서 직접 넘긴 즉시 상태).
+        updateUI(running, logs = this.logs) {
+            this.logs = logs || [];
             this.running = running;
             $('btn-start').disabled = running;
             $('btn-stop').disabled = !running;
             this.runToggle.set(running);
-            UI.statusBadge.set(running ? {label: '스케줄 실행 중', tone: 'running'} : {label: '대기 중', tone: 'idle'});
+            UI.statusBadge.set(running ? {label: '자동 예약 중', tone: 'running'} : idleBadge(this.logs));
             document.querySelector('.form-panel').classList.toggle('form-panel--active', running);
         }
 
@@ -170,7 +207,7 @@
                 const logs = data.logs || [];
                 this.logPanel.render(logs.map(toEntry));
                 $('log-clear').disabled = logs.length === 0;
-                this.updateUI(data.running);
+                this.updateUI(data.running, logs);
                 this.notifyNewSuccess(logs);
             } catch (_) {
                 // 실패해도 실행 중이면 다음 주기에 다시 읽는다.
@@ -208,7 +245,8 @@
         async stop() {
             try {
                 await UI.api(API + '/stop', {method: 'POST'});
-                this.updateUI(false);
+                // 서버는 이미 STOP 이벤트를 남겼지만, 로그를 다시 받기 전에도 배지가 바로 "중지됨"이 되도록 넘긴다.
+                this.updateUI(false, [{type: 'event', status: 'STOP'}]);
                 await this.fetchLogs();
             } catch (error) { this.runToggle.release(); UI.toast(error.message, 'error'); }
         }
@@ -246,6 +284,7 @@
                 this.logPanel.render([]);
                 $('log-clear').disabled = true;
                 this.lastSuccessId = null;
+                this.updateUI(this.running, []);
                 this.schedulePoll();
             } catch (error) { UI.toast(error.message, 'error'); }
         }

@@ -726,3 +726,15 @@ def test_mobile_action_buttons_fill_rows(ui_server, ui_context):
         buttons = page.evaluate(BUTTONS)
         assert len({b['top'] for b in buttons}) == 1 and max(b['share'] for b in buttons) - min(b['share'] for b in buttons) < 0.01
         assert not errors
+
+
+def test_waiting_available_badge_uses_running_tone(ui_server, ui_context):
+    # 만차 · 조회 대기는 라벨은 그대로지만, 톤은 대기(idle)가 아니라 실행 중(running)이어야 한다.
+    base, runtime = ui_server
+    job = runtime.store.create(inputs(), 'run1')
+    runtime.store.transition(job['id'], 'WAITING_AVAILABLE', '만차입니다.')
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '만차 · 조회 대기'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'running'
+        assert not errors
