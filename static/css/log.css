@@ -18,9 +18,8 @@
 }
 .log-title {
     font-family: var(--font-headline);
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--on-surface);
 }
 .log-stats {
@@ -29,36 +28,6 @@
     gap: var(--space-1);
 }
 
-/* ── Log Stats (inline text) ── */
-.log-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--on-surface-variant);
-    transition: color var(--duration-slow) ease;
-}
-.status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    transition: background var(--duration-slow) ease, box-shadow var(--duration-slow) ease;
-}
-.log-status[data-tone="running"] { color: #059669; }
-.log-status[data-tone="running"] .status-dot { background: var(--success); box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
-.log-status[data-tone="success"] { color: #047857; }
-.log-status[data-tone="success"] .status-dot { background: var(--success); }
-.log-status[data-tone="warning"] { color: #B45309; }
-.log-status[data-tone="warning"] .status-dot { background: var(--warning); }
-.log-status[data-tone="error"] { color: var(--danger); }
-.log-status[data-tone="error"] .status-dot { background: var(--danger); }
-.log-stats-divider {
-    width: 1px;
-    height: 14px;
-    background: var(--outline-variant);
-}
 .log-count-text {
     display: inline-flex;
     align-items: center;
@@ -107,7 +76,7 @@ thead {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 th {
-    padding: var(--space-2) var(--space-3);
+    padding: 12px var(--space-2);
     font-size: 12px;
     font-weight: 700;
     color: var(--outline);
@@ -118,7 +87,7 @@ th {
     border: none;
 }
 td {
-    padding: var(--space-2) var(--space-3);
+    padding: 12px var(--space-2);
     font-size: 14px;
     vertical-align: middle;
     overflow: hidden;
@@ -182,6 +151,7 @@ tr.log-row:hover .tag {
 }
 
 .cell-status {
+    white-space: nowrap;
     font-size: 12px;
     font-weight: 600;
     display: inline-flex;
@@ -235,9 +205,9 @@ tr.log-row:hover .tag {
 }
 
 /* ── Column width classes (replace inline styles) ── */
-.col-time { width: 220px; }
+.col-time { width: 200px; }
 .col-type { width: 110px; }
-.col-status { width: 130px; }
+.col-status { width: 180px; }
 
 /* ── Mobile Log FAB ── */
 .log-fab {
@@ -376,6 +346,8 @@ tr.log-row:hover .tag {
     .log-panel .col-time { width: auto; min-width: 100px; }
     .log-panel .col-type { width: auto; min-width: 60px; }
     .log-panel .col-status { width: auto; min-width: 70px; }
-    .log-panel .cell-time { font-size: 12px; }
+    .log-panel .cell-time { font-size: 12px; white-space: normal; }
+    .log-panel .tag { white-space: nowrap; }
+    .log-panel .cell-status { white-space: normal; }
 }
 

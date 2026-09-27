@@ -11,8 +11,28 @@
     box-shadow: 0 24px 64px rgba(0, 11, 96, 0.24);
     overflow: hidden;
 }
-.settings-dialog[open] { display: flex; flex-direction: column; }
-.settings-dialog::backdrop { background: rgba(0, 11, 96, 0.35); backdrop-filter: blur(4px); }
+/* 닫히는 동안에도 레이아웃이 유지되도록 flex를 기본으로 두고, 닫힌 상태만 숨긴다. */
+.settings-dialog { display: flex; flex-direction: column; }
+.settings-dialog:not([open]) { display: none; }
+.settings-dialog::backdrop { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); }
+/* 열 때는 서서히 나타나며 살짝 커지고, 닫을 때는 짧게 사라진다. display·overlay를 함께 전환해야
+   닫힌 뒤에도 전환이 끝날 때까지 top layer에 남아 페이드아웃이 보인다. */
+.settings-dialog, .settings-dialog::backdrop {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-in), transform var(--duration-fast) var(--ease-in),
+        display var(--duration-fast) allow-discrete, overlay var(--duration-fast) allow-discrete;
+}
+.settings-dialog { transform: translateY(8px) scale(0.98); }
+.settings-dialog[open], .settings-dialog[open]::backdrop {
+    opacity: 1;
+    transform: none;
+    transition-duration: var(--duration-normal);
+    transition-timing-function: var(--ease-out);
+}
+@starting-style {
+    .settings-dialog[open], .settings-dialog[open]::backdrop { opacity: 0; }
+    .settings-dialog[open] { transform: translateY(8px) scale(0.98); }
+}
 .settings-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; background: var(--surface-container-lowest); border-bottom: 1px solid var(--border-subtle); }
 .settings-dialog-header h2 { font-size: 20px; letter-spacing: -0.03em; }
 .settings-dialog-body { overflow-y: auto; padding: 0 24px 24px; }

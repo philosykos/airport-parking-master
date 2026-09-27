@@ -21,6 +21,8 @@
     const toneOf = (state, outcome) => state === 'CLOSED_BY_USER' ? (outcome === 'reserved' ? 'success' : 'idle')
         : Object.keys(TONES).find(tone => TONES[tone].includes(state)) || 'idle';
     const formatTime = timestamp => new Date(timestamp * 1000).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'});
+    // 로그 시간은 T2와 같은 yyyy-MM-dd HH:mm:ss 형식이다(sv-SE 로캘이 이 형식을 낸다).
+    const formatLogTime = timestamp => new Date(timestamp * 1000).toLocaleString('sv-SE', {timeZone: 'Asia/Seoul'});
     // 완료 오버레이를 한 번만 띄우기 위한 기록. 같은 작업이라도 다시 조회(generation)하거나
     // 결제 대기에 다시 도달(handoffEpoch)하면 새 키가 된다. 저장소를 못 쓰면 메모리에만 둔다.
     class CompletionMemory {
@@ -280,8 +282,6 @@
             // 폴링이 실패한 뒤로는 다음 폴링이 성공할 때까지 어느 렌더든 연결 끊김을 보인다.
             const label = this.pollFailed ? '연결 끊김' : job ? labels[state] || '상태 확인 필요' : (this.connected ? '대기 중' : '연결 중');
             const tone = this.pollFailed ? 'error' : job ? toneOf(state, job.userReportedOutcome) : 'idle';
-            $('state').textContent = label;
-            $('state').dataset.tone = tone;
             UI.statusBadge.set({label, tone});
             document.querySelector('.form-panel').classList.toggle('form-panel--active', active);
             for (const [id, show] of Object.entries({prepare: state === 'AVAILABLE', proceed: state === 'PREPARED',
@@ -299,6 +299,7 @@
             }
             $('freshness').hidden = state !== 'PAYMENT_CONFIRM_READY';
             $('freshness').textContent = state === 'PAYMENT_CONFIRM_READY' ? `${formatTime(job.handoffDeadline)}까지 결제를 진행해주세요. 자리는 확보되지 않았습니다.` : '';
+            $('progress-card').hidden = $('summary').hidden && $('freshness').hidden && $('job-actions').hidden && $('job-notification').hidden;
             const logKey = job ? `${job.id}:${job.stateVersion}` : '';
             if (logKey !== this.logKey) {
                 this.logKey = logKey;
@@ -308,7 +309,7 @@
         }
         toEntry(log, job) {
             const name = labels[log.state] || log.state;
-            return {time: formatTime(log.time),
+            return {time: formatLogTime(log.time),
                 type: job.inputs?.mode === 'watch' ? {label: '자동 예약', variant: 'schedule'} : {label: '1회 조회', variant: 'test'},
                 status: {label: name, tone: toneOf(log.state, job.userReportedOutcome)},
                 summary: log.message,
@@ -416,10 +417,8 @@
                 this.render();
                 this.lastPollError = null;
             } catch (error) {
-                // 진행 카드와 헤더가 같이 연결 끊김을 보인다. 다음 폴링이 성공해야 풀린다(render()가 이 표시를 따른다).
+                // 헤더가 연결 끊김을 보인다. 다음 폴링이 성공해야 풀린다(render()가 이 표시를 따른다).
                 this.pollFailed = true;
-                $('state').textContent = '연결 끊김';
-                $('state').dataset.tone = 'error';
                 UI.statusBadge.set({label: '연결 끊김', tone: 'error'});
                 if (error.message !== this.lastPollError) {
                     this.lastPollError = error.message;

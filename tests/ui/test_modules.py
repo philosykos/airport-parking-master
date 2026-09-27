@@ -271,14 +271,13 @@ def test_focus_does_not_return_to_a_trigger_hidden_after_resize(ui_page):
     assert not errors
 
 
-def test_status_badge_updates_header_and_log_status(ui_page):
+def test_status_badge_updates_header_only(ui_page):
     load, errors = ui_page
     page = load(render_string(LOG_PANEL))
-    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', short: '실행 중', tone: 'running'})")
+    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', tone: 'running'})")
     assert page.locator('#header-status').get_attribute('data-tone') == 'running'
     assert page.locator('#header-status-text').inner_text() == '스케줄 실행 중'
-    assert page.locator('#status-badge').get_attribute('data-tone') == 'running'
-    assert page.locator('#status-badge .status-label').inner_text() == '실행 중'
+    assert page.locator('#log-panel .log-header [data-tone]').count() == 0
     page.set_viewport_size({'width': 390, 'height': 844})
     assert page.locator('#header-status').is_visible()
     assert not errors
@@ -288,10 +287,8 @@ def test_status_badge_tolerates_missing_child_nodes(ui_page):
     load, errors = ui_page
     page = load(render_string(LOG_PANEL))
     page.evaluate("document.getElementById('header-status-text').remove()")
-    page.evaluate("document.querySelector('#status-badge .status-label').remove()")
-    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', short: '실행 중', tone: 'warning'})")
+    page.evaluate("UI.statusBadge.set({label: '스케줄 실행 중', tone: 'warning'})")
     assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
-    assert page.locator('#status-badge').get_attribute('data-tone') == 'warning'
     assert not errors
 
 

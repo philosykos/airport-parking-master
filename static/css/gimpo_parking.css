@@ -1,5 +1,4 @@
-/* 김포 전용: 폼 안내 문구, 비밀번호 칸, 진행 상황 카드. 버튼·입력·레이아웃은 공통 CSS를 따른다. */
-.form-intro { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin-bottom: var(--space-3); }
+/* 김포 전용: 비밀번호 칸, 예약 요약 카드. 버튼·입력·레이아웃은 공통 CSS를 따른다. */
 .gimpo fieldset { border: 0; min-width: 0; }
 /* 비밀번호 줄은 fieldset 밖이라 form.css의 .field-row + .field-row 간격이 닿지 않는다 */
 #input-fields + .field-row { margin-top: var(--space-2); }
@@ -11,12 +10,6 @@
 .help { color: var(--text-muted); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
 .progress-card { flex-shrink: 0; margin: var(--space-2) var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); background: var(--surface-container-lowest); }
 .progress-card h2 { font-family: var(--font-headline); font-size: 18px; font-weight: 800; }
-.status-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
-.status-pill { padding: 6px 10px; border-radius: var(--radius-full); background: var(--secondary-fixed); color: var(--primary); font-size: 12px; font-weight: 700; white-space: nowrap; }
-.status-pill[data-tone="success"] { background: var(--success-bg); color: #047857; }
-.status-pill[data-tone="warning"] { background: var(--warning-bg); color: #B45309; }
-.status-pill[data-tone="error"] { background: var(--danger-bg); color: var(--danger); }
-.status-pill[data-tone="idle"] { background: var(--surface-container-low); color: var(--text-muted); }
 #summary { display: grid; grid-template-columns: 110px 1fr; gap: 8px; margin: var(--space-2) 0 0; font-size: 14px; }
 #summary dt { color: var(--text-muted); }
 #summary dd { overflow-wrap: anywhere; }

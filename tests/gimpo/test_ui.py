@@ -1,6 +1,7 @@
 import asyncio
 import json
 import threading
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -40,10 +41,10 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path, ui_context):
         page.click('#watch')
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         job_id=runtime.store.active()['id']
         page.reload()
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         assert page.locator('#header-status-text').inner_text() == '결제 대기'
         assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert runtime.store.active()['id']==job_id
@@ -57,7 +58,7 @@ def test_form_to_handoff_refresh_and_stop(ui_server,tmp_path, ui_context):
         page.evaluate('window.scrollTo(0,0)')
         page.screenshot(path=str(tmp_path/'gimpo-desktop.png'),full_page=True)
         page.click('#stop')
-        page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#reprepare').count() == 0
         assert page.locator('#watch').is_enabled()
         assert not errors
@@ -87,18 +88,18 @@ def test_delayed_old_status_cannot_replace_new_work(ui_server, ui_context):
                 route.continue_()
         page.route('**/api/jobs/' + old['id'], hold_first)
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#watch')
-        page.wait_for_function("document.getElementById('check').disabled && document.getElementById('state').textContent !== '중지됨'")
+        page.wait_for_function("document.getElementById('check').disabled && document.getElementById('header-status-text').textContent !== '중지됨'")
         current = runtime.store.active()
         assert current and current['id'] != old['id']
         assert len(delayed) == 1
         delayed[0].fulfill(json=snapshot)
         page.wait_for_timeout(100)  # Allow the delayed response's JS continuation to run.
         assert page.locator('#check').is_disabled()
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         assert page.locator('#stop').is_visible()
         assert page.locator('#show-browser').is_visible()
@@ -233,7 +234,7 @@ def test_once_full_displays_one_result_row(ui_server, ui_context):
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
         page.click('#check')
-        page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#log-body tr.log-row').count() == 1
         assert '1회 조회 결과: 만차입니다.' in page.locator('#log-body tr.log-row .body-cell').inner_text()
         assert page.get_by_text('1회 조회 결과: 만차입니다.', exact=False).count() == 1
@@ -241,7 +242,7 @@ def test_once_full_displays_one_result_row(ui_server, ui_context):
         assert page.locator('#job-actions').is_hidden()
         assert page.locator('#freshness').is_hidden()
         page.reload()
-        page.wait_for_function("document.getElementById('state').textContent === '중지됨'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#log-body tr.log-row').count() == 1
 
 
@@ -348,7 +349,7 @@ def test_settings_dialog_keeps_gimpo_inputs(ui_server, ui_context):
         page.click('#open-settings')
         assert page.locator('#settings-dialog').is_visible()
         page.keyboard.press('Escape')
-        assert not page.locator('#settings-dialog').is_visible()
+        page.locator('#settings-dialog').wait_for(state='hidden')
         assert page.evaluate('document.activeElement.id') == 'open-settings'
         assert page.input_value('#carNumber') == '123가4567'
         assert page.url == base + '/gimpo-parking/'
@@ -427,7 +428,7 @@ def test_payment_handoff_return_and_reserved_overlays(ui_server, ui_context):
             assert '결제해주세요' in overlay.inner_text()
             overlay.get_by_role('button', name='닫기').click()
             page.reload()
-            page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+            page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
             wait_polls(page)
             assert overlay_variant(page) is None
 
@@ -453,7 +454,7 @@ def test_payment_handoff_return_and_reserved_overlays(ui_server, ui_context):
             assert runtime.store.get(job['id'])['userReportedOutcome'] == 'reserved'
             overlay.get_by_role('button', name='확인').click()
             page.reload()
-            page.wait_for_function("document.getElementById('state').textContent === '종료됨'")
+            page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
             wait_polls(page)
             assert overlay_variant(page) is None
             stored = page.evaluate('({...localStorage})')
@@ -548,7 +549,7 @@ def test_reserved_overlay_waits_until_browser_is_closed(ui_server, ui_context):
         assert '결과 기록' in runtime.store.get(job['id'])['reason']
         with open_page(ui_context, base) as (page, errors):
             page.goto(base + '/gimpo-parking/')
-            page.wait_for_function("document.getElementById('state').textContent === '종료됨'")
+            page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
             wait_polls(page)
             assert overlay_variant(page) != 'success'
             assert page.locator('#record-result').is_visible()
@@ -565,7 +566,7 @@ def test_old_reserved_job_is_not_celebrated_in_new_browser(ui_server, ui_context
     eventually(lambda: not runtime.store.get(job['id'])['active'])
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '종료됨'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '종료됨'")
         wait_polls(page)
         assert overlay_variant(page) is None
         assert not errors
@@ -590,21 +591,21 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server, ui_context):
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         status_url = '**/api/jobs/' + job['id']
         page.route(status_url, lambda route: route.fulfill(status=503, body=''))
-        page.wait_for_function("document.getElementById('state').textContent === '연결 끊김'")
-        assert page.locator('#state').get_attribute('data-tone') == 'error'
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '연결 끊김'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         assert page.locator('#header-status-text').inner_text() == '연결 끊김'
         # 폴링이 아닌 렌더(명령 처리 등)도 다음 폴링이 성공하기 전까지는 연결 끊김을 유지한다.
         page.evaluate('gimpoScreen.render()')
-        assert page.locator('#state').inner_text() == '연결 끊김'
-        assert page.locator('#state').get_attribute('data-tone') == 'error'
+        assert page.locator('#header-status-text').inner_text() == '연결 끊김'
+        assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         assert page.locator('#header-status-text').inner_text() == '연결 끊김'
         assert page.locator('#header-status').get_attribute('data-tone') == 'error'
         page.unroute(status_url)
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
-        assert page.locator('#state').get_attribute('data-tone') == 'warning'
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
+        assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert page.locator('#header-status-text').inner_text() == '결제 대기'
         assert page.locator('#header-status').get_attribute('data-tone') == 'warning'
         assert not errors
@@ -615,16 +616,16 @@ def test_successful_command_clears_disconnection_before_next_poll(ui_server, ui_
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
         # 상태 조회(폴링) 엔드포인트만 끊는다. 명령 엔드포인트는 계속 정상 응답한다.
         page.route('**/api/jobs/' + job['id'], lambda route: route.fulfill(status=503, body=''))
-        page.wait_for_function("document.getElementById('state').textContent === '연결 끊김'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '연결 끊김'")
         page.click('#stop')
         # 중지 명령은 STOPPING으로 즉시 응답하고(최종 STOPPED 전환은 폴링으로만 확인되지만, 폴링은 계속 막혀 있다),
         # 그 응답이 성공했다는 것만으로 다음 폴링을 기다리지 않고 곧바로 연결 끊김을 벗어나야 한다.
-        page.wait_for_function("document.getElementById('state').textContent === '중지 중'")
-        assert page.locator('#state').get_attribute('data-tone') != 'error'
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '중지 중'")
+        assert page.locator('#header-status').get_attribute('data-tone') != 'error'
         assert page.locator('#header-status-text').inner_text() == '중지 중'
         assert page.locator('#header-status').get_attribute('data-tone') != 'error'
         assert not errors
@@ -666,7 +667,7 @@ def test_user_opened_result_choice_while_busy_is_offered_again(ui_server, change
         resolves = []
         page.on('request', lambda request: resolves.append(request.url) if request.url.endswith('/resolve') else None)
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '예약 결과 확인 필요'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '예약 결과 확인 필요'")
         assert overlay_variant(page) is None
         page.click('#record-result')
         page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
@@ -708,8 +709,28 @@ def test_completion_keys_of_other_jobs_are_pruned(ui_server, ui_context):
             f"for (const key of {json.dumps(seeded)}) localStorage.setItem(key, '1'); localStorage.setItem('other.key', 'x'); }}")
     with open_page(ui_context, base, init_script=seed) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '결제 대기'")
         wait_polls(page)
         assert sorted(page.evaluate('Object.keys(localStorage)')) == sorted([current, 'other.key'])
         assert overlay_variant(page) is None  # 현재 작업 기록은 남아 결제 안내를 다시 띄우지 않는다
+        assert not errors
+
+
+def test_log_time_keeps_date_and_empty_summary_card_is_hidden(ui_server, ui_context):
+    base, runtime = ui_server
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("!document.getElementById('check').disabled")
+        # 작업이 없으면 요약할 내용이 없으므로 카드를 숨긴다.
+        assert not page.locator('#progress-card').is_visible()
+        page.fill('#carNumber', '123가4567')
+        page.fill('#phone', '01012345678')
+        page.click('#check')
+        page.wait_for_function("document.getElementById('header-status-text').textContent === '예약 가능'")
+        assert page.locator('#progress-card').is_visible()
+        # 실행이 여러 날에 걸칠 수 있으므로 시간에 날짜를 함께 표시한다.
+        times = page.locator('#log-body .cell-time').all_inner_texts()
+        assert times and all(re.fullmatch(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', t) for t in times)
+        assert page.locator('#log-body .cell-time').first.evaluate('e => e.scrollWidth <= e.clientWidth')
+        assert all(h < 30 for h in page.locator('#log-body .cell-status').evaluate_all('els => els.map(e => e.getBoundingClientRect().height)'))
         assert not errors

@@ -148,7 +148,7 @@
             this.running = running;
             $('btn-start').disabled = running;
             $('btn-stop').disabled = !running;
-            UI.statusBadge.set(running ? {label: '스케줄 실행 중', short: '실행 중', tone: 'running'} : {label: '대기 중', short: '대기', tone: 'idle'});
+            UI.statusBadge.set(running ? {label: '스케줄 실행 중', tone: 'running'} : {label: '대기 중', tone: 'idle'});
             document.querySelector('.form-panel').classList.toggle('form-panel--active', running);
         }
 

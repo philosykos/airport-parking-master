@@ -344,3 +344,24 @@ def test_pretendard_css_is_integrity_pinned(client, path):
     assert f'href="{PRETENDARD_URL}"' in tag
     assert f'integrity="{PRETENDARD_SRI}"' in tag
     assert "crossorigin" in tag
+
+
+# ── 공통 화면 문구·상태 표시 ──
+
+def test_gimpo_page_drops_intro_copy_and_shows_status_only_in_header(client):
+    html = client.get("/gimpo-parking/").get_data(as_text=True)
+    assert "결제는 이 PC에" not in html
+    assert "자동 저장됩니다" not in html
+    assert 'id="header-status"' in html
+    assert 'id="state"' not in html
+    assert 'id="status-badge"' not in html
+    assert ">예약 요약<" in html and "진행 상황" not in html
+    assert ">실행 로그<" in html and "작업 로그" not in html
+
+
+@pytest.mark.parametrize("path", ["/", "/t2-valet/", "/gimpo-parking/"])
+def test_settings_button_uses_gear_symbol(client, path):
+    html = client.get(path).get_data(as_text=True)
+    button = re.search(r'<button[^>]*id="open-settings".*?</button>', html, re.S).group(0)
+    assert re.search(r'<span class="material-symbols-outlined"[^>]*>settings</span>', button)
+    assert "<svg" not in button

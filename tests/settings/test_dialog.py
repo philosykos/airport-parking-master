@@ -182,7 +182,7 @@ def test_settings_dialog_states_and_mobile(settings_services, live_server, ui_co
         assert dialog.bounding_box()['width'] >= 389
         assert 'PRIVATE_' not in page.locator('body').inner_text()
         page.keyboard.press('Escape')
-        assert not dialog.is_visible()
+        dialog.wait_for(state='hidden')
         assert page.evaluate('document.activeElement.id') == 'open-settings'
         polled = []
         page.on('request', lambda request: polled.append(request.url) if '/notifications/status' in request.url else None)
@@ -287,4 +287,29 @@ def test_closing_dialog_during_test_send_stops_status_requests(settings_services
         held[0].continue_()
         page.wait_for_timeout(1500)
         assert polled == []
+        assert not errors
+
+
+def test_settings_dialog_fades_in_and_out(settings_services, live_server, ui_context):
+    settings_services(True)
+    base = live_server
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/')
+        page.click('#open-settings')
+        style = page.evaluate("""() => {
+            const dialog = document.getElementById('settings-dialog');
+            const own = getComputedStyle(dialog), backdrop = getComputedStyle(dialog, '::backdrop');
+            return {own: own.transitionProperty, ownDuration: own.transitionDuration,
+                    backdrop: backdrop.transitionProperty, backdropDuration: backdrop.transitionDuration,
+                    backdropColor: backdrop.backgroundColor};
+        }""")
+        assert 'opacity' in style['own'] and 'display' in style['own']
+        assert 'opacity' in style['backdrop'] and 'display' in style['backdrop']
+        assert any(float(d.rstrip('s')) > 0 for d in style['ownDuration'].split(','))
+        assert any(float(d.rstrip('s')) > 0 for d in style['backdropDuration'].split(','))
+        assert style['backdropColor'].startswith('rgba(15, 23, 42')
+        page.keyboard.press('Escape')
+        page.wait_for_function("!document.getElementById('settings-dialog').open")
+        page.wait_for_function("getComputedStyle(document.getElementById('settings-dialog')).display === 'none'")
+        assert page.evaluate('document.activeElement.id') == 'open-settings'
         assert not errors

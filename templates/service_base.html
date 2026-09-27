@@ -5,10 +5,8 @@
 <main class="app-layout">
     <section class="form-panel" aria-label="예약 정보">
         <div class="form-body custom-scrollbar">
-            {% block form_intro %}{% endblock %}
             {% block form_fields %}{% endblock %}
             <div class="action-bar"><div class="action-grid">{% block form_actions %}{% endblock %}</div></div>
-            {% block form_footer %}{% endblock %}
         </div>
     </section>
     <section class="log-panel" id="log-panel" aria-label="{{ self.log_title() }}">

@@ -11,9 +11,6 @@
     <script defer src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/gimpo_parking.js') }}"></script>
 {% endblock %}
-{% block log_title %}작업 로그{% endblock %}
-{% block log_empty %}아직 작업 기록이 없습니다{% endblock %}
-{% block form_intro %}<p class="form-intro">빈자리를 조회하고 예약 정보를 입력합니다. 결제는 이 PC에 열린 공항 예약창에서 직접 진행합니다.</p>{% endblock %}
 {% block form_fields %}
 <form id="reservation-form" class="form-section" autocomplete="off" novalidate>
     <fieldset id="input-fields" disabled>
@@ -56,10 +53,9 @@
     {{ action_button('check', '빈자리 조회', 'search', 'test', type='submit', disabled=true, form='reservation-form') }}
     {{ action_button('import-t2', 'T2 정보 가져오기', 'download', 'clear') }}
 {% endblock %}
-{% block form_footer %}<p class="help">차량번호·연락처와 선택한 옵션은 이 PC에 자동 저장됩니다.</p>{% endblock %}
 {% block progress %}
-<div class="progress-card" id="progress-card">
-    <div class="status-heading"><h2 id="status-title">진행 상황</h2><span id="state" class="status-pill" data-tone="idle">연결 중</span></div>
+<div class="progress-card" id="progress-card" hidden>
+    <h2 id="status-title">예약 요약</h2>
     <dl id="summary" hidden></dl>
     <p id="freshness" class="help" hidden></p>
     <div class="job-actions" id="job-actions" hidden>
