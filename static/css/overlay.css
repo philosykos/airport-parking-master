@@ -294,13 +294,13 @@
 .toast:nth-child(n+4) {
     display: none;
 }
-.toast-success svg {
+.toast-success .toast-icon {
     color: var(--success);
 }
 .toast-error {
     border-color: rgba(186, 26, 26, 0.2);
 }
-.toast-error svg {
+.toast-error .toast-icon {
     color: var(--danger);
 }
 
@@ -319,6 +319,19 @@
 .toast-error .toast-progress {
     background: var(--danger);
 }
+.toast-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.toast-info {
+    border-color: rgba(0, 11, 96, 0.15);
+}
+.toast-info .toast-icon {
+    color: var(--primary);
+}
+.toast-info .toast-progress {
+    background: var(--primary);
+}
 /* Pause progress on hover */
 .toast:hover .toast-progress {
     animation-play-state: paused;
@@ -336,7 +349,7 @@
     background: rgba(0, 11, 96, 0.95);
     overflow: hidden;
 }
-.success-overlay.hidden {
+.success-overlay:not(.open) {
     display: none;
 }
 .confetti-container {
@@ -438,6 +451,39 @@
 }
 .success-close-btn:active {
     transform: scale(0.95);
+}
+
+/* 완료 오버레이 변형: action은 사용자가 할 일을 알린다(색종이 없음) */
+.success-overlay[data-variant="action"] {
+    background: rgba(0, 11, 96, 0.92);
+}
+.success-overlay[data-variant="action"] .confetti-container {
+    display: none;
+}
+.success-overlay[data-variant="action"] .success-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+}
+.completion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+}
+.completion-secondary {
+    padding: var(--space-2) var(--space-4);
+    background: transparent;
+    color: var(--on-primary);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-full);
+    font-family: var(--font-headline);
+    font-weight: 800;
+    font-size: 1rem;
+    opacity: 0;
+    animation: fadeSlideIn var(--duration-slower) var(--ease-out-expo) 0.6s forwards;
+}
+.completion-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 @media (max-width: 960px) {
