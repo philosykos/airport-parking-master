@@ -60,14 +60,14 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server):
     with sync_playwright() as p:
         browser, page, errors = open_page(p, t2_server)
         page.goto(t2_server + '/t2-valet/')
-        page.wait_for_function("document.getElementById('log-count').textContent === '1'")
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '1'")
         assert not overlay_open(page)
         t2_valet.log_store.append({'time': '2026-01-01 00:00:05', 'type': 'test', 'status': 200,
                                    'body': '{"result":{"code":200}}', 'url': 'https://example.invalid/reserve', 'payload': {}})
         t2_valet.log_store.append({'time': '2026-01-01 00:00:06', 'type': 'notification', 'status': 'FAILED', 'body': '봇 토큰과 수신자 ID를 설정해주세요.'})
         t2_valet.log_store.append({'time': '2026-01-01 00:00:07', 'type': 'test', 'status': 'ERROR', 'body': 'timeout'})
         page.evaluate('t2Screen.fetchLogs()')
-        page.wait_for_function("document.getElementById('completion-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('completion-overlay').classList.contains('open')")
         assert page.locator('#completion-overlay').get_attribute('data-variant') == 'success'
         tones = page.locator('#log-body .cell-status').evaluate_all('nodes => nodes.map(node => node.dataset.tone)')
         assert tones == ['error', 'error', 'success', 'error']
@@ -76,7 +76,7 @@ def test_new_success_log_shows_completion_once_and_tones(t2_server):
         page.wait_for_timeout(300)
         assert not overlay_open(page)
         page.locator('#log-body tr.log-row').nth(2).click()
-        page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
         assert 'example.invalid' in page.locator('#detail-json').inner_text()
         assert not errors
         browser.close()
@@ -91,11 +91,11 @@ def test_mobile_sheet_picker_and_settings_keep_inputs(t2_server):
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert page.locator('#header-status').is_visible()
         page.click('#log-fab')
-        page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('log-panel').classList.contains('open')")
         page.locator('#log-panel .log-sheet-close').click()
-        page.wait_for_function("!document.getElementById('log-panel').classList.contains('open')")
+        page.wait_for_function("() => !document.getElementById('log-panel').classList.contains('open')")
         page.dispatch_event('#carColor', 'mousedown')
-        page.wait_for_function("document.getElementById('select-picker-overlay').classList.contains('open')")
+        page.wait_for_function("() => document.getElementById('select-picker-overlay').classList.contains('open')")
         page.locator('.select-picker-item', has_text='흰색').click()
         assert page.input_value('#carColor') == 'WHITE'
         page.click('#open-settings')
@@ -129,10 +129,10 @@ def test_polling_survives_failed_log_request_after_start(t2_server):
 
         page.route('**/t2-valet/api/logs', fail_once)
         page.click('#btn-start')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '스케줄 실행 중'")
-        page.wait_for_function("Number(document.getElementById('log-count').textContent) >= 1", timeout=10000)
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '스케줄 실행 중'")
+        page.wait_for_function("() => Number(document.getElementById('log-count').textContent) >= 1", timeout=10000)
         assert failed
         page.click('#btn-stop')
-        page.wait_for_function("document.getElementById('header-status-text').textContent === '대기 중'")
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
         assert not errors
         browser.close()
