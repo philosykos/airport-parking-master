@@ -14,20 +14,15 @@
 .gimpo label { text-transform: none; letter-spacing: 0; line-height: 1.6; font-size: 13px; }
 .gimpo input[type=password] { width: 100%; padding: 12px 16px; border: 1px solid transparent; border-radius: 8px; background: var(--surface-container-low); font: inherit; }
 .gimpo input[type=checkbox] { accent-color: var(--primary); margin-right: 7px; }
-.gimpo button { border: 1px solid var(--outline-variant); background: white; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+.gimpo button:where(:not(.picker-switch):not(.td-toggle)) { border: 1px solid var(--outline-variant); background: white; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 13px; cursor: pointer; }
 .gimpo button.primary { background: var(--primary); color: white; border-color: var(--primary); }
 .gimpo button:disabled { opacity: .45; cursor: default; }
-.gimpo button:hover:not(:disabled) { box-shadow: var(--shadow-sm); border-color: var(--primary); }
+.gimpo button:hover:not(:disabled):not(.td-toggle) { box-shadow: var(--shadow-sm); border-color: var(--primary); }
 .gimpo button:focus-visible, .gimpo a:focus-visible { outline: 3px solid var(--secondary-container); outline-offset: 3px; }
 .gimpo .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .help { color: var(--text-muted); font-size: 12px; margin: 12px 0; overflow-wrap: anywhere; }
-.agreements { padding-top: 10px; border-top: 1px solid var(--border-subtle); }
-.agreements label { font-weight: 400; }
 .gimpo a { color: var(--secondary); }
-.date-field { display: flex; position: relative; }
-.date-field input { padding-right: 42px; font-size: 14px; }
-.gimpo .date-field .td-toggle { position: absolute; right: 4px; top: 3px; padding: 8px; border: none; background: transparent; }
-.saved, .notification-panel, #resolution { margin-top: 24px; border-top: 1px solid var(--border-subtle); padding-top: 20px; }
+.notification-panel, #resolution { margin-top: 24px; border-top: 1px solid var(--border-subtle); padding-top: 20px; }
 .gimpo summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .status-heading { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
 .status-pill { padding: 6px 10px; border-radius: 20px; background: var(--secondary-fixed); color: var(--primary); font-size: 12px; }
@@ -41,3 +36,7 @@
 [hidden] { display: none !important; }
 @media(max-width: 860px) { .gimpo-grid { grid-template-columns: 1fr; } .gimpo-main { padding: 0 16px; } .gimpo-card { padding: 20px; } }
 @media(max-width: 420px) { .gimpo .field-row { grid-template-columns: 1fr; } .gimpo .title-main { font-size: 18px; } }
+
+.password-field { position: relative; }
+.gimpo .password-field input { padding-right: 48px; font-size: 16px; color: var(--on-surface); }
+.gimpo .password-field button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: none; background: transparent; color: var(--text-muted); }

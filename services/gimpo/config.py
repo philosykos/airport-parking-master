@@ -38,3 +38,21 @@ def parse_config(raw):
 
 
 CONFIG = parse_config(load_toml("gimpo_parking"))
+
+
+def reservation_password():
+    """Resolve the server-only secret without putting it in public configuration."""
+    import os
+    import re
+    from dotenv import dotenv_values
+    from services.gimpo.validation import InputError
+    path = Path(__file__).resolve().parents[2] / '.env'
+    try:
+        with path.open(encoding='utf-8') as stream:
+            values = dotenv_values(stream=stream, interpolate=False)
+    except (OSError, UnicodeError):
+        values = {}
+    value = os.environ.get('RESERVATION_PASSWORD', values.get('RESERVATION_PASSWORD')) or ''
+    if not re.fullmatch(r'[A-Za-z0-9]{4,128}', value):
+        raise InputError('.env의 RESERVATION_PASSWORD를 영문·숫자 4~128자리로 설정해주세요.')
+    return value

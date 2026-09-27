@@ -47,7 +47,7 @@ class JobStore:
         row = self.db.execute("SELECT data FROM jobs WHERE id=?", (job_id,)).fetchone()
         if row is None:
             raise KeyError(job_id)
-        return json.loads(row[0])
+        return self._decode_job(row[0])
 
     def get(self, job_id):
         with self.lock:
@@ -60,12 +60,12 @@ class JobStore:
     def active(self):
         with self.lock:
             row = self.db.execute("SELECT data FROM jobs WHERE active=1").fetchone()
-            return json.loads(row[0]) if row else None
+            return self._decode_job(row[0]) if row else None
 
     def recent(self):
         with self.lock:
             row = self.db.execute("SELECT data FROM jobs ORDER BY rowid DESC LIMIT 1").fetchone()
-            return json.loads(row[0]) if row else None
+            return self._decode_job(row[0]) if row else None
 
     def create(self, inputs, run_id):
         with self.transaction():
@@ -82,8 +82,39 @@ class JobStore:
             self._save(job)
             return job
 
+    @staticmethod
+    def _compact_logs(logs):
+        """Update one row through a request; each polling attempt starts a new row."""
+        rows = []
+        for index, original in enumerate(logs):
+            entry = dict(original)
+            new_command = (rows and entry.get("requestId") and rows[-1].get("requestId")
+                           and entry["requestId"] != rows[-1]["requestId"])
+            if entry.get("logId"):
+                new_row = not rows or entry["logId"] != rows[-1]["logId"]
+            else:
+                new_row = not rows or entry["state"] == "CHECKING" or new_command
+                entry["logId"] = f"legacy:{index}:{entry['time']}" if new_row else rows[-1]["logId"]
+            if new_row:
+                rows.append(entry)
+            else:
+                rows[-1] = entry
+        return rows[-100:]
+
+    @classmethod
+    def _decode_job(cls, raw):
+        job = json.loads(raw)
+        # Also collapse status-by-status logs saved by earlier versions.
+        job["logs"] = cls._compact_logs(job.get("logs", []))
+        return job
+
     def _log(self, job):
-        job["logs"] = (job["logs"] + [{"time": self.clock(), "state": job["state"], "message": job["reason"]}])[-100:]
+        previous = job["logs"][-1] if job["logs"] else None
+        new_row = not previous or job["state"] == "CHECKING" or previous.get("requestId") != job["commandId"]
+        entry = {"time": self.clock(), "state": job["state"], "message": job["reason"],
+                 "requestId": job["commandId"],
+                 "logId": uuid.uuid4().hex if new_row else previous["logId"]}
+        job["logs"] = self._compact_logs(job["logs"] + [entry])
 
     @staticmethod
     def check_version(job, version):

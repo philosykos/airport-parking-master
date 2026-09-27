@@ -110,3 +110,42 @@ def test_repeated_unknown_recovery_does_not_duplicate_correction(store):
     store.recover('run3');store.recover('run4')
     assert store.events()==before
     assert store.active()['stateVersion']==version
+
+
+def test_one_log_row_per_poll_with_final_result(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    for attempt in range(3):
+        if attempt:
+            store.transition(job['id'], 'CHECKING', '조회 중')
+        store.transition(job['id'], 'WAITING_AVAILABLE', '만차')
+        assert len(store.get(job['id'])['logs']) == attempt + 1
+    store.transition(job['id'], 'STOPPED', '1회 조회 결과: 만차입니다.')
+    store.release(job['id'], 'STOPPED', '1회 조회 결과: 만차입니다.', {'STOPPED'})
+    logs = store.get(job['id'])['logs']
+    assert len(logs) == 3
+    assert logs[-1]['message'] == '1회 조회 결과: 만차입니다.'
+    assert len({row['logId'] for row in logs}) == 3
+    assert store.recent()['logs'] == logs
+
+
+def test_legacy_logs_are_collapsed_on_read(store):
+    import json
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    job['logs'] = [
+        {'time': 1000, 'state': 'CHECKING', 'message': '조회 중'},
+        {'time': 1010, 'state': 'WAITING_AVAILABLE', 'message': '만차'},
+        {'time': 1010, 'state': 'STOPPED', 'message': '1회 조회 결과: 만차입니다.'},
+        {'time': 1010, 'state': 'STOPPED', 'message': '1회 조회 결과: 만차입니다.'},
+    ]
+    store.db.execute('UPDATE jobs SET data=? WHERE id=?', (json.dumps(job), job['id']))
+    for result in [store.get(job['id']), store.active(), store.recent()]:
+        assert len(result['logs']) == 1
+        assert result['logs'][0]['message'] == '1회 조회 결과: 만차입니다.'
+
+
+def test_explicit_stop_gets_one_separate_row(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    store.transition(job['id'], 'WAITING_AVAILABLE', '만차')
+    store.command(job['id'], job, {'WAITING_AVAILABLE'}, 'STOPPING', '중지 중')
+    store.release(job['id'], 'STOPPED', '중지했습니다.', {'STOPPING'})
+    assert [row['message'] for row in store.get(job['id'])['logs']] == ['만차', '중지했습니다.']

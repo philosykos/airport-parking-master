@@ -56,8 +56,10 @@ class OfficialContract:
                 raise BrowserFault("공식 요금을 확인할 수 없습니다.")
             amounts[name] = int(value[0])
         if (amounts["paymentAmt"] <= 0 or amounts["depositAmt"] != amounts["paymentAmt"]
-                or amounts["calculateAmt"] < 0 or amounts["discountAmt"] != 0):
-            raise BrowserFault("보증금 또는 일반 요금이 예상과 달라 직접 확인이 필요합니다.")
+                or amounts["calculateAmt"] < 0
+                or not 0 <= amounts["discountAmt"] <= amounts["calculateAmt"]
+                or (inputs["discountSelection"] == "DC001" and amounts["discountAmt"] != 0)):
+            raise BrowserFault("보증금 또는 할인 요금이 예상과 달라 직접 확인이 필요합니다.")
         return {"airportName": "김포공항", "parkingName": PARKING_NAME,
                 "entryAt": inputs["entryAt"], "exitAt": inputs["exitAt"], **amounts}
 
@@ -74,14 +76,19 @@ class PlaywrightGimpoClient:
         self.progress_seen = False
         self.payment_response_ok = False
         self.closed = False
+        self.check_page_ready = False
 
     async def _start(self):
         if self.context:
+            if not await self.alive():
+                raise BrowserFault("공식 브라우저가 종료되었습니다. 다시 조회해주세요.", "SESSION_EXPIRED")
             return
         from playwright.async_api import async_playwright
+        from playwright_stealth import Stealth
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(headless=self.headless)
         self.context = await self.browser.new_context(locale="ko-KR", timezone_id="Asia/Seoul", service_workers="block")
+        await Stealth(navigator_languages_override=("ko-KR", "ko")).apply_stealth_async(self.context)
         self.context.set_default_timeout(self.owner.config.browser_timeout_sec * 1000)
         await self.context.expose_binding("__gimpoCancel", self._cancel_signal)
         await self.context.route("**/*", self._guard)
@@ -150,7 +157,7 @@ class PlaywrightGimpoClient:
                 body = parse_qs(request.post_data or "", keep_blank_values=True)
                 if (request.method != "POST" or request.frame != self.page.main_frame
                         or not self.sealed_form or body != self.sealed_form or not await self.inspect()):
-                    raise Conflict("결제 정보가 변경되었습니다. 다시 준비해주세요.")
+                    raise Conflict("결제 정보가 변경되었습니다. 다시 조회해주세요.")
                 self.owner.store.dispatch_payment(self.job_id, self.version)
             except Exception:
                 await route.abort()
@@ -201,18 +208,31 @@ class PlaywrightGimpoClient:
 
     async def check(self):
         await self._start()
-        response = await self.page.goto(START_URL, wait_until="load")
-        if response.status != 200:
-            raise BrowserFault("공항 시작 화면을 열 수 없습니다.", "ERROR")
-        await self.page.wait_for_function("typeof rescheck === 'function'")
-        await self.page.evaluate("() => new Promise(resolve => $(resolve))")
-        await self.page.select_option("#parkingDivCd", AIRPORT)
+        job = self.owner.store.get(self.job_id)
+        if job["paymentMayHaveBeenSent"] or self.sealed_form is not None:
+            raise BrowserFault("결제 확인 단계에서는 새 조회를 시작할 수 없습니다.")
+        self.version = {k: job[k] for k in ("inputVersion", "generation")}
+        self.dialog_error = False
+        self.allow_confirmation = False
+        if not self.check_page_ready or self.page.url != START_URL:
+            self.check_page_ready = False
+            response = await self.page.goto(START_URL, wait_until="load")
+            if response.status != 200:
+                raise BrowserFault("공항 시작 화면을 열 수 없습니다.", "ERROR")
+            await self.page.wait_for_function("typeof rescheck === 'function'")
+            await self.page.evaluate("() => new Promise(resolve => $(resolve))")
+            self.check_page_ready = True
+        # Reuse the loaded search form, restoring the requested values if the
+        # visible browser was edited between polling attempts.
+        if await self.page.locator("#parkingDivCd").input_value() != AIRPORT:
+            await self.page.select_option("#parkingDivCd", AIRPORT)
         await self.page.wait_for_function("Array.from(document.querySelectorAll('#parkingNm option')).some(o => o.value === '2')")
         name = await self.page.locator('#parkingNm option[value="2"]').text_content()
         if name.strip() != PARKING_NAME:
             raise BrowserFault("공식 주차장 선택 목록이 변경되었습니다.")
-        await self.page.select_option("#parkingNm", PARKING)
-        # Official date widgets are readonly: set their displayed values, before submitting step 1.
+        if await self.page.locator("#parkingNm").input_value() != PARKING:
+            await self.page.select_option("#parkingNm", PARKING)
+        # Official date widgets are readonly: update displayed values in this tab.
         await self.page.evaluate("([a,b]) => {$('#resInDttm').val(a); $('#resOutDttm').val(b)}",
                                  [self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00"])
         async with self.page.expect_response("**/reservation/reservationCheck.json") as pending:
@@ -248,6 +268,22 @@ class PlaywrightGimpoClient:
             }).observe(modal, {attributes: true, attributeFilter: ['class', 'style', 'hidden']});
             window.addEventListener('beforeunload', () => { if (visible) cancel(); });
         }""")
+        # Step 2 starts with the ordinary rate; check its identity before changing discounts.
+        OfficialContract.summary(await self._form(), {**self.inputs, "discountSelection": "DC001"})
+        if self.inputs["discountSelection"] != "DC001":
+            async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
+                await self.page.select_option("#discountCd", self.inputs["discountSelection"])
+            response = await pending.value
+            if not response.ok:
+                raise BrowserFault("공식 할인 요금을 조회할 수 없습니다.")
+            try:
+                amount = (await response.json())["discountAmt"]
+                if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                raise BrowserFault("공식 할인 요금 응답을 확인할 수 없습니다.") from None
+            await self.page.wait_for_function(
+                "amount => document.getElementById('discountAmt').value === String(amount)", arg=amount)
         summary = OfficialContract.summary(await self._form(), self.inputs)
         for selector, key in (("#carNo", "carNumber"), ("#mobile", "phone"),
                               ("#password", "reservationPassword"), ("#passwordCk", "reservationPassword")):

@@ -1,13 +1,18 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><body>
 <form id="reservationVO">__FIELDS__
 <input id="carNo" name="carNo"><input id="mobile" name="mobile"><input id="password" name="password" type="password"><input id="passwordCk" type="password">
-<select id="discountCd" name="discountCd"><option value="DC001">일반</option></select>
+<select id="discountCd" name="discountCd"><option value="DC001">(할인없음) 일반차량</option><option value="DC005">50%</option><option value="DC007">20%</option></select>
 <input type="checkbox" style="display:none" id="agree01"><input type="checkbox" style="display:none" id="agree03"><input type="checkbox" style="display:none" id="agree04"><input type="checkbox" style="display:none" id="agree05">
 <button type="button" id="reservationBtn">예약</button></form>
 <div id="confirm" style="display:none"><p id="confirmMassage">결제 하시겠습니까?</p><button id="confirmOk">확인</button><button id="confirmNo">취소</button></div>
 <script>
 window.$ = arg => typeof arg === 'function' ? arg() : {val: value => document.querySelector(arg).value = value};
 const form = document.getElementById('reservationVO');
+document.getElementById('discountCd').onchange = async event => {
+ const result = await fetch('/reservation/calculateDiscountAmt.json?discountCd=' + event.target.value).then(r => r.json());
+ document.getElementById('discountAmt').value = result.discountAmt;
+ document.getElementById('receiptAmt').value = Number(document.getElementById('calculateAmt').value) - result.discountAmt - Number(document.getElementById('depositAmt').value);
+};
 function payment() {
  document.getElementById('confirm').style.display = 'block';
  // Reproduces the official page's accumulated-handler behavior.

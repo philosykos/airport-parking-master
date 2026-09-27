@@ -29,7 +29,7 @@ def test_normalization_and_timezone():
 @pytest.mark.parametrize('key,value', [('airportCode','other'), ('parkingId','14'), ('entryAt','2026-09-29 10:01'),
     ('exitAt','2026-09-28 11:50'), ('entryAt','2026-09-27 11:50'), ('entryAt','2026-02-30 10:00'),
     ('intervalSeconds',True), ('intervalSeconds',29), ('phone','01012345678x'), ('carNumber','bad'),
-    ('reservationPassword','!bad'), ('passwordConfirmation','different'), ('agreements',{}), ('discountSelection','DC005')])
+    ('reservationPassword','!bad'), ('passwordConfirmation','different'), ('agreements',{}), ('discountSelection','UNKNOWN')])
 def test_invalid_input(key, value):
     data = valid_input(); data[key] = value
     with pytest.raises(InputError): validate(data, now=NOW)

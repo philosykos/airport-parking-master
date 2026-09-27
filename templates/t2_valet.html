@@ -1,3 +1,4 @@
+{% from 'partials/date_input.html' import date_input %}
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -181,22 +182,12 @@
                         <div class="field-row">
                             <div class="field-group">
                                 <label for="departingAt">출발일시</label>
-                                <div class="td-input-group" id="departingAtPicker" data-td-target-input="nearest" data-td-target-toggle="nearest">
-                                    <input type="text" id="departingAt" placeholder="yyyy-MM-dd HH:mm" data-td-target="#departingAtPicker">
-                                    <span class="td-toggle" data-td-target="#departingAtPicker" data-td-toggle="datetimepicker">
-                                        <span class="material-symbols-outlined">calendar_today</span>
-                                    </span>
-                                </div>
+                                {{ date_input('departingAt', 'departingAtPicker', '출발일시') }}
                                 <div class="field-error">출발 일시를 입력해주세요</div>
                             </div>
                             <div class="field-group">
                                 <label for="arrivedAt">도착일시</label>
-                                <div class="td-input-group" id="arrivedAtPicker" data-td-target-input="nearest" data-td-target-toggle="nearest">
-                                    <input type="text" id="arrivedAt" placeholder="yyyy-MM-dd HH:mm" data-td-target="#arrivedAtPicker">
-                                    <span class="td-toggle" data-td-target="#arrivedAtPicker" data-td-toggle="datetimepicker">
-                                        <span class="material-symbols-outlined">calendar_today</span>
-                                    </span>
-                                </div>
+                                {{ date_input('arrivedAt', 'arrivedAtPicker', '도착일시') }}
                                 <div class="field-error">도착 일시를 입력해주세요</div>
                             </div>
                         </div>
@@ -333,6 +324,7 @@
     </main>
 
     <script src="{{ url_for('static', filename='js/datepicker.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/timepicker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

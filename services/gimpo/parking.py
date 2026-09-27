@@ -4,10 +4,10 @@ import threading
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
-from services.gimpo.config import CONFIG
+from services.gimpo.config import CONFIG, reservation_password
 from services.gimpo.jobs import GimpoRuntime, RuntimeUnavailable
 from services.gimpo.store import Conflict
-from services.gimpo.validation import AIRPORT, DEFAULT_FIELDS, PARKING, PARKING_NAME, InputError, policy, validate
+from services.gimpo.validation import AIRPORT, DEFAULT_FIELDS, DISCOUNTS, PARKING, PARKING_NAME, InputError, policy, validate
 from services.notifications.background import BackgroundNotifications
 from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
 from services.notifications.messages import ReservationMessages
@@ -110,9 +110,15 @@ def index():
 def options():
     return jsonify(airports=[{"value": AIRPORT, "label": "김포공항"}],
                    parkingLots=[{"value": PARKING, "label": PARKING_NAME, "airportCode": AIRPORT}],
-                   discounts=[{"value": "DC001", "label": "일반 (할인 자격 조회 미지원)"}],
+                   discounts=DISCOUNTS,
                    policy=policy(), intervalSeconds=service().config.interval_sec,
                    handoffMaxAgeSeconds=service().config.handoff_max_age_sec)
+
+
+@bp.post("/api/reservation-password")
+def display_reservation_password():
+    body()
+    return jsonify(reservationPassword=reservation_password())
 
 
 @bp.route("/api/defaults", methods=["GET", "POST"])
@@ -121,8 +127,6 @@ def defaults():
     if request.method == "GET":
         return jsonify(runtime.store.get_defaults())
     data = body()
-    if data.get("saveConsent") is not True:
-        raise InputError("차량번호·연락처를 이 PC에 저장하는 데 동의해주세요.")
     saved = {k: data[k] for k in DEFAULT_FIELDS if k in data}
     for key, value in saved.items():
         if key == "intervalSeconds":
@@ -134,9 +138,17 @@ def defaults():
     return jsonify(message="예약 정보를 저장했습니다.")
 
 
+def validate_inputs(data):
+    if not isinstance(data, dict):
+        raise InputError("입력 정보가 필요합니다.")
+    password = reservation_password()
+    return validate({**data, "reservationPassword": password, "passwordConfirmation": password},
+                    service().config.interval_sec)
+
+
 @bp.post("/api/jobs")
 def create():
-    inputs = validate(body(), service().config.interval_sec)
+    inputs = validate_inputs(body())
     return accepted(service().runtime().create(inputs))
 
 
@@ -161,7 +173,7 @@ def logs(job_id):
 @bp.patch("/api/jobs/<job_id>")
 def update(job_id):
     data = body()
-    inputs = validate(data.get("inputs"), service().config.interval_sec)
+    inputs = validate_inputs(data.get("inputs"))
     return accepted(service().runtime().stop(job_id, data, replacement=inputs))
 
 
@@ -175,7 +187,7 @@ def command(job_id, action):
     elif action == "proceed":
         job = runtime.proceed(job_id, data, data.get("autoProceedConsent"))
     elif action == "reprepare":
-        inputs = validate(data.get("inputs"), service().config.interval_sec)
+        inputs = validate_inputs(data.get("inputs"))
         job = runtime.restart(job_id, data, inputs)
     elif action == "show-browser":
         job = runtime.show(job_id, data)

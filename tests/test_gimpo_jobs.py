@@ -127,6 +127,7 @@ def test_notifications_fail_without_closing_browser(runtime):
 @pytest.fixture
 def gimpo_client(client, runtime, monkeypatch):
     from app import app
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     service = GimpoService(runtime.config)
     service._runtime = runtime
     monkeypatch.setitem(app.extensions, 'gimpo', service)
@@ -151,9 +152,9 @@ def test_api_input_and_reconnect_without_duplicates(gimpo_client, runtime):
     assert c.patch(f'/gimpo-parking/api/jobs/{job["id"]}',json={**job,'inputs':raw}).status_code == 409
 
 
-def test_defaults_explicit_consent_and_no_password(gimpo_client, runtime):
+def test_defaults_automatic_storage_and_no_password(gimpo_client, runtime):
     raw = valid_input(datetime.now(SEOUL))
-    assert gimpo_client.post('/gimpo-parking/api/defaults',json=raw).status_code == 400
+    assert gimpo_client.post('/gimpo-parking/api/defaults',json=raw).status_code == 200
     assert gimpo_client.post('/gimpo-parking/api/defaults',json={**raw,'saveConsent':True}).status_code == 200
     stored = gimpo_client.get('/gimpo-parking/api/defaults').json
     assert stored['carNumber'] == raw['carNumber']
@@ -193,20 +194,20 @@ def test_restart_cannot_overtake_cleanup(runtime):
     eventually(lambda:runtime.store.active() is None)
 
 
-def test_final_full_watch_discards_document_without_ready(runtime):
+def test_final_full_watch_keeps_browser_without_ready(runtime):
     class FinalFull(FakeBrowser):
         final_available=False
     runtime.client_factory=FinalFull
     job=runtime.create(inputs())
     wait_state(runtime,job['id'],'WAITING_AVAILABLE')
-    eventually(lambda:job['id'] not in runtime.clients)
+    assert not runtime.clients[job['id']].closed
     assert runtime.store.get(job['id'])['generation']==2
     assert runtime.store.events()==[]
     runtime.stop(job['id'],runtime.store.get(job['id']))
     wait_state(runtime,job['id'],'STOPPED')
 
 
-def test_final_full_watch_survives_slow_browser_cleanup(runtime):
+def test_final_full_watch_reuses_browser_until_stopped(runtime):
     class SlowClose(FakeBrowser):
         final_available = False
         async def close(self):
@@ -215,18 +216,50 @@ def test_final_full_watch_survives_slow_browser_cleanup(runtime):
     runtime.client_factory = SlowClose
     job = runtime.create(inputs())
     wait_state(runtime, job['id'], 'WAITING_AVAILABLE')
-    eventually(lambda: job['id'] not in runtime.clients)
+    browser = runtime.clients[job['id']]
+    assert not browser.closed
     current = runtime.store.get(job['id'])
     assert current['active'] and job['id'] in runtime.inputs
     assert current['generation'] == 2 and runtime.store.events() == []
     # Advance the pending interval by cancelling only its sleeper, then resume
-    # the real flow to verify the preserved inputs can start a new browser.
+    # the real flow to verify the same browser resumes successfully.
     async def resume():
         task = runtime.tasks.get(job['id'])
         if task:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
-        runtime.client_factory = FakeBrowser
+        browser.final_available = True
         await runtime._flow(job['id'])
     runtime._submit(resume()).result(timeout=5)
     wait_state(runtime, job['id'], READY)
+    assert runtime.clients[job['id']] is browser and not browser.closed
+
+
+def test_api_uses_only_environment_password(gimpo_client, runtime, monkeypatch):
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'EnvironmentPass99')
+    raw = valid_input(datetime.now(SEOUL), 'watch')
+    raw.pop('reservationPassword')
+    raw.pop('passwordConfirmation')
+    response = gimpo_client.post('/gimpo-parking/api/jobs', json=raw)
+    assert response.status_code == 202
+    job = wait_state(runtime, response.json['job']['id'], READY)
+    assert runtime.clients[job['id']].inputs['reservationPassword'] == 'EnvironmentPass99'
+    assert 'EnvironmentPass99' not in response.get_data(as_text=True)
+    assert 'EnvironmentPass99' not in '\n'.join(runtime.store.db.iterdump())
+
+
+def test_invalid_environment_password_has_actionable_error(gimpo_client, monkeypatch):
+    monkeypatch.setenv('RESERVATION_PASSWORD', '')
+    raw = valid_input(datetime.now(SEOUL))
+    response = gimpo_client.post('/gimpo-parking/api/jobs', json=raw)
+    assert response.status_code == 400
+    assert 'RESERVATION_PASSWORD' in response.json['error']
+
+
+def test_password_display_endpoint_is_uncached_and_separate(gimpo_client):
+    response = gimpo_client.post('/gimpo-parking/api/reservation-password', json={})
+    assert response.status_code == 200
+    assert response.json == {'reservationPassword': 'PrivatePass44'}
+    assert response.headers['Cache-Control'] == 'no-store'
+    assert 'PrivatePass44' not in gimpo_client.get('/gimpo-parking/api/defaults').get_data(as_text=True)
+    assert 'PrivatePass44' not in gimpo_client.get('/gimpo-parking/').get_data(as_text=True)

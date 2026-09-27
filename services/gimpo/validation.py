@@ -7,6 +7,12 @@ SEOUL = ZoneInfo("Asia/Seoul")
 AIRPORT = "PLT-002"
 PARKING = "2"
 PARKING_NAME = "국내선 제2주차장 주차타워 2, 3층"
+# Values and labels from the official reservation form (2026-09-27).
+DISCOUNTS = (
+    {"value": "DC001", "label": "(할인없음) 일반차량"},
+    {"value": "DC005", "label": "(50%) 경형자동차, 저공해(1,2종), 국가유공상이자, 장애인자동차, 다자녀가구"},
+    {"value": "DC007", "label": "(20%) 저공해(3종)"},
+)
 AGREEMENTS = ("agree01", "agree03", "agree04", "agree05")
 PUBLIC_INPUT = ("airportCode", "parkingId", "entryAt", "exitAt", "discountSelection", "intervalSeconds", "mode")
 DEFAULT_FIELDS = PUBLIC_INPUT + ("carNumber", "phone")
@@ -68,8 +74,8 @@ def validate(data, interval_default=30, now=None):
     agreements = data.get("agreements", {})
     if not isinstance(agreements, dict) or any(agreements.get(k) is not True for k in AGREEMENTS):
         raise InputError("공식 이용안내·개인정보·취소수수료·주차존을 확인하고 모두 동의해주세요.")
-    if data.get("discountSelection", "DC001") != "DC001":
-        raise InputError("현재 일반 요금만 지원합니다.")
+    if data.get("discountSelection", "DC001") not in {item["value"] for item in DISCOUNTS}:
+        raise InputError("공식 할인 구분을 선택해주세요.")
     interval = data.get("intervalSeconds", interval_default)
     if type(interval) is not int or not 30 <= interval <= 3600:
         raise InputError("조회 간격은 30~3600초로 입력해주세요.")
@@ -79,6 +85,6 @@ def validate(data, interval_default=30, now=None):
     if mode == "watch" and data.get("autoProceedConsent") is not True:
         raise InputError("결제 대기까지 자동 진행하는 데 동의해주세요.")
     result.update(carNumber=car, phone=phone, reservationPassword=password,
-                  agreements={k: True for k in AGREEMENTS}, discountSelection="DC001",
+                  agreements={k: True for k in AGREEMENTS}, discountSelection=data.get("discountSelection", "DC001"),
                   intervalSeconds=interval, mode=mode, autoProceedConsent=data.get("autoProceedConsent") is True)
     return result

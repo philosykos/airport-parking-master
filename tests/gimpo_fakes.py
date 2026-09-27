@@ -87,6 +87,9 @@ class FixtureBrowser(PlaywrightGimpoClient):
                 await route.fulfill(content_type='text/html', body='<html>session expired</html>')
             else:
                 await route.fulfill(json={"result": {"code": code}})
+        elif path == '/reservation/calculateDiscountAmt.json':
+            code = parse_qs(urlparse(route.request.url).query)['discountCd'][0]
+            await route.fulfill(json={'discountAmt': 4000 if code == 'DC005' else 1600})
         elif path == '/reservation/duplicateReservation.json':
             await route.fulfill(json={"code": self.duplicate})
         elif path in {'/reservation/payment.json', '/reservation/insertAction.do'}:

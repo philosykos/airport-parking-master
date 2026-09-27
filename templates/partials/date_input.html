@@ -1,0 +1,8 @@
+{% macro date_input(input_id, picker_id, label, required=false) -%}
+<div class="td-input-group" id="{{ picker_id }}" data-td-target-input="nearest" data-td-target-toggle="nearest">
+    <input type="text" id="{{ input_id }}" name="{{ input_id }}" placeholder="yyyy-MM-dd HH:mm" data-td-target="#{{ picker_id }}"{% if required %} required{% endif %}>
+    <button type="button" class="td-toggle" data-td-target="#{{ picker_id }}" data-td-toggle="datetimepicker" aria-label="{{ label }} 달력 열기">
+        <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+    </button>
+</div>
+{%- endmacro %}

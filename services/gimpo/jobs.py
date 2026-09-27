@@ -127,7 +127,7 @@ class GimpoRuntime:
         with self.command_lock:
             self._accepting()
             if job_id not in self.inputs:
-                raise Conflict("예약 정보를 다시 입력한 뒤 ‘다시 준비’를 눌러주세요.")
+                raise Conflict("예약 정보를 다시 입력한 뒤 ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.")
             job = self.store.command(job_id, version, {"AVAILABLE"}, "PREPARING", "공항 사이트에 예약 정보를 입력합니다.")
             self._schedule(job_id, self._prepare(job_id, automatic=False))
             return job
@@ -229,7 +229,7 @@ class GimpoRuntime:
         try:
             validate({**data, "passwordConfirmation": data["reservationPassword"]}, self.config.interval_sec)
         except InputError:
-            raise BrowserFault("예약 가능한 기간을 벗어났습니다. 입출차 시간을 수정한 뒤 다시 준비해주세요.") from None
+            raise BrowserFault("예약 가능한 기간을 벗어났습니다. 입출차 시간을 수정한 뒤 다시 조회해주세요.") from None
 
     async def _prepare(self, job_id, automatic):
         try:
@@ -253,9 +253,8 @@ class GimpoRuntime:
             available, checked = await self.clients[job_id].proceed()
             if not available:
                 if self.inputs[job_id]["mode"] == "watch":
-                    # Keep RECHECKING while disposing the old browser, so the monitor
-                    # cannot mistake intentional cleanup for a disconnected session.
-                    await self._close_client(job_id, clear_inputs=False)
+                    # Keep the browser/session alive; the next check returns to the
+                    # search form in the same tab and adopts the new generation.
                     self.store.transition(job_id, "WAITING_AVAILABLE", "그사이 만차가 되었습니다. 빈자리를 다시 조회합니다.", expected={"RECHECKING"},
                                           summary=None, generation=job["generation"] + 1)
                     self._schedule(job_id, self._resume_flow(job_id))
@@ -321,7 +320,7 @@ class GimpoRuntime:
 
     def handoff_cancelled(self, job_id):
         self.loop.create_task(self._finish_pre(job_id, "HANDOFF_CANCELLED",
-                                              "결제를 취소했습니다. 계속하려면 ‘다시 준비’를 눌러주세요.", {READY, "RECHECKING"}))
+                                              "결제를 취소했습니다. 계속하려면 ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.", {READY, "RECHECKING"}))
 
     def browser_fault(self, job_id, reason):
         self.loop.create_task(self._fail(job_id, BrowserFault(reason)))
@@ -338,18 +337,18 @@ class GimpoRuntime:
         if job["state"] != READY:
             return False
         if self.store.clock() >= job["handoffDeadline"]:
-            await self._finish_pre(job_id, "HANDOFF_EXPIRED", "결제 대기 시간이 지났습니다. ‘다시 준비’를 눌러주세요.", {READY})
+            await self._finish_pre(job_id, "HANDOFF_EXPIRED", "결제 대기 시간이 지났습니다. ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.", {READY})
             return False
         client = self.clients.get(job_id)
         try:
             if client is not None and not await client.alive():
-                await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 준비해주세요.", {READY})
+                await self._finish_pre(job_id, "SESSION_EXPIRED", "공식 브라우저가 종료되었습니다. 다시 조회해주세요.", {READY})
                 return False
             valid = client is not None and await client.inspect()
         except Exception:
             valid = False
         if not valid:
-            await self._finish_pre(job_id, "HANDOFF_CANCELLED", "결제창이 닫혔거나 화면이 변경되었습니다. ‘다시 준비’를 눌러주세요.", {READY})
+            await self._finish_pre(job_id, "HANDOFF_CANCELLED", "결제창이 닫혔거나 화면이 변경되었습니다. ‘빈자리 조회’ 또는 ‘자동 예약 시작’을 눌러주세요.", {READY})
             return False
         return True
 

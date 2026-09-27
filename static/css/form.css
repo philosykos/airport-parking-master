@@ -112,7 +112,9 @@ input[data-td-target] {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
-.td-toggle {
+.td-input-group .td-toggle {
+    padding: 0;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -158,8 +160,18 @@ input[data-td-target] {
 .td-icon-date::before   { content: 'calendar_today'; }
 .td-icon-up::before     { content: 'keyboard_arrow_up'; }
 .td-icon-down::before   { content: 'keyboard_arrow_down'; }
-.td-icon-prev::before   { content: 'chevron_left'; }
-.td-icon-next::before   { content: 'chevron_right'; }
+/* Calendar navigation must also work on pages without the icon font. */
+.td-icon-prev::before,
+.td-icon-next::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+}
+.td-icon-prev::before { transform: rotate(135deg); }
+.td-icon-next::before { transform: rotate(-45deg); }
 .td-icon-today::before  { content: 'today'; }
 .td-icon-clear::before  { content: 'close'; }
 .td-icon-close::before  { content: 'close'; }
