@@ -118,9 +118,15 @@ class PlaywrightGimpoClient:
         if frame != page.main_frame:
             return
         job = self.owner.store.get(self.job_id)
-        if job["paymentMayHaveBeenSent"] and urlparse(frame.url).scheme == "https" and urlparse(frame.url).hostname != "park.airport.co.kr":
+        target = urlparse(frame.url)
+        if target.scheme != "https":
+            return
+        if job["paymentMayHaveBeenSent"] and target.hostname != "park.airport.co.kr":
             self.progress_seen = True
             self._mark_progress()
+        elif (target.hostname == "park.airport.co.kr" and job["state"] == "PAYMENT_IN_PROGRESS"
+              and not job.get("returnedFromPayment")):
+            self.owner.store.mark_returned(self.job_id)
 
     def _mark_progress(self):
         if self.progress_seen and self.payment_response_ok:

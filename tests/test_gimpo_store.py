@@ -149,3 +149,97 @@ def test_explicit_stop_gets_one_separate_row(store):
     store.command(job['id'], job, {'WAITING_AVAILABLE'}, 'STOPPING', '중지 중')
     store.release(job['id'], 'STOPPED', '중지했습니다.', {'STOPPING'})
     assert [row['message'] for row in store.get(job['id'])['logs']] == ['만차', '중지했습니다.']
+
+
+from types import SimpleNamespace
+
+from services.gimpo.client import PlaywrightGimpoClient
+
+RETURN_REASON = '결제창에서 공항 사이트로 돌아왔습니다. 예약 내역을 확인한 뒤 결과를 기록해주세요.'
+PROGRESS_REASON = '공항 결제창에서 결제를 마친 뒤 예약 내역을 확인해주세요.'
+
+
+def in_progress_job(store):
+    job = ready_job(store)
+    store.dispatch_payment(job['id'], job)
+    return store.transition(job['id'], 'PAYMENT_IN_PROGRESS', PROGRESS_REASON, expected={'PAYMENT_DISPATCHING'})
+
+
+class Frame:
+    def __init__(self, url):
+        self.url = url
+
+
+class Page:
+    def __init__(self):
+        self.main_frame = Frame('about:blank')
+
+
+def navigate(client, page, url):
+    page.main_frame.url = url
+    client._observe_navigation(page, page.main_frame)
+
+
+def test_new_job_starts_without_payment_return(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    assert job['returnedFromPayment'] is False
+
+
+def test_payment_return_is_recorded_once_as_new_log_row(store):
+    job = in_progress_job(store)
+    marked = store.mark_returned(job['id'])
+    assert marked['state'] == 'PAYMENT_IN_PROGRESS'
+    assert marked['returnedFromPayment'] is True
+    assert marked['reason'] == RETURN_REASON
+    assert [log['message'] for log in marked['logs']][-2:] == [PROGRESS_REASON, RETURN_REASON]
+    assert store.mark_returned(job['id']) is None
+    assert store.get(job['id'])['stateVersion'] == marked['stateVersion']
+
+
+def test_payment_return_ignored_outside_payment_progress(store):
+    job = ready_job(store)
+    assert store.mark_returned(job['id']) is None
+    job = store.dispatch_payment(job['id'], job)
+    assert store.mark_returned(job['id']) is None
+    assert store.get(job['id'])['returnedFromPayment'] is False
+
+
+def test_legacy_job_without_return_flag_can_be_marked(store):
+    job = in_progress_job(store)
+    legacy = {k: v for k, v in store.get(job['id']).items() if k != 'returnedFromPayment'}
+    with store.transaction():
+        store._save(legacy)
+    assert 'returnedFromPayment' not in store.get(job['id'])
+    assert store.mark_returned(job['id'])['returnedFromPayment'] is True
+
+
+def test_restart_clears_payment_return_flag(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    store.release(job['id'], 'STOPPED', '중지', {'CHECKING'})
+    flagged = {**store.get(job['id']), 'returnedFromPayment': True}
+    with store.transaction():
+        store._save(flagged)
+    restarted = store.restart(job['id'], flagged, validate(valid_input(), now=NOW), 'run2')
+    assert restarted['returnedFromPayment'] is False
+
+
+def test_airport_navigation_during_payment_marks_return_once(store):
+    job = in_progress_job(store)
+    client = PlaywrightGimpoClient(SimpleNamespace(store=store), job, {})
+    page = Page()
+    navigate(client, page, 'https://pg.example.com/pay')
+    assert store.get(job['id'])['returnedFromPayment'] is False
+    navigate(client, page, 'https://park.airport.co.kr/reservation/result.do')
+    first = store.get(job['id'])
+    assert first['returnedFromPayment'] is True and first['state'] == 'PAYMENT_IN_PROGRESS'
+    navigate(client, page, 'https://park.airport.co.kr/reservation/list.do')
+    assert store.get(job['id'])['stateVersion'] == first['stateVersion']
+
+
+def test_subframe_and_pre_payment_navigation_are_ignored(store):
+    job = ready_job(store)
+    client = PlaywrightGimpoClient(SimpleNamespace(store=store), job, {})
+    page = Page()
+    navigate(client, page, 'https://park.airport.co.kr/reservation/resInsert.do')
+    client._observe_navigation(page, Frame('https://park.airport.co.kr/other'))
+    assert store.get(job['id'])['returnedFromPayment'] is False
