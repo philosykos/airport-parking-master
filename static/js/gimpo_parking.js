@@ -25,7 +25,21 @@
     // 결제 대기에 다시 도달(handoffEpoch)하면 새 키가 된다. 저장소를 못 쓰면 메모리에만 둔다.
     class CompletionMemory {
         constructor() { this.memory = new Set(); }
-        key(job, step) { return `gimpo.completion.${job.id}.${job.generation}.${job.handoffEpoch}.${step}`; }
+        prefix(job) { return `gimpo.completion.${job.id}.${job.generation}.${job.handoffEpoch}.`; }
+        key(job, step) { return this.prefix(job) + step; }
+        // 지금 작업의 기록만 남기고 지난 작업·세대·결제 대기 회차의 기록을 지운다(쌓이지 않게).
+        prune(job) {
+            const keep = this.prefix(job);
+            try {
+                const storage = window.localStorage;
+                const stale = [];
+                for (let i = 0; i < storage.length; i++) {
+                    const key = storage.key(i);
+                    if (key?.startsWith('gimpo.completion.') && !key.startsWith(keep)) stale.push(key);
+                }
+                stale.forEach(key => storage.removeItem(key));
+            } catch (_) { /* 저장소를 못 쓰면 지울 것도 없다 */ }
+        }
         has(job, step) {
             const key = this.key(job, step);
             if (this.memory.has(key)) return true;
@@ -163,6 +177,12 @@
                 this.browserAvailable = false;
             }
             this.job = job;
+            // 작업 식별자(작업·세대·결제 대기 회차)가 바뀔 때 한 번 지난 완료 기록을 지운다. 작업이 없으면 두지 않는다.
+            const prefix = job ? this.completion.prefix(job) : null;
+            if (prefix && prefix !== this.prunedPrefix) {
+                this.prunedPrefix = prefix;
+                this.completion.prune(job);
+            }
             return true;
         }
         async perform(action) {
@@ -228,7 +248,9 @@
                 await this.api.call(`/jobs/${this.job.id}/notifications/resend`, 'POST', {...this.version(), eventId: event.id, round: event.round});
             });
             $('import-t2').onclick = () => this.perform(async () => {
-                const data = await UI.api('/t2-valet/api/defaults');
+                let data;
+                try { data = await UI.api('/t2-valet/api/defaults'); }
+                catch (error) { throw new Error(error.data?.error || 'T2 저장 정보를 불러오지 못했습니다.'); }
                 this.apply({carNumber: data.carNumber || '', phone: data.phone || ''});
                 await this.saveDefaults();
             });
@@ -295,6 +317,12 @@
             // 명령 처리 중이거나 설정 팝업이 열려 있으면 다음 렌더에서 다시 판단한다.
             if (!job || !this.connected || this.busy || UI.settings?.isOpen()) return;
             if (job.active) this.activeJobIds.add(job.id);
+            if (this.retryResultJobId) {
+                // busy로 거절된, 사용자가 연 결과 기록 창을 busy가 풀린 뒤 다시 연다. 작업이 바뀌었거나 끝났으면 버린다.
+                const retry = this.retryResultJobId === job.id && job.active && !UI.completion.isOpen();
+                this.retryResultJobId = null;
+                if (retry) { this.openResultPrompt(job, false); return; }
+            }
             const step = this.completionStep(job);
             const key = step ? this.completion.key(job, step) : null;
             if (UI.completion.isOpen()) {
@@ -330,6 +358,8 @@
             const send = async outcome => {
                 if (this.busy || this.job?.id !== job.id) {
                     UI.toast('다른 요청을 처리하고 있습니다. 잠시 후 다시 선택해주세요.', 'info');
+                    // 결제 복귀 안내는 기록이 없으니 다음 렌더가 다시 띄운다. 사용자가 연 창은 여기서 다시 열 차례를 남긴다.
+                    if (!returned && this.job?.id === job.id) this.retryResultJobId = job.id;
                     return;
                 }
                 // 요청이 끝날 때까지는 메모리에만 기억하고, 서버가 받아들인 뒤에 저장한다. 실패하면 지워 다시 뜨게 한다.
@@ -373,6 +403,9 @@
                 this.render();
                 this.lastPollError = null;
             } catch (error) {
+                // 진행 카드도 헤더와 같이 보인다. 다음 성공 render()가 원래 상태로 되돌린다.
+                $('state').textContent = '연결 끊김';
+                $('state').dataset.tone = 'error';
                 UI.statusBadge.set({label: '연결 끊김', tone: 'error'});
                 if (error.message !== this.lastPollError) {
                     this.lastPollError = error.message;
