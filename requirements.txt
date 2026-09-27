@@ -1,3 +1,3 @@
-flask
-requests
-pytest
+flask>=3.1,<4
+requests>=2.32,<3
+pytest>=8,<10

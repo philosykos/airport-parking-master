@@ -4,6 +4,7 @@ import sys
 from flask import Flask, render_template
 
 from services.config import ConfigError, find_legacy_env_keys
+from services import web_security
 
 try:
     from services import t2_valet
@@ -14,6 +15,7 @@ except ConfigError as e:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
+web_security.init_app(app)
 app.register_blueprint(t2_valet.bp)
 
 
