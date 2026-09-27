@@ -24,7 +24,7 @@
         const body = log.body == null ? '' : String(log.body);
         const detail = [];
         if (log.url) detail.push({title: 'REQUEST URL', kind: 'url', method: log.method || 'POST', body: log.url});
-        if (log.payload) detail.push({title: 'REQUEST PAYLOAD', kind: 'json', body: JSON.stringify(log.payload)});
+        if (log.payload && Object.keys(log.payload).length) detail.push({title: 'REQUEST PAYLOAD', kind: 'json', body: JSON.stringify(log.payload)});
         detail.push({title: log.url ? 'RESPONSE BODY' : '내용', kind: log.url ? 'json' : 'text', body});
         return {time: log.time, type: {label, variant}, status: {label: String(log.status ?? '—'), tone}, summary: body, detail};
     }
@@ -205,6 +205,7 @@
         async stop() {
             try {
                 await UI.api(API + '/stop', {method: 'POST'});
+                this.updateUI(false);
                 await this.fetchLogs();
             } catch (error) { UI.toast(error.message, 'error'); }
         }

@@ -155,3 +155,92 @@ def test_polling_survives_failed_log_request_after_start(t2_server):
         page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
         assert not errors
         browser.close()
+
+
+def test_stop_shows_idle_immediately_even_if_logs_request_fails(t2_server):
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, t2_server)
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_load_state('networkidle')
+        page.fill('#name', '홍길동')
+        page.fill('#phone', '01012345678')
+        page.fill('#carNumber', '12가3456')
+        page.fill('#carModel', '그랜저')
+        page.select_option('#carBrand', 'HY')
+        page.select_option('#carColor', 'WHITE')
+        page.click('#btn-start')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '스케줄 실행 중'")
+        page.route('**/t2-valet/api/logs', lambda route: route.fulfill(status=503, json={'error': 'busy'}))
+        page.click('#btn-stop')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '대기 중'")
+        assert not errors
+        browser.close()
+
+
+def test_empty_payload_omits_request_payload_section(t2_server):
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
+                               'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}})
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:01', 'type': 'test', 'status': 200,
+                               'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {'name': '홍길동'}})
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, t2_server)
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '2'")
+        rows = page.locator('#log-body tr.log-row')
+        rows.nth(0).click()
+        page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
+        titles = page.locator('.detail-section-title').all_inner_texts()
+        assert 'REQUEST PAYLOAD' in titles
+        page.locator('#detail-overlay .detail-close').click()
+        page.wait_for_function("() => !document.getElementById('detail-overlay').classList.contains('open')")
+        rows.nth(1).click()
+        page.wait_for_function("() => document.getElementById('detail-overlay').classList.contains('open')")
+        titles = page.locator('.detail-section-title').all_inner_texts()
+        assert 'REQUEST PAYLOAD' not in titles
+        assert not errors
+        browser.close()
+
+
+def test_clear_logs_ignores_stale_log_response(t2_server):
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
+                               'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}})
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, t2_server)
+        # app.js는 건드리지 않고, 붙잡아 둔 응답을 푼 뒤 그 fetch가 실제로 settle됐는지
+        # 확인하기 위해 페이지가 로드되기 전에 window.fetch를 감싸 둔다.
+        page.add_init_script("""
+            window.__t2LogsFetchDone = 0;
+            const originalFetch = window.fetch;
+            window.fetch = function (...args) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+                const method = (args[1] && args[1].method) || 'GET';
+                const promise = originalFetch.apply(this, args);
+                if (url.endsWith('/t2-valet/api/logs') && method === 'GET') {
+                    promise.finally(() => { window.__t2LogsFetchDone += 1; });
+                }
+                return promise;
+            };
+        """)
+        held = []
+
+        def hold_or_continue(route):
+            if not held:
+                held.append(route)
+            else:
+                route.continue_()
+
+        page.route('**/t2-valet/api/logs', hold_or_continue)
+        with page.expect_request('**/t2-valet/api/logs'):
+            page.goto(t2_server + '/t2-valet/')
+        assert held, '초기 로그 요청이 붙잡히지 않았습니다'
+        page.click('#btn-clear')
+        page.wait_for_function("() => document.getElementById('log-body').children.length === 1 "
+                                "&& document.getElementById('log-body').querySelector('.empty-msg')")
+        held[0].fulfill(json={'running': False, 'logs': [
+            {'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
+             'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}},
+        ]})
+        page.wait_for_function("() => window.__t2LogsFetchDone >= 1")
+        assert page.locator('#log-body tr.log-row').count() == 0
+        assert not errors
+        browser.close()
