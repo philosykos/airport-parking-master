@@ -262,7 +262,11 @@ def test_closed_overlays_are_hidden_from_accessibility_tree(ui_page):
     page = load(render('partials/log_detail.html') + render('partials/select_picker.html'))
     page.set_viewport_size({'width': 390, 'height': 844})
     # 스타일시트를 DOM 렌더 뒤에 주입하는 테스트 하니스 특성상, visibility 지연 전환이 끝날 때까지 기다린다.
-    # (자식의 상속된 visibility 전환은 부모 오버레이 자체보다 한 스타일 재계산 뒤에 반영된다.)
+    page.wait_for_function("() => getComputedStyle(document.getElementById('detail-overlay')).visibility === 'hidden'")
+    page.wait_for_function("() => getComputedStyle(document.getElementById('select-picker-overlay')).visibility === 'hidden'")
+    assert page.evaluate("getComputedStyle(document.getElementById('detail-overlay')).visibility") == 'hidden'
+    assert page.evaluate("getComputedStyle(document.getElementById('select-picker-overlay')).visibility") == 'hidden'
+    # 자식(닫기 버튼)의 상속된 visibility 전환은 부모 오버레이 자체보다 한 스타일 재계산 뒤에 반영되므로 별도로 기다린다.
     page.wait_for_function("() => getComputedStyle(document.querySelector('#detail-overlay .detail-close')).visibility === 'hidden'")
     page.wait_for_function("() => getComputedStyle(document.querySelector('#select-picker-overlay .select-picker-close')).visibility === 'hidden'")
     focused_detail_close = page.evaluate("""() => {

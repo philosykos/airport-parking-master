@@ -242,6 +242,17 @@ def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live
         wait_tests_enabled(page)
         assert page.locator('#telegram-state').inner_text() == '켜짐'
         assert page.evaluate('window.telegramWrites') == 1
+        # 상태가 바뀌지 않으면 두 번(3초 간격) 이상의 새로고침 주기 동안에도 다시 쓰지 않는다.
+        page.wait_for_timeout(6500)
+        assert page.evaluate('window.telegramWrites') == 1
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
+        # 한 서비스의 상태가 실제로 바뀌면 집계도 바뀌어 정확히 한 번 더 쓴다.
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(
+            status=200, content_type='application/json',
+            json={'enabled': False, 'configured': False, 'credentialsConfigured': True,
+                  'testPending': False, 'lastTest': None, 'lastDelivery': None}))
+        page.wait_for_function('() => window.telegramWrites === 2')
+        assert page.locator('#telegram-state').inner_text() == '꺼짐'
         assert not errors
         browser.close()
 

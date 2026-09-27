@@ -87,7 +87,6 @@
         constructor(dialog) {
             this.dialog = dialog;
             this.services = [...dialog.querySelectorAll('[data-service]')].map(element => new NotificationService(element, this));
-            this.telegramStatuses = this.services.map(() => null);
             document.getElementById('open-settings')?.addEventListener('click', () => this.open());
             dialog.querySelectorAll('[data-settings-close]').forEach(button => button.addEventListener('click', () => this.close()));
             dialog.addEventListener('click', event => { if (event.target === dialog) this.close(); });
@@ -112,8 +111,10 @@
             this.trigger = document.activeElement;
             this.dialog.showModal();
             UI.layers.lock();
-            // 새로고침 주기마다 서비스별 상태를 모두 모은 뒤 배지를 한 번만 쓴다.
+            // 열려 있는 동안 서비스별 최신 상태를 모아 두고, 집계 결과가 실제로 바뀔 때만 배지를 쓴다
+            // (열 때 한 번은 반드시 쓰도록 마지막 기록값을 지운다).
             this.telegramStatuses = this.services.map(() => null);
+            this.lastWrittenTelegramState = null;
             this.services.forEach(service => service.refresh());
         }
         close() {
@@ -125,7 +126,10 @@
             this.telegramStatuses[index] = enabled;
             if (this.telegramStatuses.some(value => value === null)) return;
             // 기존 표시 규칙: 모든 서비스가 켜져 있어야 "켜짐"으로 보인다.
-            this.setTelegramEnabled(this.telegramStatuses.every(Boolean));
+            const aggregate = this.telegramStatuses.every(Boolean);
+            if (aggregate === this.lastWrittenTelegramState) return;
+            this.lastWrittenTelegramState = aggregate;
+            this.setTelegramEnabled(aggregate);
         }
         setTelegramEnabled(enabled) {
             const badge = document.getElementById('telegram-state');
