@@ -58,8 +58,8 @@
             element.classList.add('open');
             this.lock();
             requestAnimationFrame(() => {
-                // 그사이 닫혔거나 다른 레이어가 위에 열렸으면 포커스를 옮기지 않는다.
-                if (topLayer() !== layer || dialogOpen()) return;
+                // 그사이 닫혔거나 다른 레이어가 위에 열렸거나, 포커스가 이미 레이어 안에 있으면 옮기지 않는다.
+                if (topLayer() !== layer || dialogOpen() || element.contains(document.activeElement)) return;
                 (focus || focusables(element)[0])?.focus({preventScroll: true});
             });
         },

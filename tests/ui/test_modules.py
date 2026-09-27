@@ -201,6 +201,22 @@ def test_log_panel_renders_rows_detail_and_empty_state(ui_page):
     assert not errors
 
 
+def test_late_initial_focus_keeps_focus_already_inside_layer(ui_page):
+    # 레이어의 첫 포커스는 다음 프레임에 옮긴다. 그 프레임이 늦게 와도(부하, 가려진 탭) 이미 레이어 안으로
+    # 옮겨 둔 포커스를 닫기 버튼으로 빼앗지 않는다. 빼앗으면 행에서 누른 Space가 시트를 닫는다.
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate("() => { window.lateFrames = []; window.requestAnimationFrame = callback => lateFrames.push(callback); }")
+    page.evaluate(f"() => {{ window.panel = new UI.LogPanel(document.getElementById('log-panel')); panel.render({ENTRIES}); }}")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.click('#log-fab')
+    page.locator('#log-body tr.log-row').first.focus()
+    page.evaluate("() => lateFrames.splice(0).forEach(callback => callback())")
+    page.keyboard.press('Space')
+    assert is_open(page, 'detail-overlay') and is_open(page, 'log-panel')
+    assert not errors
+
+
 def test_log_panel_is_bottom_sheet_on_mobile_and_escape_closes_top_layer_only(ui_page):
     load, errors = ui_page
     page = load(render_string(LOG_PANEL))
