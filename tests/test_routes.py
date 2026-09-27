@@ -311,3 +311,9 @@ def test_defaults_ignores_unusable_saved_file(client, content):
     resp = client.get("/t2-valet/api/defaults")
     assert resp.status_code == 200
     assert resp.get_json()["hasSavedData"] is False
+
+
+def test_t2_page_does_not_load_enhancement_js(client):
+    html = client.get("/t2-valet/").get_data(as_text=True)
+    assert "enhancement.js" not in html
+    assert not (PROJECT_ROOT / "static/js/enhancement.js").exists()

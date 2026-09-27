@@ -9,6 +9,18 @@ const API_BASE = '/t2-valet/api';
 const SVG_ZAP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
 const SVG_LOADER = '<svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 const SVG_EMPTY = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>';
+const SVG_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const SVG_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const EMPTY_LOG_ROW = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
+
+// 예약 입력 필드. 서버의 services/t2_input.py FIELDS와 같은 목록·같은 형식 규칙을 쓴다.
+const FORM_FIELDS = ['name', 'phone', 'carNumber', 'carModel', 'carBrand', 'carColor', 'departingAt', 'arrivedAt', 'departingAir'];
+const DATE_FIELDS = ['departingAt', 'arrivedAt'];
+const FORMAT_RULES = {
+    phone: { pattern: /^010\d{8}$/, message: '휴대폰 번호: 010XXXXXXXX (숫자 11자리)' },
+    carNumber: { pattern: /^\d{2,3}[가-하]\d{4}$/, message: '차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)' }
+};
+const OVERLAY_IDS = ['detail-overlay', 'log-sheet-overlay', 'select-picker-overlay'];
 
 function updatePlaceholderState(el) {
     if (el.id === 'interval') return;
@@ -29,29 +41,18 @@ function showError(msg) {
     }
 }
 
-function formatDatetime(val) {
-    // Flatpickr already outputs "YYYY-MM-DD HH:mm" format
-    return val || '';
-}
-
-function parseDatetimeLocal(val) {
-    // Strip seconds if present for Flatpickr input
-    return val ? val.substring(0, 16) : '';
+// 저장된 "YYYY-MM-DD HH:mm[:ss]" 문자열을 데이트피커가 받는 Date로 바꾼다
+function toPickerDate(val) {
+    return new Date(val.substring(0, 16).replace(' ', 'T'));
 }
 
 function getInputData() {
-    return {
-        name: document.getElementById('name').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        carNumber: document.getElementById('carNumber').value.trim(),
-        carModel: document.getElementById('carModel').value.trim(),
-        carBrand: document.getElementById('carBrand').value,
-        carColor: document.getElementById('carColor').value,
-        departingAt: document.getElementById('departingAt').value,
-        arrivedAt: document.getElementById('arrivedAt').value,
-        departingAir: document.getElementById('departingAir').value,
-        interval: parseInt(document.getElementById('interval').value) || 30
-    };
+    var data = {};
+    FORM_FIELDS.forEach(function(id) {
+        data[id] = document.getElementById(id).value.trim();
+    });
+    data.interval = parseInt(document.getElementById('interval').value) || 30;
+    return data;
 }
 
 function clearFieldErrors() {
@@ -71,28 +72,19 @@ function setFieldError(id) {
 function validateInput(data) {
     clearFieldErrors();
     var valid = true;
-
     var errors = [];
 
-    if (!data.name) { setFieldError('name'); valid = false; }
-    if (!data.phone) {
-        setFieldError('phone'); valid = false;
-    } else if (!/^010\d{8}$/.test(data.phone)) {
-        setFieldError('phone'); valid = false;
-        errors.push('휴대폰 번호: 010XXXXXXXX (숫자 11자리)');
-    }
-    if (!data.carNumber) {
-        setFieldError('carNumber'); valid = false;
-    } else if (!/^\d{2,3}[가-하]\d{4}$/.test(data.carNumber)) {
-        setFieldError('carNumber'); valid = false;
-        errors.push('차량번호: 00가0000 (숫자2~3자리 + 한글 + 숫자4자리)');
-    }
-    if (!data.carModel) { setFieldError('carModel'); valid = false; }
-    if (!data.carBrand) { setFieldError('carBrand'); valid = false; }
-    if (!data.carColor) { setFieldError('carColor'); valid = false; }
-    if (!data.departingAt) { setFieldError('departingAt'); valid = false; }
-    if (!data.arrivedAt) { setFieldError('arrivedAt'); valid = false; }
-    if (!data.departingAir) { setFieldError('departingAir'); valid = false; }
+    FORM_FIELDS.forEach(function(id) {
+        var rule = FORMAT_RULES[id];
+        if (!data[id]) {
+            setFieldError(id);
+            valid = false;
+        } else if (rule && !rule.pattern.test(data[id])) {
+            setFieldError(id);
+            valid = false;
+            errors.push(rule.message);
+        }
+    });
 
     if (!valid) {
         var firstError = document.querySelector('.field-group.has-error');
@@ -145,6 +137,17 @@ document.addEventListener('click', function(e) {
     setTimeout(function() { ripple.remove(); }, 600);
 });
 
+// POST 요청 공통 처리. body가 있으면 JSON으로 보낸다. 응답은 { ok, data }.
+async function apiPost(path, body) {
+    var options = { method: 'POST' };
+    if (body !== undefined) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(body);
+    }
+    var resp = await fetch(API_BASE + path, options);
+    return { ok: resp.ok, data: await resp.json() };
+}
+
 async function testCall() {
     showError('');
     const data = getInputData();
@@ -156,14 +159,9 @@ async function testCall() {
     btn.innerHTML = SVG_LOADER + ' 호출 중…';
 
     try {
-        const resp = await fetch(API_BASE + '/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await resp.json();
-        if (!resp.ok) {
-            showError(result.error);
+        const result = await apiPost('/test', data);
+        if (!result.ok) {
+            showError(result.data.error);
             return;
         }
 
@@ -196,14 +194,9 @@ async function startPolling() {
     if (!validateInput(data)) return;
 
     try {
-        const resp = await fetch(API_BASE + '/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await resp.json();
-        if (!resp.ok) {
-            showError(result.error);
+        const result = await apiPost('/start', data);
+        if (!result.ok) {
+            showError(result.data.error);
             return;
         }
         updateUI(true);
@@ -218,10 +211,9 @@ async function startPolling() {
 
 async function stopPolling() {
     try {
-        const resp = await fetch(API_BASE + '/stop', { method: 'POST' });
-        const result = await resp.json();
-        if (!resp.ok) {
-            showError(result.error);
+        const result = await apiPost('/stop');
+        if (!result.ok) {
+            showError(result.data.error);
             return;
         }
         updateUI(false);
@@ -231,38 +223,20 @@ async function stopPolling() {
     }
 }
 
+function renderStatusBadge(badge, running) {
+    if (!badge) return;
+    badge.innerHTML = '<span class="status-dot"></span><span class="status-label">' + (running ? '실행 중' : '대기') + '</span>';
+    badge.className = running ? 'log-status running' : 'log-status';
+}
+
 function updateUI(running) {
     document.getElementById('btn-start').disabled = running;
     document.getElementById('btn-stop').disabled = !running;
-
-    const badge = document.getElementById('status-badge');
-    const headerDot = document.getElementById('header-dot');
-    const headerText = document.getElementById('header-status-text');
-    const formPanel = document.querySelector('.form-panel');
-
-    var mobileBadge = document.getElementById('mobile-status-badge');
-
-    if (running) {
-        badge.innerHTML = '<span class="status-dot"></span><span class="status-label">실행 중</span>';
-        badge.className = 'log-status running';
-        headerDot.className = 'ping-ring active';
-        headerText.textContent = '스케줄 실행 중';
-        formPanel.classList.add('form-panel--active');
-        if (mobileBadge) {
-            mobileBadge.innerHTML = '<span class="status-dot"></span><span class="status-label">실행 중</span>';
-            mobileBadge.className = 'log-status running';
-        }
-    } else {
-        badge.innerHTML = '<span class="status-dot"></span><span class="status-label">대기</span>';
-        badge.className = 'log-status';
-        headerDot.className = 'ping-ring';
-        headerText.textContent = '대기 중';
-        formPanel.classList.remove('form-panel--active');
-        if (mobileBadge) {
-            mobileBadge.innerHTML = '<span class="status-dot"></span><span class="status-label">대기</span>';
-            mobileBadge.className = 'log-status';
-        }
-    }
+    renderStatusBadge(document.getElementById('status-badge'), running);
+    renderStatusBadge(document.getElementById('mobile-status-badge'), running);
+    document.getElementById('header-dot').className = running ? 'ping-ring active' : 'ping-ring';
+    document.getElementById('header-status-text').textContent = running ? '스케줄 실행 중' : '대기 중';
+    document.querySelector('.form-panel').classList.toggle('form-panel--active', running);
 }
 
 function startLogPolling() {
@@ -288,23 +262,34 @@ async function fetchLogs() {
         if (!data.running && pollInterval) {
             stopLogPolling();
         }
-
-        // Check for success (200 response) to show toast
-        if (data.logs && data.logs.length > 0) {
-            const latest = data.logs[data.logs.length - 1];
-            const successId = latest.time + '-' + latest.status;
-            if (!initialLogsFetched) {
-                // 첫 로드 시에는 기존 로그의 successId만 기록하고 토스트는 띄우지 않음
-                initialLogsFetched = true;
-                if (latest.status === 200) {
-                    lastSuccessId = successId;
-                }
-            } else if (latest.status === 200 && lastSuccessId !== successId) {
-                lastSuccessId = successId;
-                showToast('예약이 완료되었습니다', 'success');
-            }
-        }
+        notifyNewSuccess(data.logs || []);
     } catch (e) {}
+}
+
+// 마지막 예약 성공(HTTP 200) 로그의 식별자. 스케줄이 성공하면 200 로그 뒤에 SUCCESS 이벤트가
+// 붙으므로 마지막 줄만 보면 안 되고 뒤에서부터 찾는다.
+function latestSuccessId(logs) {
+    for (var i = logs.length - 1; i >= 0; i--) {
+        if (logs[i].status === 200) return logs[i].time + '-' + logs[i].type;
+    }
+    return null;
+}
+
+function notifyNewSuccess(logs) {
+    var successId = latestSuccessId(logs);
+    if (!initialLogsFetched) {
+        // 첫 조회 때는 이미 있던 성공을 기록만 하고 알리지 않는다
+        initialLogsFetched = true;
+        lastSuccessId = successId;
+    } else if (successId && successId !== lastSuccessId) {
+        lastSuccessId = successId;
+        showReservationSuccess();
+    }
+}
+
+function showReservationSuccess() {
+    showToast('예약이 완료되었습니다', 'success');
+    document.getElementById('success-overlay').classList.remove('hidden');
 }
 
 function typeTag(type) {
@@ -351,6 +336,16 @@ function syntaxHighlight(json) {
     );
 }
 
+function isOverlayOpen(id) {
+    var el = document.getElementById(id);
+    return !!el && el.classList.contains('open');
+}
+
+// 열린 오버레이가 하나도 없을 때만 본문 스크롤을 되돌린다
+function releaseBodyScroll() {
+    if (!OVERLAY_IDS.some(isOverlayOpen)) document.body.style.overflow = '';
+}
+
 // Focus trap for detail panel
 var detailTrapCleanup = null;
 var detailTrigger = null;
@@ -376,14 +371,14 @@ function trapFocus(element) {
 function addCopyButton(block, textToCopy) {
     var copyBtn = document.createElement('button');
     copyBtn.className = 'detail-copy-btn';
-    copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+    copyBtn.innerHTML = SVG_COPY + ' Copy';
     copyBtn.onclick = function(e) {
         e.stopPropagation();
         navigator.clipboard.writeText(textToCopy).then(function() {
-            copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg> Copied!';
+            copyBtn.innerHTML = SVG_CHECK + ' Copied!';
             copyBtn.classList.add('copied');
             setTimeout(function() {
-                copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+                copyBtn.innerHTML = SVG_COPY + ' Copy';
                 copyBtn.classList.remove('copied');
             }, 2000);
         });
@@ -443,27 +438,27 @@ function openDetail(logEntry) {
 
 function closeDetail(event) {
     if (event && event.target !== event.currentTarget) return;
-    var overlay = document.getElementById('detail-overlay');
     if (detailTrapCleanup) { detailTrapCleanup(); detailTrapCleanup = null; }
-    overlay.classList.remove('open');
+    document.getElementById('detail-overlay').classList.remove('open');
     if (detailTrigger) { detailTrigger.focus(); detailTrigger = null; }
-    var logSheet = document.getElementById('log-sheet-overlay');
-    if (!logSheet || !logSheet.classList.contains('open')) {
-        document.body.style.overflow = '';
-    }
+    releaseBodyScroll();
 }
 
+// Escape: 맨 위에 떠 있는 것부터 닫는다
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        var logSheet = document.getElementById('log-sheet-overlay');
-        if (logSheet && logSheet.classList.contains('open')) {
-            closeMobileLog();
-            return;
-        }
-        var overlay = document.getElementById('detail-overlay');
-        if (overlay && overlay.classList.contains('open')) closeDetail();
+    if (e.key !== 'Escape') return;
+    if (isOverlayOpen('select-picker-overlay')) {
+        closeSelectPicker();
+        e.stopImmediatePropagation();
+        return;
     }
-});
+    document.getElementById('success-overlay').classList.add('hidden');
+    if (isOverlayOpen('log-sheet-overlay')) {
+        closeMobileLog();
+    } else if (isOverlayOpen('detail-overlay')) {
+        closeDetail();
+    }
+}, true);  // 캡처 단계: 선택 시트 Escape를 다른 처리기보다 먼저 가로챈다
 
 /* ── Mobile Log Bottom Sheet ── */
 function isMobile() {
@@ -471,8 +466,7 @@ function isMobile() {
 }
 
 function toggleMobileLog() {
-    var overlay = document.getElementById('log-sheet-overlay');
-    if (overlay.classList.contains('open')) {
+    if (isOverlayOpen('log-sheet-overlay')) {
         closeMobileLog();
     } else {
         openMobileLog();
@@ -488,12 +482,8 @@ function openMobileLog() {
 
 function closeMobileLog(event) {
     if (event && event.target !== event.currentTarget) return;
-    var overlay = document.getElementById('log-sheet-overlay');
-    overlay.classList.remove('open');
-    var detailOverlay = document.getElementById('detail-overlay');
-    if (!detailOverlay || !detailOverlay.classList.contains('open')) {
-        document.body.style.overflow = '';
-    }
+    document.getElementById('log-sheet-overlay').classList.remove('open');
+    releaseBodyScroll();
 }
 
 function syncMobileLog() {
@@ -509,13 +499,12 @@ function syncMobileLog() {
     }
 }
 
-// Swipe-to-dismiss for bottom sheet
-(function() {
-    var sheet = document.getElementById('log-sheet');
-    if (!sheet) return;
-    var startY = 0, currentY = 0, isDragging = false;
-    var handle = sheet.querySelector('.log-sheet-handle');
+// 바텀시트 손잡이를 아래로 100px 넘게 끌면 닫는다
+function enableSwipeDismiss(sheetId, handleSelector, close) {
+    var sheet = document.getElementById(sheetId);
+    var handle = sheet && sheet.querySelector(handleSelector);
     if (!handle) return;
+    var startY = 0, currentY = 0, isDragging = false;
 
     handle.addEventListener('touchstart', function(e) {
         startY = e.touches[0].clientY;
@@ -535,13 +524,14 @@ function syncMobileLog() {
         if (!isDragging) return;
         isDragging = false;
         sheet.style.transition = '';
-        if (currentY > 100) {
-            closeMobileLog();
-        }
+        if (currentY > 100) close();
         sheet.style.transform = '';
         currentY = 0;
     });
-})();
+}
+
+enableSwipeDismiss('log-sheet', '.log-sheet-handle', function() { closeMobileLog(); });
+enableSwipeDismiss('select-picker', '.select-picker-handle', function() { closeSelectPicker(); });
 
 /* ── Mobile Select Picker ── */
 var activeSelect = null;
@@ -592,17 +582,9 @@ function selectPickerItem(itemEl) {
 
 function closeSelectPicker(event) {
     if (event && event.target !== event.currentTarget) return;
-    var overlay = document.getElementById('select-picker-overlay');
-    overlay.classList.remove('open');
+    document.getElementById('select-picker-overlay').classList.remove('open');
     activeSelect = null;
-    // Guard body overflow
-    var logSheet = document.getElementById('log-sheet-overlay');
-    var detailOverlay = document.getElementById('detail-overlay');
-    var anyOpen = (logSheet && logSheet.classList.contains('open')) ||
-                  (detailOverlay && detailOverlay.classList.contains('open'));
-    if (!anyOpen) {
-        document.body.style.overflow = '';
-    }
+    releaseBodyScroll();
 }
 
 // Intercept select taps on mobile
@@ -621,61 +603,13 @@ document.querySelectorAll('.form-panel select').forEach(function(sel) {
     });
 });
 
-// Escape key for select picker
-(function() {
-    var origKeydown = null;
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            var picker = document.getElementById('select-picker-overlay');
-            if (picker && picker.classList.contains('open')) {
-                closeSelectPicker();
-                e.stopImmediatePropagation();
-            }
-        }
-    }, true); // capture phase to run before other Escape handlers
-})();
-
-// Swipe-to-dismiss for select picker
-(function() {
-    var picker = document.getElementById('select-picker');
-    if (!picker) return;
-    var startY = 0, currentY = 0, isDragging = false;
-    var handle = picker.querySelector('.select-picker-handle');
-    if (!handle) return;
-
-    handle.addEventListener('touchstart', function(e) {
-        startY = e.touches[0].clientY;
-        isDragging = true;
-        picker.style.transition = 'none';
-    });
-
-    document.addEventListener('touchmove', function(e) {
-        if (!isDragging) return;
-        currentY = e.touches[0].clientY - startY;
-        if (currentY > 0) {
-            picker.style.transform = 'translateY(' + currentY + 'px)';
-        }
-    });
-
-    document.addEventListener('touchend', function() {
-        if (!isDragging) return;
-        isDragging = false;
-        picker.style.transition = '';
-        if (currentY > 100) {
-            closeSelectPicker();
-        }
-        picker.style.transform = '';
-        currentY = 0;
-    });
-})();
-
 function renderLogs(logs) {
     var tbody = document.getElementById('log-body');
     var countEl = document.getElementById('log-count');
     currentLogs = logs || [];
 
     if (!logs || logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
+        tbody.innerHTML = EMPTY_LOG_ROW;
         countEl.textContent = '0';
         updateMobileLogBadge(0);
         return;
@@ -773,13 +707,10 @@ function showToast(message, type) {
 
 async function clearLogs() {
     try {
-        await fetch(API_BASE + '/logs/clear', { method: 'POST' });
-        document.getElementById('log-body').innerHTML =
-            '<tr><td colspan="4" class="empty-msg"><div class="empty-icon">' + SVG_EMPTY + '</div>테스트 호출 또는 스케줄을 시작하면<br>여기에 로그가 표시됩니다</td></tr>';
-        document.getElementById('log-count').textContent = '0';
-        currentLogs = [];
+        var result = await apiPost('/logs/clear');
+        if (!result.ok) return;
+        renderLogs([]);
         lastSuccessId = null;
-        updateMobileLogBadge(0);
         var mobileCount = document.getElementById('mobile-log-count');
         if (mobileCount) mobileCount.textContent = '0';
         var mobileBody = document.getElementById('mobile-log-body');
@@ -791,21 +722,11 @@ async function loadDefaults() {
     try {
         const resp = await fetch(API_BASE + '/defaults');
         const data = await resp.json();
-        if (data.name) document.getElementById('name').value = data.name;
-        if (data.phone) document.getElementById('phone').value = data.phone;
-        if (data.carNumber) document.getElementById('carNumber').value = data.carNumber;
-        if (data.carModel) document.getElementById('carModel').value = data.carModel;
-        if (data.carBrand) document.getElementById('carBrand').value = data.carBrand;
-        if (data.carColor) document.getElementById('carColor').value = data.carColor;
-        if (data.departingAt) {
-            var depDate = new Date(parseDatetimeLocal(data.departingAt).replace(' ', 'T'));
-            tdDeparting.dates.setValue(depDate);
-        }
-        if (data.arrivedAt) {
-            var arrDate = new Date(parseDatetimeLocal(data.arrivedAt).replace(' ', 'T'));
-            tdArrived.dates.setValue(arrDate);
-        }
-        if (data.departingAir) document.getElementById('departingAir').value = data.departingAir;
+        FORM_FIELDS.forEach(function(id) {
+            if (DATE_FIELDS.indexOf(id) === -1 && data[id]) document.getElementById(id).value = data[id];
+        });
+        if (data.departingAt) tdDeparting.dates.setValue(toPickerDate(data.departingAt));
+        if (data.arrivedAt) tdArrived.dates.setValue(toPickerDate(data.arrivedAt));
         if (data.interval) document.getElementById('interval').value = data.interval;
 
         savedDefaults = data.hasSavedData ? data : null;
@@ -814,7 +735,7 @@ async function loadDefaults() {
         ['carBrand', 'carColor', 'departingAir'].forEach(function(id) {
             updatePlaceholderState(document.getElementById(id));
         });
-        ['departingAt', 'arrivedAt'].forEach(function(id) {
+        DATE_FIELDS.forEach(function(id) {
             var el = document.getElementById(id);
             if (el.value) {
                 if (data.hasSavedData) {
@@ -829,14 +750,12 @@ async function loadDefaults() {
 
 async function saveUserData(data) {
     try {
-        var resp = await fetch(API_BASE + '/save-defaults', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (resp.ok) {
+        var result = await apiPost('/save-defaults', data);
+        if (result.ok) {
             savedDefaults = Object.assign({}, data, { hasSavedData: true });
             showToast('정보가 저장되었습니다', 'success');
+        } else {
+            showToast('저장 실패: ' + result.data.error, 'error');
         }
     } catch (e) {
         showToast('저장 실패: ' + e.message, 'error');
@@ -1060,16 +979,15 @@ function createScrollTimePicker(tdInstance, pickerElId) {
         }, 10);
     });
 
-    return { container: container, hourCol: hourCol, minuteCol: minuteCol, scrollToValue: scrollToValue };
 }
 
 // 각 피커에 스크롤 시간 피커 연결
-var scrollTimeDep = createScrollTimePicker(tdDeparting, 'departingAtPicker');
-var scrollTimeArr = createScrollTimePicker(tdArrived, 'arrivedAtPicker');
+createScrollTimePicker(tdDeparting, 'departingAtPicker');
+createScrollTimePicker(tdArrived, 'arrivedAtPicker');
 
 // ── 데이트피커 토글 & 외부 클릭 닫기 ──
 (function() {
-    function setupPickerToggle(pickerElId, tdInstance, otherTd) {
+    function setupPickerToggle(pickerElId, otherTd) {
         var pickerEl = document.getElementById(pickerElId);
 
         // 한 쪽 피커가 열리면 다른 쪽 닫기
@@ -1078,8 +996,8 @@ var scrollTimeArr = createScrollTimePicker(tdArrived, 'arrivedAtPicker');
         });
     }
 
-    setupPickerToggle('departingAtPicker', tdDeparting, tdArrived);
-    setupPickerToggle('arrivedAtPicker', tdArrived, tdDeparting);
+    setupPickerToggle('departingAtPicker', tdArrived);
+    setupPickerToggle('arrivedAtPicker', tdDeparting);
 
     // 외부 클릭 시 닫기
     document.addEventListener('click', function(e) {
