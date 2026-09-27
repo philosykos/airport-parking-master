@@ -66,8 +66,8 @@
         <button type="button" id="prepare" hidden>예약 정보 입력</button>
         <button type="button" id="proceed" hidden>결제 대기까지 진행</button>
         <button type="button" id="show-browser" class="primary" hidden>공항 예약창 보기</button>
+        <button type="button" id="record-result" hidden>결과 기록</button>
     </div>
-    <details id="resolution" hidden><summary>예약 결과 확인 및 종료</summary><p class="help">종료해도 공항 예약은 취소되지 않습니다.</p><label for="outcome">공항 사이트에서 확인한 예약 결과</label><select id="outcome"><option value="">선택</option><option value="reserved">예약 완료</option><option value="not_reserved">예약되지 않음</option><option value="unknown">확인하지 못함</option></select><label><input id="resolve-consent" type="checkbox"> 선택한 결과를 기록하고 예약창을 닫습니다.</label><button type="button" id="resolve">기록 후 종료</button></details>
     <div class="notification-panel" id="job-notification" hidden><p id="notification-status" class="help"></p><button type="button" id="resend" hidden>알림 다시 보내기</button><p class="help" id="resend-help" hidden>다시 보낸 알림은 중복으로 도착할 수 있습니다.</p></div>
 </div>
 {% endblock %}

@@ -279,7 +279,7 @@ class GimpoRuntime:
                 self.inputs.pop(job_id, None)
                 job = self.store.get(job_id)
                 if job["state"] == "CLOSED_BY_USER":
-                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘기록 후 종료’를 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
+                    self.store.transition(job_id, "CLOSED_BY_USER", "예약창을 닫지 못했습니다. ‘결과 기록’을 다시 눌러주세요.", expected={"CLOSED_BY_USER"})
                 else:
                     self.store.transition(job_id, "ERROR", "예약창을 닫지 못했습니다. ‘중지’를 다시 눌러주세요.",
                                           expected=PREPAYMENT | RESTARTABLE | {"STOPPING"})

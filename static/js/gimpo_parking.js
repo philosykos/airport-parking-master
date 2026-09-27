@@ -21,6 +21,28 @@
     const toneOf = (state, outcome) => state === 'CLOSED_BY_USER' ? (outcome === 'reserved' ? 'success' : 'idle')
         : Object.keys(TONES).find(tone => TONES[tone].includes(state)) || 'idle';
     const formatTime = timestamp => new Date(timestamp * 1000).toLocaleString('ko-KR', {timeZone: 'Asia/Seoul'});
+    // 완료 오버레이를 한 번만 띄우기 위한 기록. 같은 작업이라도 다시 조회(generation)하거나
+    // 결제 대기에 다시 도달(handoffEpoch)하면 새 키가 된다. 저장소를 못 쓰면 메모리에만 둔다.
+    class CompletionMemory {
+        constructor() { this.memory = new Set(); }
+        key(job, step) { return `gimpo.completion.${job.id}.${job.generation}.${job.handoffEpoch}.${step}`; }
+        has(job, step) {
+            const key = this.key(job, step);
+            if (this.memory.has(key)) return true;
+            try { return window.localStorage.getItem(key) === '1'; } catch (_) { return false; }
+        }
+        remember(job, step, persist = true) {
+            const key = this.key(job, step);
+            this.memory.add(key);
+            if (!persist) return;
+            try { window.localStorage.setItem(key, '1'); } catch (_) { /* 메모리 기록만 남긴다 */ }
+        }
+        forget(job, step) {
+            const key = this.key(job, step);
+            this.memory.delete(key);
+            try { window.localStorage.removeItem(key); } catch (_) { /* 메모리 기록만 지운다 */ }
+        }
+    }
     class GimpoApi {
         call(path, method = 'GET', data) {
             return UI.api('/gimpo-parking/api' + path, {method, data});
@@ -28,6 +50,7 @@
     }
     class ReservationScreen {
         constructor() { this.api = new GimpoApi(); this.job = null; this.connected = false; this.busy = false; this.events = []; this.pickers = {};
+            this.completion = new CompletionMemory(); this.shownKey = null; this.activeJobIds = new Set();
             this.logPanel = new UI.LogPanel($('log-panel'));
             new UI.SelectPicker($('select-picker-overlay')).attach(document.querySelector('.form-panel')); }
         async init() {
@@ -196,7 +219,7 @@
             $('watch').onclick = () => this.perform(() => this.start('watch'));
             for (const action of ['stop', 'prepare', 'show-browser']) $(action).onclick = () => this.perform(() => this.command(action));
             $('proceed').onclick = () => this.perform(() => this.command('proceed', {autoProceedConsent: true}));
-            $('resolve').onclick = () => this.perform(() => this.command('resolve', {outcome: $('outcome').value, acknowledged: $('resolve-consent').checked}));
+            $('record-result').onclick = () => { if (this.job) this.openResultPrompt(this.job, false); };
             $('resend').onclick = () => this.perform(async () => {
                 const event = this.latestEvent;
                 await this.api.call(`/jobs/${this.job.id}/notifications/resend`, 'POST', {...this.version(), eventId: event.id, round: event.round});
@@ -229,8 +252,8 @@
             UI.statusBadge.set({label, tone});
             document.querySelector('.form-panel').classList.toggle('form-panel--active', active);
             for (const [id, show] of Object.entries({prepare: state === 'AVAILABLE', proceed: state === 'PREPARED',
-                'show-browser': active && this.browserAvailable, resolution: protectedStates.has(state) || (active && state === 'CLOSED_BY_USER')})) $(id).hidden = !show;
-            document.querySelectorAll('#job-actions button, #resolve').forEach(b => b.disabled = this.busy);
+                'show-browser': active && this.browserAvailable, 'record-result': protectedStates.has(state) || (active && state === 'CLOSED_BY_USER')})) $(id).hidden = !show;
+            document.querySelectorAll('#job-actions button').forEach(b => b.disabled = this.busy);
             $('job-actions').hidden = !Array.from($('job-actions').children).some(button => !button.hidden);
             $('summary').replaceChildren();
             $('summary').hidden = !job?.summary;
@@ -248,6 +271,7 @@
                 this.logKey = logKey;
                 this.logPanel.render((job?.logs || []).map(log => this.toEntry(log, job)));
             }
+            this.updateCompletion();
         }
         toEntry(log, job) {
             const name = labels[log.state] || log.state;
@@ -256,6 +280,78 @@
                 status: {label: name, tone: toneOf(log.state, job.userReportedOutcome)},
                 summary: log.message,
                 detail: [{title: '상태', kind: 'text', body: `${name} (${log.state})`}, {title: '메시지', kind: 'text', body: log.message}]};
+        }
+        completionStep(job) {
+            if (!job.active) return job.state === 'CLOSED_BY_USER' && job.userReportedOutcome === 'reserved' ? 'success' : null;
+            if (job.state === 'PAYMENT_CONFIRM_READY') return 'action';
+            if (job.state === 'PAYMENT_IN_PROGRESS' && job.returnedFromPayment) return 'result';
+            return null;
+        }
+        updateCompletion() {
+            const job = this.job;
+            // 명령 처리 중이거나 설정 팝업이 열려 있으면 다음 렌더에서 다시 판단한다.
+            if (!job || !this.connected || this.busy || UI.settings?.isOpen()) return;
+            if (job.active) this.activeJobIds.add(job.id);
+            const step = this.completionStep(job);
+            const key = step ? this.completion.key(job, step) : null;
+            if (UI.completion.isOpen()) {
+                // 자동으로 띄운 안내가 지금 단계와 맞으면 그대로 둔다. 사용자가 연 결과 기록 창(shownKey 없음)도 그대로 둔다.
+                if (!this.shownKey || this.shownKey === key) return;
+                UI.completion.close('replace');
+            }
+            this.shownKey = null;
+            if (!step || this.completion.has(job, step)) return;
+            this.shownKey = key;
+            if (step === 'success') {
+                this.completion.remember(job, 'success');
+                // 이 페이지에서 진행 중인 모습을 본 작업만 축하한다. 다른 기기·브라우저로 연 지난 예약은 기록만 한다.
+                if (!this.activeJobIds.has(job.id)) { this.shownKey = null; return; }
+                UI.toast('예약 완료를 기록했습니다', 'success');
+                UI.completion.success({title: '예약이', highlight: '완료되었습니다',
+                    subtitle: '공항 사이트에서 확인한 결과를 기록했습니다. 예약 내역은 공식 사이트에서 다시 볼 수 있습니다.'});
+            } else if (step === 'action') {
+                const remember = () => this.completion.remember(job, 'action');
+                UI.completion.action({icon: 'payments', title: '공항 예약창에서 결제해주세요',
+                    subtitle: `${formatTime(job.handoffDeadline)}까지 결제를 진행해주세요. 자리는 확보되지 않았습니다.`,
+                    actions: [{label: '공항 예약창 보기', onClick: () => { remember(); this.perform(() => this.command('show-browser')); }},
+                        {label: '닫기', variant: 'secondary', onClick: remember}],
+                    onDismiss: remember});
+            } else {
+                this.openResultPrompt(job, true);
+            }
+        }
+        openResultPrompt(job, returned) {
+            if (!returned) this.shownKey = null;  // 사용자가 연 창은 상태 변화로 닫지 않는다
+            // '아직 결제 중'이나 Esc는 이 페이지에서만 기억한다(새로고침하면 다시 뜬다).
+            const later = () => this.completion.remember(job, 'result', false);
+            const send = async outcome => {
+                if (this.busy || this.job?.id !== job.id) {
+                    UI.toast('다른 요청을 처리하고 있습니다. 잠시 후 다시 선택해주세요.', 'info');
+                    return;
+                }
+                // 요청이 끝날 때까지는 메모리에만 기억하고, 서버가 받아들인 뒤에 저장한다. 실패하면 지워 다시 뜨게 한다.
+                this.completion.remember(job, 'result', false);
+                this.busy = true;
+                this.render();
+                try {
+                    await this.command('resolve', {outcome, acknowledged: true});
+                    this.completion.remember(job, 'result');
+                } catch (error) {
+                    this.completion.forget(job, 'result');
+                    UI.toast(error.message, 'error');
+                } finally {
+                    this.busy = false;
+                    this.render();
+                }
+            };
+            UI.completion.action({icon: 'fact_check',
+                title: returned ? '결제창에서 공항 사이트로 돌아왔습니다' : '예약 결과를 기록해주세요',
+                subtitle: '결제가 끝났는지는 앱이 판단하지 못합니다. 공항 사이트에서 예약 내역을 확인한 뒤 결과를 선택해주세요. 결과를 선택하면 예약창을 닫습니다.',
+                actions: [{label: '예약 완료', onClick: () => send('reserved')},
+                    {label: '예약 안 됨', variant: 'secondary', onClick: () => send('not_reserved')},
+                    {label: '확인 못함', variant: 'secondary', onClick: () => send('unknown')},
+                    {label: '아직 결제 중', variant: 'secondary', onClick: later}],
+                onDismiss: later});
         }
         async poll() {
             try {
@@ -283,5 +379,6 @@
             setTimeout(() => this.poll(), 1500);
         }
     }
-    new ReservationScreen().init();
+    window.gimpoScreen = new ReservationScreen();
+    window.gimpoScreen.init();
 })();
