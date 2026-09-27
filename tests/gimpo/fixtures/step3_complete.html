@@ -1,0 +1,144 @@
+<!doctype html>
+<!-- park.airport.co.kr /reservation/resComplete.do 2026-09-28 실제 결제 캡처의 예약 내역 부분.
+     개인 값은 자리표시자로 바꿨다: __ENTRY_AT__, __EXIT_AT__(YYYY-MM-DD HH:MM), __CAR_NUMBER__, __RESERVATION_NO__. 전화번호는 가짜 값이다. -->
+<html lang="ko"><head><meta charset="utf-8"><title>예약확인</title></head><body>
+<div id="subCont">
+<div class="complete">
+							<p>주차 예약이 완료되었습니다.</p>
+						</div>
+						<div class="section">
+							<p class="titPage">예약 내역</p>
+							<!--web table-->
+							<div class="table type04 web">
+								<table>
+									<caption>예약 신청내역 테이블이며 예약일시, 주차 등의 정보를 나타냅니다.</caption>
+									<colgroup>
+										<col style="width: auto;">
+										<col style="width: 20%;">
+										<col style="width: 20%;">
+										<col style="width: 20%;">
+										<col style="width: 21%;">
+									</colgroup>
+									<tbody>
+									<tr>
+										<th scope="col" rowspan="2" class="sky">예약일시</th>
+										<th scope="col" colspan="2">차량입차</th>
+										<th scope="col" colspan="2">차량출차</th>
+									</tr>
+									<tr>
+										<td colspan="2">__ENTRY_AT__:00</td>
+										<td colspan="2">__EXIT_AT__:00</td>
+									</tr>
+									<tr>
+										<th scope="col" rowspan="2" class="sky">주차</th>
+										<th scope="col">주차장</th>
+										<th scope="col">차량번호</th>
+										<th scope="col" colspan="2">예약상태</th>
+									</tr>
+									<tr>
+										<td>김포공항 국내선 제2주차장 주차타워 2, 3층</td>
+										<td><span class="colorType blue">__CAR_NUMBER__</span></td>
+										<td colspan="2">결제완료</td>
+									</tr>
+									</tbody>
+								</table>
+							</div>
+							<div class="table type04 web">
+								<table>
+									<caption>예약 신청내역 테이블이며 신청정보, 결제정보 등의 정보를 나타냅니다.</caption>
+									<colgroup>
+										<col style="width: auto">
+										<col style="width: 27%">
+										<col style="width: 27%">
+										<col style="width: 27%">
+									</colgroup>
+									<tbody>
+									<tr>
+										<th scope="col" rowspan="2" class="sky">예약정보</th>
+										<th scope="col">예약번호</th>
+										<th scope="col">전화번호</th>
+									</tr>
+									<tr>
+										<td>__RESERVATION_NO__</td>
+										<td>01000000000</td>
+									</tr>
+									<tr>
+										<th scope="col" rowspan="2" class="sky">결제정보</th>
+										<th scope="col">총 주차요금</th>
+										<th scope="col">예약 보증금(선결제)</th>
+										<th scope="col"></th>
+										<!-- <th scope="col">예상 현장결제요금</th> -->
+									</tr>
+									<tr>
+										<td>8,000원</td>
+										<td><span class="colorType blue">10,000원</span></td>
+										<td></td>
+									</tr>
+									</tbody>
+								</table>
+							</div>
+							<!--//web table-->
+							<!--mobile table-->
+							<div class="table type04 mobile">
+								<table>
+									<caption>예약 신청내역 테이블이며 예약일시, 주차, 신청정보, 결제정보 등의 정보를 나타냅니다.</caption>
+									<colgroup>
+										<col style="width: 50%;">
+										<col style="width: 50%;">
+									</colgroup>
+									<tbody>
+									<tr>
+										<th scope="col" colspan="2" class="sky">예약일시</th>
+									</tr>
+									<tr>
+										<th scope="row">차량입차</th>
+										<td>__ENTRY_AT__:00</td>
+									</tr>
+									<tr>
+										<th scope="row">차량출차</th>
+										<td>__EXIT_AT__:00</td>
+									</tr>
+									<tr>
+										<th scope="col" colspan="2" class="sky">주차</th>
+									</tr>
+									<tr>
+										<th scope="row">주차장</th>
+										<td>김포공항 국내선 제2주차장 주차타워 2, 3층</td>
+									</tr>
+									<tr>
+										<th scope="row">차량번호</th>
+										<td><span class="colorType green">__CAR_NUMBER__</span></td>
+									</tr>
+									<tr>
+										<th scope="row">예약상태</th>
+										<td>결제완료</td>
+									</tr>
+									<tr>
+										<th scope="col" colspan="2" class="sky">신청정보</th>
+									</tr>
+									<tr>
+										<th scope="row">예약번호</th>
+										<td>__RESERVATION_NO__</td>
+									</tr>
+									<tr>
+										<th scope="row">전화번호</th>
+										<td>01000000000</td>
+									</tr>
+									<tr>
+										<th scope="col" colspan="2" class="sky">결제정보</th>
+									</tr>
+									<tr>
+										<th scope="row">예상 주차요금</th>
+										<td>8,000원</td>
+									</tr>
+									<tr>
+										<th scope="row">보증금(결제요금)</th>
+										<td><span class="colorType red">10,000원</span></td>
+									</tr>
+									</tbody>
+								</table>
+							</div>
+							<!--//mobile table-->
+</div>
+</div>
+</body></html>

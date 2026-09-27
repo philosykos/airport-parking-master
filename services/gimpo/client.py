@@ -13,6 +13,14 @@ from services.gimpo.store import Conflict, READY
 ORIGIN = "https://park.airport.co.kr"
 START_URL = ORIGIN + "/reservation/recheck.do"
 PAYMENT_PATH = "/reservation/payment.json"
+COMPLETE_PATH = "/reservation/resComplete.do"
+# 완료 화면의 완료 문구와 모바일 예약 내역 표(PC 화면에도 문서에 있다)의 라벨·값 쌍을 읽는다.
+COMPLETION_SCRIPT = """() => ({
+    message: (document.querySelector('.complete p')?.textContent || '').trim(),
+    fields: Object.fromEntries([...document.querySelectorAll('div.table.mobile th[scope=row]')]
+        .map(th => [th.textContent.trim(), (th.nextElementSibling?.textContent || '').trim()]))
+})"""
+RESERVATION_NO = re.compile(r"[A-Z0-9]{6,20}")
 
 
 class BrowserFault(Exception):
@@ -64,6 +72,19 @@ class OfficialContract:
             raise BrowserFault("보증금 또는 할인 요금이 예상과 달라 직접 확인이 필요합니다.")
         return {"airportName": "김포공항", "parkingName": PARKING_NAME,
                 "entryAt": inputs["entryAt"], "exitAt": inputs["exitAt"], **amounts}
+
+    @staticmethod
+    def completion(page_data, inputs):
+        """공항 예약확인 화면이 이 작업의 결제 완료를 보여 줄 때만 예약번호를 돌려준다."""
+        fields = page_data.get("fields") or {}
+        number = fields.get("예약번호", "")
+        expected = {"예약상태": "결제완료", "차량입차": inputs["entryAt"] + ":00", "차량출차": inputs["exitAt"] + ":00",
+                    "주차장": "김포공항 " + PARKING_NAME, "차량번호": inputs["carNumber"]}
+        if ("예약이 완료되었습니다" not in page_data.get("message", "")
+                or not RESERVATION_NO.fullmatch(number)
+                or any(fields.get(k) != v for k, v in expected.items())):
+            raise BrowserFault("예약확인 화면을 확인하지 못했습니다.")
+        return number
 
 
 class PlaywrightGimpoClient:
