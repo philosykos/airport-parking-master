@@ -12,6 +12,11 @@
             closeButtons.forEach(button => button.addEventListener('click', () => this.close()));
             backdrop?.addEventListener('click', event => { if (event.target === backdrop) this.close('backdrop'); });
             if (handle) this.enableSwipe(handle);
+            // 모바일 폭에서 연 채 데스크톱 폭으로 넓히면 시트가 레이어 스택에 남아 body 스크롤 잠금과
+            // Esc·Tab 포커스 가두기가 보이지 않는 레이어에 걸리므로, 데스크톱으로 바뀌면 닫는다.
+            window.matchMedia('(max-width: 960px)').addEventListener('change', event => {
+                if (!event.matches && this.isOpen) this.close();
+            });
         }
         get isOpen() { return UI.layers.isOpen(this.root); }
         open() {

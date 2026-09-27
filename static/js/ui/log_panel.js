@@ -59,11 +59,7 @@
                 this.sheet.toggle();
                 this.fab.setAttribute('aria-expanded', String(this.sheet.isOpen));
             });
-            // 모바일 폭에서 시트를 연 채 데스크톱 폭으로 넓히면 시트가 레이어 스택에 남아
-            // body 스크롤 잠금과 Esc가 보이지 않는 레이어에 걸리므로, 데스크톱으로 바뀌면 닫는다.
-            window.matchMedia('(max-width: 960px)').addEventListener('change', event => {
-                if (!event.matches && this.sheet.isOpen) this.sheet.close();
-            });
+            // 데스크톱 폭으로 넓히면 시트를 닫는 동작은 UI.Sheet가 공통으로 처리한다(모든 시트에 적용).
             this.body.addEventListener('click', event => {
                 const row = event.target.closest('tr.log-row');
                 if (row) this.openDetail(this.entries[Number(row.dataset.index)]);

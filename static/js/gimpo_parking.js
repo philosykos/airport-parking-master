@@ -188,7 +188,12 @@
         async perform(action) {
             if (this.busy) return;
             this.busy = true; this.render();
-            try { const result = await action(); this.message(result?.message || '', 'success'); }
+            try {
+                const result = await action();
+                // 명령이 성공했다는 것은 서버와 다시 통신되고 있다는 뜻이다. 실패한 명령은 여기 오지 않는다(catch로 간다).
+                this.pollFailed = false;
+                this.message(result?.message || '', 'success');
+            }
             catch (error) { this.message(error.message); }
             finally { this.busy = false; this.render(); }
         }
@@ -213,6 +218,8 @@
         }
         async command(action, extra = {}) {
             const result = await this.api.call(`/jobs/${this.job.id}/${action}`, 'POST', {...this.version(), ...extra});
+            // 서버가 이 요청에 응답했다는 것은 다시 연결되어 있다는 뜻이다. 다음 폴링을 기다리지 않고 바로 반영한다.
+            this.pollFailed = false;
             if (result.job) this.setJob(result.job);
             return result;
         }

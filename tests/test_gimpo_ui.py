@@ -661,6 +661,28 @@ def test_progress_card_shows_disconnection_and_recovers(ui_server):
         browser.close()
 
 
+def test_successful_command_clears_disconnection_before_next_poll(ui_server):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("document.getElementById('state').textContent === '결제 대기'")
+        page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
+        # 상태 조회(폴링) 엔드포인트만 끊는다. 명령 엔드포인트는 계속 정상 응답한다.
+        page.route('**/api/jobs/' + job['id'], lambda route: route.fulfill(status=503, body=''))
+        page.wait_for_function("document.getElementById('state').textContent === '연결 끊김'")
+        page.click('#stop')
+        # 중지 명령은 STOPPING으로 즉시 응답하고(최종 STOPPED 전환은 폴링으로만 확인되지만, 폴링은 계속 막혀 있다),
+        # 그 응답이 성공했다는 것만으로 다음 폴링을 기다리지 않고 곧바로 연결 끊김을 벗어나야 한다.
+        page.wait_for_function("document.getElementById('state').textContent === '중지 중'")
+        assert page.locator('#state').get_attribute('data-tone') != 'error'
+        assert page.locator('#header-status-text').inner_text() == '중지 중'
+        assert page.locator('#header-status').get_attribute('data-tone') != 'error'
+        assert not errors
+        browser.close()
+
+
 def test_import_t2_failure_without_server_message_shows_fallback_text(ui_server):
     base, runtime = ui_server
     with sync_playwright() as p:

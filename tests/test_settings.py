@@ -151,7 +151,9 @@ def test_every_page_offers_settings_dialog(client, path):
 
 
 @pytest.fixture
-def live_server():
+def live_server(settings_services):
+    # settings_services는 client(T2 격리)와 tmp_path 김포 서비스에 의존하므로, 이를 통해서만
+    # live_server를 만들 수 있게 해 이 서버가 격리 없이 뜨는 일이 없게 한다.
     with run_app_server(app) as base:
         yield base
 
@@ -240,6 +242,21 @@ def test_telegram_state_is_written_once_per_refresh_wave(settings_services, live
                   'testPending': False, 'lastTest': None, 'lastDelivery': None}))
         page.wait_for_function('() => window.telegramWrites === 2')
         assert page.locator('#telegram-state').inner_text() == '꺼짐'
+        assert not errors
+        browser.close()
+
+
+def test_telegram_state_reflects_reporting_service_when_one_fails(settings_services, live_server):
+    # t2 상태 조회가 계속 실패해도, 성공하는 김포 서비스의 값으로 집계가 나와야 한다("확인 중"에 갇히지 않는다).
+    settings_services(True)
+    base = live_server
+    with sync_playwright() as p:
+        browser, page, errors = open_page(p, base)
+        page.route('**/t2-valet/api/notifications/status', lambda route: route.fulfill(status=503, json={'error': 'unavailable'}))
+        page.goto(base + '/?settings=1')
+        page.locator('[data-service=t2] [data-connection]').filter(has_text='확인 불가').wait_for()
+        page.wait_for_function("!document.querySelector('[data-service=gimpo] [data-test]').disabled")
+        assert page.locator('#telegram-state').inner_text() == '켜짐'
         assert not errors
         browser.close()
 

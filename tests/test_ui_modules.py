@@ -147,6 +147,27 @@ def test_select_picker_sheet_on_mobile_only(ui_page):
     assert not errors
 
 
+def test_select_picker_sheet_closes_when_resized_from_mobile_to_desktop(ui_page):
+    load, errors = ui_page
+    page = load('<div class="field-group"><label for="color">색상</label><select id="color">'
+                '<option value="">선택</option><option value="RED">빨강</option><option value="BLUE">파랑</option>'
+                '</select><button id="after-select">다음</button></div>' + render('partials/select_picker.html'))
+    page.evaluate("""() => {
+        window.picker = new UI.SelectPicker(document.getElementById('select-picker-overlay'));
+        picker.attach(document.body);
+    }""")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.dispatch_event('#color', 'mousedown')
+    page.wait_for_function("document.getElementById('select-picker-overlay').classList.contains('open')")
+    page.set_viewport_size({'width': 1280, 'height': 900})
+    page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('select-picker-overlay'))")
+    assert page.evaluate('document.body.style.overflow') == ''
+    page.focus('#color')
+    page.keyboard.press('Tab')
+    assert page.evaluate('document.activeElement.id') == 'after-select'
+    assert not errors
+
+
 LOG_PANEL = ("{% from 'partials/ui.html' import log_sheet_bar, log_panel %}"
              "<div class='status-badge' id='header-status' data-tone='idle'><span class='ping-container'><span class='ping-ring'></span><span class='ping-dot'></span></span><span id='header-status-text'>대기 중</span></div>"
              "<section class='log-panel' id='log-panel'>{{ log_sheet_bar() }}{{ log_panel('실행 로그', '기록 없음') }}</section>"
@@ -230,6 +251,25 @@ def test_log_panel_sheet_closes_when_resized_from_mobile_to_desktop(ui_page):
     page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('log-panel'))")
     assert page.evaluate('document.body.style.overflow') == ''
     assert page.locator('#log-fab').get_attribute('aria-expanded') == 'false'
+    assert not errors
+
+
+def test_focus_does_not_return_to_a_trigger_hidden_after_resize(ui_page):
+    load, errors = ui_page
+    page = load(render_string(LOG_PANEL))
+    page.evaluate(f"() => {{ window.panel = new UI.LogPanel(document.getElementById('log-panel')); panel.render({ENTRIES}); }}")
+    page.set_viewport_size({'width': 390, 'height': 844})
+    page.click('#log-fab')
+    page.wait_for_function("document.getElementById('log-panel').classList.contains('open')")
+    page.locator('#log-body tr.log-row').first.click()
+    page.wait_for_function("document.getElementById('detail-overlay').classList.contains('open')")
+    page.set_viewport_size({'width': 1280, 'height': 900})
+    # 데스크톱으로 넓어지면서 아래 레이어(log-panel)가 먼저 닫히고, 그 트리거(#log-fab)를
+    # 위 레이어(detail-overlay)가 물려받는다. #log-fab은 데스크톱에서 숨어 있다.
+    page.wait_for_function("() => !UI.layers.isOpen(document.getElementById('log-panel'))")
+    page.keyboard.press('Escape')  # 맨 위 레이어(detail-overlay)를 닫는다
+    assert not is_open(page, 'detail-overlay')
+    assert page.evaluate('document.activeElement.id') != 'log-fab'
     assert not errors
 
 

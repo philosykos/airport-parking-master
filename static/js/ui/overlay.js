@@ -12,6 +12,10 @@
     const focusables = element => [...element.querySelectorAll(FOCUSABLE)].filter(node => node.getClientRects().length > 0);
     const dialogOpen = () => document.querySelector('dialog[open]') !== null;
     const topLayer = () => stack.at(-1);
+    // 물려받은 트리거가 화면 크기 변화 등으로 더는 보이지 않으면(연결 안 됨/렌더 안 됨/visibility:hidden)
+    // 그쪽으로 포커스를 되돌리지 않는다.
+    const canFocus = element => !!element && document.contains(element) && element.getClientRects().length > 0
+        && getComputedStyle(element).visibility !== 'hidden';
 
     function trap(event) {
         const layer = topLayer();
@@ -68,7 +72,7 @@
             element.style.zIndex = '';
             this.unlock();
             if (wasTop) {
-                if (layer.trigger && document.contains(layer.trigger)) layer.trigger.focus({preventScroll: true});
+                if (canFocus(layer.trigger)) layer.trigger.focus({preventScroll: true});
             } else {
                 // 아래 레이어가 먼저 닫히면, 그 위 레이어가 닫힐 때 돌아갈 곳을 물려준다.
                 stack[index].trigger = layer.trigger;

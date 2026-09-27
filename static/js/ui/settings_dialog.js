@@ -56,6 +56,8 @@
                 this.text('[data-test-result]', '');
                 this.text('[data-test-help]', '');
                 this.text('[data-error]', '설정을 불러오지 못했습니다. 잠시 후 다시 확인합니다.');
+                // 이 새로고침은 보고하지 못했다: 집계는 실제로 보고한 다른 서비스만으로 계속 계산한다.
+                this.owner.reportTelegramStatus(this, null);
             } finally {
                 if (id === this.refreshId) this.schedule(3000);
             }
@@ -123,10 +125,12 @@
         reportTelegramStatus(service, enabled) {
             const index = this.services.indexOf(service);
             if (index < 0) return;
+            // enabled는 true/false(성공) 또는 null(실패해서 보고하지 못함)이다.
             this.telegramStatuses[index] = enabled;
-            if (this.telegramStatuses.some(value => value === null)) return;
-            // 기존 표시 규칙: 모든 서비스가 켜져 있어야 "켜짐"으로 보인다.
-            const aggregate = this.telegramStatuses.every(Boolean);
+            const reported = this.telegramStatuses.filter(value => value !== null);
+            if (!reported.length) return; // 아무 서비스도 보고하지 못했다: "확인 중" 그대로 둔다.
+            // 기존 표시 규칙: 보고한 서비스가 모두 켜져 있어야 "켜짐"으로 보인다.
+            const aggregate = reported.every(Boolean);
             if (aggregate === this.lastWrittenTelegramState) return;
             this.lastWrittenTelegramState = aggregate;
             this.setTelegramEnabled(aggregate);
