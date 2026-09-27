@@ -301,8 +301,10 @@ function typeTag(type) {
     return labels[type] || '';
 }
 
-function escapeHtml(str) {
-    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function escapeHtml(value) {
+    return (value == null ? '' : String(value))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function formatBody(raw) {
@@ -392,7 +394,7 @@ function statusBadge(status) {
     if (code >= 200 && code < 300) cls += ' status-success';
     else if (code >= 400 && code < 500) cls += ' status-warning';
     else if (code >= 500) cls += ' status-error';
-    return '<span class="' + cls + '">' + (status || '\u2014') + '</span>';
+    return '<span class="' + cls + '">' + (status ? escapeHtml(status) : '\u2014') + '</span>';
 }
 
 function openDetail(logEntry) {
@@ -491,9 +493,9 @@ function syncMobileLog() {
     var tableContainer = document.querySelector('.log-table-container');
     if (mobileBody && tableContainer) {
         mobileBody.innerHTML = tableContainer.outerHTML;
-        mobileBody.querySelectorAll('tr.log-row').forEach(function(row, i) {
+        mobileBody.querySelectorAll('tr.log-row').forEach(function(row) {
             row.onclick = function() {
-                openDetail(currentLogs[currentLogs.length - 1 - i]);
+                openDetail(currentLogs[Number(row.dataset.logIndex)]);
             };
         });
     }
@@ -553,7 +555,7 @@ function openSelectPicker(selectEl) {
         if (i === 0 && !opt.value) return; // skip placeholder "선택"
         var isSelected = opt.value === selectEl.value;
         html += '<button class="select-picker-item' + (isSelected ? ' selected' : '') +
-            '" data-value="' + escapeHtml(opt.value) + '" onclick="selectPickerItem(this)">' +
+            '" data-value="' + escapeHtml(opt.value) + '">' +
             escapeHtml(opt.textContent) + '</button>';
     });
     body.innerHTML = html;
@@ -625,14 +627,15 @@ function renderLogs(logs) {
         var isOk = typeof log.status === 'number' && log.status >= 200 && log.status < 300;
         var statusClass = isEvent ? '' : (typeof log.status === 'number' ? (isOk ? 'status-ok' : 'status-err') : 'status-err');
         var rowClass = isEvent ? 'row-event log-row' : 'log-row';
-        var bodyShort = escapeHtml((log.body || '').substring(0, 80));
+        var body = log.body == null ? '' : String(log.body);
+        var bodyShort = escapeHtml(body.substring(0, 80));
         var delay = Math.min(i * 50, 250);
         var logIdx = logs.length - 1 - i;
-        return '<tr class="' + rowClass + '" style="animation-delay:' + delay + 'ms" onclick="openDetail(currentLogs[' + logIdx + '])">' +
-            '<td class="cell-time">' + log.time + '</td>' +
+        return '<tr class="' + rowClass + '" style="animation-delay:' + delay + 'ms" data-log-index="' + logIdx + '">' +
+            '<td class="cell-time">' + escapeHtml(log.time) + '</td>' +
             '<td>' + typeTag(log.type) + '</td>' +
-            '<td><span class="cell-status ' + statusClass + '">' + log.status + '</span></td>' +
-            '<td class="body-cell">' + bodyShort + ((log.body || '').length > 80 ? '\u2026' : '') + '</td>' +
+            '<td><span class="cell-status ' + statusClass + '">' + escapeHtml(log.status) + '</span></td>' +
+            '<td class="body-cell">' + bodyShort + (body.length > 80 ? '\u2026' : '') + '</td>' +
         '</tr>';
     }).join('');
 
@@ -1011,6 +1014,37 @@ createScrollTimePicker(tdArrived, 'arrivedAtPicker');
 // Select 초기 placeholder 상태 설정
 document.querySelectorAll('select').forEach(function(el) {
     updatePlaceholderState(el);
+});
+
+/* ── 이벤트 연결: CSP(script-src 'self')가 인라인 onclick을 막으므로 여기서 건다 ── */
+function onClick(selector, handler) {
+    document.querySelector(selector).addEventListener('click', handler);
+}
+
+onClick('#btn-start', function() { startPolling(); });
+onClick('#btn-stop', function() { stopPolling(); });
+onClick('#btn-test', function() { testCall(); });
+onClick('.btn-clear', function() { clearLogs(); });
+onClick('#log-fab', function() { toggleMobileLog(); });
+onClick('.success-close-btn', function() {
+    document.getElementById('success-overlay').classList.add('hidden');
+});
+// 배경 클릭만 닫는다: close 함수는 event.target === currentTarget일 때만 닫는다
+onClick('#detail-overlay', closeDetail);
+onClick('#log-sheet-overlay', closeMobileLog);
+onClick('#select-picker-overlay', closeSelectPicker);
+onClick('.detail-panel', function(e) { e.stopPropagation(); });
+// 닫기 버튼에는 이벤트를 넘기지 않는다. 넘기면 버튼 안 SVG를 누를 때 target이 달라 닫히지 않는다
+onClick('.detail-close', function() { closeDetail(); });
+onClick('.log-sheet-close', function() { closeMobileLog(); });
+onClick('.select-picker-close', function() { closeSelectPicker(); });
+document.getElementById('log-body').addEventListener('click', function(e) {
+    var row = e.target.closest('tr.log-row');
+    if (row) openDetail(currentLogs[Number(row.dataset.logIndex)]);
+});
+document.getElementById('select-picker-body').addEventListener('click', function(e) {
+    var item = e.target.closest('.select-picker-item');
+    if (item) selectPickerItem(item);
 });
 
 loadDefaults();

@@ -317,3 +317,33 @@ def test_t2_page_does_not_load_enhancement_js(client):
     html = client.get("/t2-valet/").get_data(as_text=True)
     assert "enhancement.js" not in html
     assert not (PROJECT_ROOT / "static/js/enhancement.js").exists()
+
+
+# ── 인라인 이벤트 제거·CSP·SRI ──
+
+PRETENDARD_URL = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+PRETENDARD_SRI = "sha384-SN6A48CJQjx946+DRb8wsoifC4a8ur9ZS6R+HCTgnBHOKCa6GLXAR3Qn8d1jztxg"
+
+
+def test_t2_frontend_has_no_inline_event_handlers():
+    for rel in ("templates/t2_valet.html", "static/js/app.js"):
+        text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
+        assert not re.search(r"\son[a-z]+\s*=\s*[\"']", text), rel
+
+
+def test_t2_page_sends_csp(client):
+    csp = client.get("/t2-valet/").headers["Content-Security-Policy"]
+    directives = dict(part.strip().split(" ", 1) for part in csp.split(";"))
+    assert directives["script-src"] == "'self'"
+    assert directives["object-src"] == "'none'"
+    assert directives["frame-ancestors"] == "'none'"
+    assert directives["connect-src"] == "'self'"
+
+
+@pytest.mark.parametrize("path", ["/", "/t2-valet/"])
+def test_pretendard_css_is_integrity_pinned(client, path):
+    html = client.get(path).get_data(as_text=True)
+    tag = re.search(r"<link[^>]*pretendard[^>]*>", html).group(0)
+    assert f'href="{PRETENDARD_URL}"' in tag
+    assert f'integrity="{PRETENDARD_SRI}"' in tag
+    assert "crossorigin" in tag
