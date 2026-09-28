@@ -245,13 +245,20 @@ def test_gimpo_fee_row_sits_directly_above_button_row_on_tall_pc(ui_server, ui_c
             const feeRow = document.querySelector('.fee-row');
             const actionBar = document.querySelector('.action-bar');
             const lastField = [...document.querySelectorAll('.field-row')].pop();
-            const gap = getComputedStyle(actionBar).marginTop;
+            const root = document.documentElement;
+            // 요금 줄 뒤 버튼 줄 간격은 --space-2 고정값이어야 한다(action-bar 자신의 computed
+            // marginTop을 되읽으면 렌더된 값과 항상 같아 무의미하므로, 디자인 토큰을 rem→px로 직접
+            // 계산해 비교한다).
+            const spaceRem = parseFloat(getComputedStyle(root).getPropertyValue('--space-2'));
+            const rootFontSize = parseFloat(getComputedStyle(root).fontSize);
             return {feeBottom: feeRow.getBoundingClientRect().bottom, actionTop: actionBar.getBoundingClientRect().top,
                     feeTop: feeRow.getBoundingClientRect().top, lastFieldBottom: lastField.getBoundingClientRect().bottom,
-                    gap: parseFloat(gap)};
+                    expectedGapPx: spaceRem * rootFontSize};
         }""")
-        assert abs((metrics['actionTop'] - metrics['feeBottom']) - metrics['gap']) <= 1, metrics
-        assert metrics['feeTop'] >= metrics['lastFieldBottom'] - 1, metrics
+        assert abs((metrics['actionTop'] - metrics['feeBottom']) - metrics['expectedGapPx']) <= 1, metrics
+        # 키 큰 뷰포트라 폼 필드 아래 남는 공간이 100px을 훌쩍 넘는다. 요금 줄이 그 공간을 흡수해
+        # 마지막 필드 줄 바로 아래가 아니라 한참 아래(버튼 줄 바로 위)에 있어야 한다.
+        assert metrics['feeTop'] - metrics['lastFieldBottom'] > 100, metrics
         assert not errors
 
 
