@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from services.gimpo.store import READY
+from services.t2 import valet as t2_valet
 from tests.gimpo.helpers import inputs, wait_state
 from tests.gimpo.test_ui import ui_server
 from tests.support.ui import open_page
@@ -164,6 +165,67 @@ def test_gimpo_log_rows_and_summary_render_correctly_on_pc(ui_server, ui_context
         }""")
         assert abs(alignment['formTop'] - alignment['progressTop']) <= 1
         assert abs(alignment['formBottom'] - alignment['logBottom']) <= 1
+        assert not errors
+
+
+def _log_tag_style(page):
+    return page.evaluate("""() => {
+        const tag = document.querySelector('#log-body .tag');
+        const status = document.querySelector('#log-body .cell-status');
+        const cell = tag.closest('td');
+        const ts = getComputedStyle(tag);
+        const ss = getComputedStyle(status);
+        return {
+            background: ts.backgroundColor,
+            borderColor: ts.borderColor,
+            borderWidth: ts.borderWidth,
+            borderRadius: ts.borderRadius,
+            color: ts.color,
+            fontSize: ts.fontSize,
+            fontWeight: ts.fontWeight,
+            statusBorderRadius: ss.borderRadius,
+            rowHeight: Math.round(cell.getBoundingClientRect().height),
+        };
+    }""")
+
+
+def test_pc_log_tag_is_bordered_square_and_status_chip_unchanged_on_t2(client, t2_server, ui_context):
+    # 구분 태그(.tag)는 흰 바탕·회색 테두리·4px 모서리 네모, 상태 칩(.cell-status)은 그대로 둔다.
+    t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
+                               'body': '{"result":{"message":"ok"}}', 'url': 'https://example.invalid/reserve', 'payload': {}})
+    with open_page(ui_context, t2_server, width=1280, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_function("() => document.getElementById('log-count').textContent === '1'")
+        style = _log_tag_style(page)
+        assert style['background'] == 'rgb(255, 255, 255)'
+        assert style['borderColor'] == 'rgb(213, 215, 224)'
+        assert style['borderWidth'] == '1px'
+        assert style['borderRadius'] == '4px'
+        assert style['color'] == 'rgb(69, 70, 82)'
+        assert style['fontSize'] == '12px'
+        assert style['fontWeight'] == '600'
+        assert style['rowHeight'] == 44
+        assert style['statusBorderRadius'] != style['borderRadius']
+        assert not errors
+
+
+def test_pc_log_tag_is_bordered_square_and_status_chip_unchanged_on_gimpo(ui_server, ui_context):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    assert job['logs'], '로그가 있는 상태에서 확인해야 한다'
+    with open_page(ui_context, base, width=1280, height=900) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.querySelectorAll('.cell-time').length > 0")
+        style = _log_tag_style(page)
+        assert style['background'] == 'rgb(255, 255, 255)'
+        assert style['borderColor'] == 'rgb(213, 215, 224)'
+        assert style['borderWidth'] == '1px'
+        assert style['borderRadius'] == '4px'
+        assert style['color'] == 'rgb(69, 70, 82)'
+        assert style['fontSize'] == '12px'
+        assert style['fontWeight'] == '600'
+        assert style['rowHeight'] == 44
+        assert style['statusBorderRadius'] != style['borderRadius']
         assert not errors
 
 

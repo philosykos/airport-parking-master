@@ -385,5 +385,5 @@ tr.log-row:hover .tag {
     tr.log-row:hover, tr.row-event:hover { background: #F7F8FA; transform: none; box-shadow: none; }
     tr.log-row:hover .tag { transform: none; }
     tr.row-event { background: transparent; }
-    .tag, .tag-test, .tag-schedule, .tag-event { background: #EEF0F3; color: #454652; font-size: 12px; font-weight: 600; }
+    .tag, .tag-test, .tag-schedule, .tag-event { background: #FFFFFF; border: 1px solid #D5D7E0; border-radius: 4px; color: #454652; font-size: 12px; font-weight: 600; }
 }
