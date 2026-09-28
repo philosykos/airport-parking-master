@@ -4,6 +4,7 @@ import threading
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
+from services import web_security
 from services.gimpo.config import CONFIG, reservation_password
 from services.gimpo.fee import AirportFeeClient, FeeUnavailable
 from services.gimpo.jobs import GimpoRuntime, RuntimeUnavailable
@@ -124,6 +125,10 @@ def options():
 
 @bp.get("/api/fee")
 def fee():
+    # GET이라 앱 전체 검사(services/web_security.py)는 이 요청을 걸러내지 않는다: 여기서 직접 막아
+    # 다른 사이트의 요청으로 공항을 부르지 않게 한다.
+    if web_security.is_cross_site(request):
+        return jsonify({"error": web_security.CROSS_SITE_ERROR}), 403
     inputs = validate_fee_query(request.args)
     return jsonify(service().fee.quote(**inputs))
 

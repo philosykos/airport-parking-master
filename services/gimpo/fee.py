@@ -69,6 +69,9 @@ class AirportFeeClient:
                 return cached[1]
         result = self._fetch(parkingId, entryAt, exitAt, discountSelection)
         with self._lock:
+            expired = [cached_key for cached_key, (expires_at, _) in self._cache.items() if expires_at <= now]
+            for cached_key in expired:
+                del self._cache[cached_key]
             self._cache[key] = (now + self.ttl, result)
         return result
 
