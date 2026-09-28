@@ -1,5 +1,4 @@
-/* 김포 전용: 비밀번호 칸, 진행 상황 카드. 버튼·입력·레이아웃은 공통 CSS를 따른다. */
-.gimpo fieldset { border: 0; min-width: 0; }
+/* 김포 전용: 비밀번호 칸, 진행 상황 카드. 버튼·입력·레이아웃(fieldset 초기화 포함)은 공통 CSS를 따른다. */
 /* 비밀번호 줄은 fieldset 밖이라 form.css의 .field-row + .field-row 간격이 닿지 않는다 */
 #input-fields + .field-row { margin-top: var(--space-2); }
 .password-field { position: relative; }

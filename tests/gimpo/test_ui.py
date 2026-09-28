@@ -354,16 +354,27 @@ def test_expired_saved_dates_use_current_booking_range(ui_server, ui_context):
 
 
 def test_password_fields_share_input_style(ui_server, ui_context):
+    # 예약 비밀번호 칸은 읽기 전용이라 잠긴 칸과 같은 바탕·글자·테두리를 늘 보인다(입력칸이 잠금·풀림을
+    # 오가도 바뀌지 않는다). 크기·모서리는 일반 입력칸과 그대로 같다.
+    from tests.ui.test_lock import LOCK_PROBE, LOCKED_LOOK
     base, runtime = ui_server
     with ui_context() as context:
         page = context.new_page()
         page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("() => !document.getElementById('toggle-password').disabled")
-        style = "el => { const s = getComputedStyle(el); return [s.height, s.backgroundColor, s.borderRadius]; }"
-        assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
+        layout = "el => { const s = getComputedStyle(el); return [s.height, s.borderRadius]; }"
+        assert page.locator('#reservationPassword').evaluate(layout) == page.locator('#carNumber').evaluate(layout)
+        locked = page.locator('#reservationPassword').evaluate(LOCK_PROBE)
+        assert locked['bg'] == LOCKED_LOOK['bg']
+        assert locked['color'] == LOCKED_LOOK['color']
+        assert locked['border'] == LOCKED_LOOK['border']
         page.click('#toggle-password')
-        assert page.locator('#reservationPassword').evaluate(style) == page.locator('#carNumber').evaluate(style)
+        assert page.locator('#reservationPassword').evaluate(layout) == page.locator('#carNumber').evaluate(layout)
+        locked = page.locator('#reservationPassword').evaluate(LOCK_PROBE)
+        assert locked['bg'] == LOCKED_LOOK['bg']
+        assert locked['color'] == LOCKED_LOOK['color']
+        assert locked['border'] == LOCKED_LOOK['border']
 
 
 def test_missing_fields_show_field_errors_without_starting(ui_server, ui_context):

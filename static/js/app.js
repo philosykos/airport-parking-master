@@ -186,6 +186,7 @@
             this.running = running;
             $('btn-start').disabled = running;
             $('btn-stop').disabled = !running;
+            $('input-fields').disabled = running;
             this.runToggle.set(running);
             UI.statusBadge.set(running ? {label: '자동 예약 중', tone: 'running'} : idleBadge(this.logs));
             document.querySelector('.form-panel').classList.toggle('form-panel--active', running);

@@ -13,7 +13,7 @@
 {% block log_title %}실행 로그{% endblock %}
 {% block log_empty %}아직 예약 요청 내역이 없습니다{% endblock %}
 {% block form_fields %}
-<div class="form-section">
+<fieldset id="input-fields" class="form-section">
     <div class="field-row">
         {% call field('name', '예약자명', '이름을 입력해주세요') %}<input type="text" id="name" placeholder="홍길동">{% endcall %}
         {% call field('phone', '휴대전화 번호', '휴대전화 번호를 입력해주세요') %}<input type="tel" id="phone" placeholder="01012345678">{% endcall %}
@@ -55,7 +55,7 @@
         {% endcall %}
         {% call field('interval', '예약 요청 간격(초)') %}<input type="number" id="interval" placeholder="30" min="1" step="1" value="30">{% endcall %}
     </div>
-</div>
+</fieldset>
 {% endblock %}
 {% block form_actions %}
     {{ action_button('btn-start', '자동 예약 시작', 'play_arrow', 'start') }}

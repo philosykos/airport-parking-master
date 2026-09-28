@@ -590,6 +590,41 @@ button:disabled {
     cursor: not-allowed;
     transform: none;
 }
+/* T2·김포 공통: 입력칸을 감싸는 fieldset은 테두리·최소폭·여백을 갖지 않는다(버튼 줄은 fieldset 밖) */
+fieldset {
+    border: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+/* 잠금·풀림은 즉시 바뀐다(포커스 테두리 반짝임만 트랜지션을 남긴다). 색이 서서히 바뀌면 자동화가
+   전환 중간값을 읽을 수 있고, 잠금은 상태 변화이지 은은한 연출이 아니다. */
+#input-fields input,
+#input-fields select,
+.password-field input {
+    transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+/* 잠긴 칸(:disabled)과 읽기 전용 칸([readonly], 김포 예약 비밀번호)은 한 가지 모양이다.
+   #input-fields를 앞세워 아래 PC 블록의 흰 바탕 규칙(같은 요소 선택자)보다 이기게 한다. */
+#input-fields:disabled input,
+#input-fields:disabled select,
+#input-fields:disabled .td-toggle,
+.password-field input[readonly] {
+    background: var(--surface-container-low);
+    color: var(--text-muted);
+    border-color: #E4E5EA;
+}
+#input-fields:disabled input,
+#input-fields:disabled select {
+    cursor: not-allowed;
+}
+.password-field input[readonly] {
+    cursor: auto;
+}
+#input-fields:disabled .td-toggle {
+    opacity: 1;
+    cursor: not-allowed;
+}
 .btn-icon {
     font-size: 24px;
     width: 24px;
