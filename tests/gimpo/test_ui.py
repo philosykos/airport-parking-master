@@ -15,14 +15,14 @@ from tests.support.waiting import eventually
 from services.gimpo.store import READY
 
 
-def test_fee_row_shows_estimate_and_refetches_on_period_change(ui_server, ui_context):
+def test_fee_row_shows_estimate_and_refetches_on_period_change(ui_server, ui_context, fee_client):
     base, runtime = ui_server
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("() => !document.getElementById('check').disabled")
         # 기본 입차·출차·주차장·할인은 이미 유효하므로 페이지가 뜨자마자 가짜 요금(8000-1600)을 조회한다.
         page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '6,400원'")
-        assert len(runtime.fee.calls) == 1
+        assert len(fee_client.calls) == 1
         first_exit_at = page.input_value('#exitAt')
         next_exit_at = (datetime.strptime(first_exit_at, '%Y-%m-%d %H:%M') + timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M')
         page.evaluate("""value => {
@@ -34,14 +34,14 @@ def test_fee_row_shows_estimate_and_refetches_on_period_change(ui_server, ui_con
         # (같은 가짜 요금이라 값 자체는 그대로지만, 상태를 오가는 것이 재조회의 증거다).
         page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '계산 중'")
         page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '6,400원'")
-        assert len(runtime.fee.calls) == 2
-        assert runtime.fee.calls[-1]['exitAt'] == next_exit_at
+        assert len(fee_client.calls) == 2
+        assert fee_client.calls[-1]['exitAt'] == next_exit_at
         assert not errors
 
 
-def test_fee_row_shows_unavailable_when_fee_lookup_fails(ui_server, ui_context):
+def test_fee_row_shows_unavailable_when_fee_lookup_fails(ui_server, ui_context, fee_client):
     base, runtime = ui_server
-    runtime.fee.error = FeeUnavailable('공항 요금을 확인할 수 없습니다.')
+    fee_client.error = FeeUnavailable('공항 요금을 확인할 수 없습니다.')
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("() => !document.getElementById('check').disabled")

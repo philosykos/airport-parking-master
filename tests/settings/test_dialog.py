@@ -11,10 +11,9 @@ from services.gimpo.parking import GimpoService
 from services.notifications.config import TelegramSettings
 from services.notifications.messages import ReservationMessages
 from services.notifications.telegram import Delivery
-from tests.support.ui import open_page, run_app_server
+from tests.support.ui import UI_INTERVALS, open_page, run_app_server
 from tests.support.waiting import eventually
 from tests.notifications.fakes import TransportNotifier
-from tests.conftest import UI_INTERVALS
 
 ENDPOINTS = ('/t2-valet/api/notifications', '/gimpo-parking/api/notifications')
 # 화면 테스트의 설정 팝업 새로고침 주기(ms). 운영 기본값 3000과 달라도 되고, 대기는 이 주기의 배수로 잡는다.

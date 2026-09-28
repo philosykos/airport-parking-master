@@ -19,7 +19,7 @@ INTERVAL_ATTRIBUTES = {'GIMPO_POLL_MS': 'data-gimpo-poll-ms', 'T2_POLL_MS': 'dat
 
 @pytest.mark.parametrize('path', ['/', '/t2-valet/', '/gimpo-parking/'])
 def test_pages_render_configured_ui_intervals(client, monkeypatch, path):
-    # 운영 기본값은 바뀌면 안 되는 계약이다. 화면 테스트는 이 값을 짧게 바꿔 쓴다(conftest.UI_INTERVALS).
+    # 운영 기본값은 바뀌면 안 되는 계약이다. 화면 테스트는 이 값을 짧게 바꿔 쓴다(tests.support.ui.UI_INTERVALS).
     defaults = {'GIMPO_POLL_MS': 1500, 'T2_POLL_MS': 2000, 'SETTINGS_REFRESH_MS': 3000}
     assert {key: app_module.app.config[key] for key in defaults} == defaults
     html = client.get(path).get_data(as_text=True)

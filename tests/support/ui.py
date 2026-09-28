@@ -12,6 +12,10 @@ LOCK_PROBE = ("el => { const s = getComputedStyle(el); "
 
 LOCKED_LOOK = {'bg': 'rgb(243, 244, 245)', 'color': 'rgb(118, 118, 131)', 'border': 'rgb(228, 229, 234)'}
 
+# 화면 테스트용 폴링·새로고침 주기(ms). 운영 기본값(app.py)과 같을 필요는 없고, 화면이 설정값을 따른다는 것만
+# test_screens_poll_at_configured_intervals가 확인한다. 느린 기계에서도 응답이 다음 주기 전에 오도록 여유를 둔다.
+UI_INTERVALS = {'GIMPO_POLL_MS': 100, 'T2_POLL_MS': 100, 'SETTINGS_REFRESH_MS': 200}
+
 
 @contextmanager
 def run_app_server(app=flask_app, runtime=None):

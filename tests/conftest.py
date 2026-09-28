@@ -11,7 +11,7 @@ from services.t2 import valet as t2_valet
 from services.t2.scheduler import Scheduler
 from services.t2.storage import LogStore, UserDataStore
 from tests.gimpo.fakes import FakeBrowser, FakeFeeClient, FakeNotifier
-from tests.support.ui import run_app_server
+from tests.support.ui import UI_INTERVALS, run_app_server
 
 TEST_URL = "https://example.invalid/reserve"
 
@@ -58,11 +58,6 @@ def no_external_http(monkeypatch, tmp_path):
     notifications.close()
 
 
-# 화면 테스트용 폴링·새로고침 주기(ms). 운영 기본값(app.py)과 같을 필요는 없고, 화면이 설정값을 따른다는 것만
-# test_screens_poll_at_configured_intervals가 확인한다. 느린 기계에서도 응답이 다음 주기 전에 오도록 여유를 둔다.
-UI_INTERVALS = {'GIMPO_POLL_MS': 100, 'T2_POLL_MS': 100, 'SETTINGS_REFRESH_MS': 200}
-
-
 @pytest.fixture
 def ui_intervals(monkeypatch):
     # 앱 설정을 테스트마다 바꾸고 끝나면 되돌린다(monkeypatch.setitem).
@@ -82,10 +77,15 @@ def t2_server(client, ui_intervals, tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def ui_server(client, ui_intervals, tmp_path, monkeypatch):
+def fee_client():
+    return FakeFeeClient()
+
+
+@pytest.fixture
+def ui_server(client, ui_intervals, tmp_path, monkeypatch, fee_client):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
-    service = GimpoService(runtime.config); service._runtime = runtime; service.fee = FakeFeeClient(); runtime.fee = service.fee
+    service = GimpoService(runtime.config); service._runtime = runtime; service.fee = fee_client
     monkeypatch.setitem(flask_app.extensions, 'gimpo', service)
     with run_app_server(flask_app, runtime=runtime) as base:
         yield base, runtime

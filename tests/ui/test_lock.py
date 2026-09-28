@@ -47,7 +47,7 @@ def test_gimpo_password_fields_look_locked_and_eye_button_stays_clickable(ui_ser
             assert style['bg'] == LOCKED_LOOK['bg'], selector
             assert style['color'] == LOCKED_LOOK['color'], selector
             assert style['border'] == LOCKED_LOOK['border'], selector
-            assert style['cursor'] != 'not-allowed', selector
+            assert style['cursor'] == 'auto', selector
         assert page.locator('#toggle-password').is_enabled()
         assert page.locator('#toggle-password-confirmation').is_enabled()
         page.click('#toggle-password')
@@ -78,7 +78,7 @@ def test_t2_locks_inputs_while_running_and_restores_after_stop(t2_server, ui_con
         unlocked = page.locator('#carNumber').evaluate(LOCK_PROBE)
         assert unlocked['bg'] == ('rgb(255, 255, 255)' if width >= 961 else 'rgb(243, 244, 245)')
         assert unlocked['color'] != LOCKED_LOOK['color']
-        assert unlocked['cursor'] != 'not-allowed'
+        assert unlocked['cursor'] == 'text'
         page.fill('#name', '홍길동')
         page.fill('#phone', '01012345678')
         page.fill('#carNumber', '12가3456')
@@ -102,5 +102,5 @@ def test_t2_locks_inputs_while_running_and_restores_after_stop(t2_server, ui_con
         restored = page.locator('#carNumber').evaluate(LOCK_PROBE)
         assert restored['bg'] == expected_bg
         assert restored['color'] != LOCKED_LOOK['color']
-        assert restored['cursor'] != 'not-allowed'
+        assert restored['cursor'] == 'text'
         assert not errors
