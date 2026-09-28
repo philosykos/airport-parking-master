@@ -146,8 +146,20 @@ def test_stop_appends_real_stop_event_to_cached_logs(t2_server, ui_context):
         page.select_option('#carColor', 'WHITE')
         page.click('#btn-start')
         page.wait_for_function("() => Number(document.getElementById('log-count').textContent) >= 1", timeout=10000)
+        blocked_calls = {'count': 0}
+
+        def block_logs(route):
+            blocked_calls['count'] += 1
+            route.fulfill(status=503, json={'error': 'busy'})
+
+        # before를 읽기 전에 먼저 막아 두고, 실제로 한 번 막힌 응답이 나갈 때까지 기다린다.
+        # T2의 폴 루프는 응답을 받아야만 다음 조회를 예약하므로, 막힌 응답이 한 번이라도
+        # 나간 뒤에는 성공한 조회가 진행 중일 수 없다 — 그래야 이 시점에 읽는 before가
+        # stop을 누르는 시점의 logs 길이와 어긋나지 않는다.
+        page.route('**/t2-valet/api/logs', block_logs)
+        while blocked_calls['count'] < 1:
+            page.wait_for_timeout(20)
         before = page.evaluate("window.t2Screen.logs.length")
-        page.route('**/t2-valet/api/logs', lambda route: route.fulfill(status=503, json={'error': 'busy'}))
         page.click('#btn-stop')
         page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         after = page.evaluate("window.t2Screen.logs.length")

@@ -230,9 +230,11 @@ def _valid_query(**overrides):
     return query
 
 
-def test_route_rejects_cross_site_without_calling_fee_client(fee_route):
+def test_route_rejects_cross_site_without_calling_fee_client(fee_route, frozen_policy_limits):
     client, fake = fee_route
-    response = client.get("/gimpo-parking/api/fee", query_string=_valid_query(),
+    entry_min, _ = frozen_policy_limits
+    response = client.get("/gimpo-parking/api/fee",
+                          query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(entry_min + timedelta(hours=2))),
                           headers={"Sec-Fetch-Site": "cross-site"})
     assert response.status_code == 403
     assert response.get_json() == {"error": web_security.CROSS_SITE_ERROR}
@@ -240,9 +242,12 @@ def test_route_rejects_cross_site_without_calling_fee_client(fee_route):
 
 
 @pytest.mark.parametrize("headers", [{"Sec-Fetch-Site": "same-origin"}, {}])
-def test_route_allows_same_origin_and_no_header(fee_route, headers):
+def test_route_allows_same_origin_and_no_header(fee_route, frozen_policy_limits, headers):
     client, fake = fee_route
-    response = client.get("/gimpo-parking/api/fee", query_string=_valid_query(), headers=headers)
+    entry_min, _ = frozen_policy_limits
+    response = client.get("/gimpo-parking/api/fee",
+                          query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(entry_min + timedelta(hours=2))),
+                          headers=headers)
     assert response.status_code == 200
 
 
@@ -258,11 +263,13 @@ def test_route_rejects_entry_before_policy_minimum(fee_route, frozen_policy_limi
 
 def test_route_rejects_exit_after_policy_maximum(fee_route, frozen_policy_limits):
     client, fake = fee_route
-    entry_min, exit_max = frozen_policy_limits
+    _, exit_max = frozen_policy_limits
     exit_at = exit_max + timedelta(minutes=10)
+    entry = exit_at - timedelta(hours=2)
     response = client.get("/gimpo-parking/api/fee",
-                          query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(exit_at)))
+                          query_string=_valid_query(entryAt=_fmt(entry), exitAt=_fmt(exit_at)))
     assert response.status_code == 400
+    assert "45일 이내" in response.get_json()["error"]
     assert fake.calls == []
 
 
