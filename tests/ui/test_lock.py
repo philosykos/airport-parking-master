@@ -2,16 +2,12 @@
 import pytest
 
 from tests.gimpo.helpers import inputs
-from tests.support.ui import open_page
+from tests.support.ui import LOCK_PROBE, LOCKED_LOOK, open_page
 
 WIDTHS = [(1280, 900), (390, 844)]
 
-LOCK_PROBE = ("el => { const s = getComputedStyle(el); "
-              "return {bg: s.backgroundColor, color: s.color, border: s.borderColor, cursor: s.cursor}; }")
 TOGGLE_PROBE = ("el => { const s = getComputedStyle(el); "
                 "return {bg: s.backgroundColor, color: s.color, opacity: s.opacity}; }")
-
-LOCKED_LOOK = {'bg': 'rgb(243, 244, 245)', 'color': 'rgb(118, 118, 131)', 'border': 'rgb(228, 229, 234)'}
 
 GIMPO_INPUTS = ['#airportCode', '#parkingId', '#carNumber', '#phone', '#discountSelection',
                 '#intervalSeconds', '#entryAt', '#exitAt']

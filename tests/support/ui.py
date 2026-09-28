@@ -7,6 +7,11 @@ from werkzeug.serving import make_server
 from app import app as flask_app
 from tests.support.ui_cleanup import cleanup_ui_server
 
+LOCK_PROBE = ("el => { const s = getComputedStyle(el); "
+              "return {bg: s.backgroundColor, color: s.color, border: s.borderColor, cursor: s.cursor}; }")
+
+LOCKED_LOOK = {'bg': 'rgb(243, 244, 245)', 'color': 'rgb(118, 118, 131)', 'border': 'rgb(228, 229, 234)'}
+
 
 @contextmanager
 def run_app_server(app=flask_app, runtime=None):

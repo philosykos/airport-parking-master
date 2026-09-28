@@ -8,7 +8,7 @@ from playwright.sync_api import expect
 
 from app import app
 from services.gimpo.fee import FeeUnavailable
-from tests.support.ui import open_page
+from tests.support.ui import LOCK_PROBE, LOCKED_LOOK, open_page
 from tests.gimpo.fakes import FakeBrowser
 from tests.gimpo.helpers import inputs, wait_state
 from tests.support.waiting import eventually
@@ -342,7 +342,6 @@ def test_expired_saved_dates_use_current_booking_range(ui_server, ui_context):
 def test_password_fields_share_input_style(ui_server, ui_context):
     # 예약 비밀번호 칸은 읽기 전용이라 잠긴 칸과 같은 바탕·글자·테두리를 늘 보인다(입력칸이 잠금·풀림을
     # 오가도 바뀌지 않는다). 크기·모서리는 일반 입력칸과 그대로 같다.
-    from tests.ui.test_lock import LOCK_PROBE, LOCKED_LOOK
     base, runtime = ui_server
     with ui_context() as context:
         page = context.new_page()
