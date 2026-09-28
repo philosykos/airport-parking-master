@@ -1,15 +1,17 @@
 import ssl
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 import requests
 import truststore
 
 from services import web_security
+from services.gimpo import validation as gimpo_validation
 from services.gimpo.client import ORIGIN
 from services.gimpo.fee import AirportFeeClient, FeeUnavailable
 from services.gimpo.validation import parse_date, policy
 from tests.gimpo.fakes import FakeFeeClient
+from tests.gimpo.helpers import NOW
 
 
 class FakeResponse:
@@ -187,12 +189,28 @@ def test_route_rejects_missing_period_with_400(client):
 
 
 @pytest.fixture
-def fee_client(client, monkeypatch):
+def fee_route(client, monkeypatch):
     # 실제 앱 싱글턴(app.extensions['gimpo'])의 공항 요금 클라이언트를 가짜로 바꿔 호출 여부를 셀 수 있게 한다.
     from app import app
     fake = FakeFeeClient()
     monkeypatch.setattr(app.extensions["gimpo"], "fee", fake)
     return client, fake
+
+
+class _FixedNow(datetime):
+    """`services.gimpo.validation`의 `datetime.now(...)`를 고정 시각으로 바꾼다."""
+    @classmethod
+    def now(cls, tz=None):
+        return NOW
+
+
+@pytest.fixture
+def frozen_policy_limits(monkeypatch):
+    # 라우트가 내부에서 부르는 policy()도 이 고정 시각을 쓰게 해, 테스트가 계산한 경계값과
+    # 서버가 실제로 적용하는 경계값이 항상 일치하게 한다(실행 시각의 벽시계에 기대지 않는다).
+    monkeypatch.setattr(gimpo_validation, "datetime", _FixedNow)
+    limits = policy(NOW)
+    return parse_date(limits["entryMin"]), parse_date(limits["exitMax"])
 
 
 def _fmt(dt):
@@ -212,8 +230,8 @@ def _valid_query(**overrides):
     return query
 
 
-def test_route_rejects_cross_site_without_calling_fee_client(fee_client):
-    client, fake = fee_client
+def test_route_rejects_cross_site_without_calling_fee_client(fee_route):
+    client, fake = fee_route
     response = client.get("/gimpo-parking/api/fee", query_string=_valid_query(),
                           headers={"Sec-Fetch-Site": "cross-site"})
     assert response.status_code == 403
@@ -222,15 +240,15 @@ def test_route_rejects_cross_site_without_calling_fee_client(fee_client):
 
 
 @pytest.mark.parametrize("headers", [{"Sec-Fetch-Site": "same-origin"}, {}])
-def test_route_allows_same_origin_and_no_header(fee_client, headers):
-    client, fake = fee_client
+def test_route_allows_same_origin_and_no_header(fee_route, headers):
+    client, fake = fee_route
     response = client.get("/gimpo-parking/api/fee", query_string=_valid_query(), headers=headers)
     assert response.status_code == 200
 
 
-def test_route_rejects_entry_before_policy_minimum(fee_client):
-    client, fake = fee_client
-    entry_min, _ = _policy_limits()
+def test_route_rejects_entry_before_policy_minimum(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, _ = frozen_policy_limits
     entry = entry_min - timedelta(minutes=10)
     response = client.get("/gimpo-parking/api/fee",
                           query_string=_valid_query(entryAt=_fmt(entry), exitAt=_fmt(entry + timedelta(hours=2))))
@@ -238,9 +256,9 @@ def test_route_rejects_entry_before_policy_minimum(fee_client):
     assert fake.calls == []
 
 
-def test_route_rejects_exit_after_policy_maximum(fee_client):
-    client, fake = fee_client
-    entry_min, exit_max = _policy_limits()
+def test_route_rejects_exit_after_policy_maximum(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, exit_max = frozen_policy_limits
     exit_at = exit_max + timedelta(minutes=10)
     response = client.get("/gimpo-parking/api/fee",
                           query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(exit_at)))
@@ -248,9 +266,9 @@ def test_route_rejects_exit_after_policy_maximum(fee_client):
     assert fake.calls == []
 
 
-def test_route_rejects_time_not_on_ten_minute_step(fee_client):
-    client, fake = fee_client
-    entry_min, _ = _policy_limits()
+def test_route_rejects_time_not_on_ten_minute_step(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, _ = frozen_policy_limits
     entry = entry_min + timedelta(minutes=5)
     response = client.get("/gimpo-parking/api/fee",
                           query_string=_valid_query(entryAt=_fmt(entry), exitAt=_fmt(entry + timedelta(hours=2))))
@@ -258,26 +276,29 @@ def test_route_rejects_time_not_on_ten_minute_step(fee_client):
     assert fake.calls == []
 
 
-def test_route_rejects_period_under_two_hours(fee_client):
-    client, fake = fee_client
-    entry_min, _ = _policy_limits()
+def test_route_rejects_period_under_two_hours(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, _ = frozen_policy_limits
     response = client.get("/gimpo-parking/api/fee",
                           query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(entry_min + timedelta(minutes=90))))
     assert response.status_code == 400
     assert fake.calls == []
 
 
-def test_route_rejects_period_over_thirty_days(fee_client):
-    client, fake = fee_client
-    entry_min, _ = _policy_limits()
+def test_route_rejects_period_over_thirty_days(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, _ = frozen_policy_limits
     response = client.get("/gimpo-parking/api/fee",
                           query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(entry_min + timedelta(days=31))))
     assert response.status_code == 400
     assert fake.calls == []
 
 
-def test_route_rejects_unknown_discount_code(fee_client):
-    client, fake = fee_client
-    response = client.get("/gimpo-parking/api/fee", query_string=_valid_query(discountSelection="DC999"))
+def test_route_rejects_unknown_discount_code(fee_route, frozen_policy_limits):
+    client, fake = fee_route
+    entry_min, _ = frozen_policy_limits
+    response = client.get("/gimpo-parking/api/fee",
+                          query_string=_valid_query(entryAt=_fmt(entry_min), exitAt=_fmt(entry_min + timedelta(hours=2)),
+                                                     discountSelection="DC999"))
     assert response.status_code == 400
     assert fake.calls == []
