@@ -43,13 +43,7 @@ def parse_date(value):
         raise InputError("올바른 날짜와 시간을 입력해주세요.") from None
 
 
-def validate(data, interval_default=30, now=None):
-    if not isinstance(data, dict):
-        raise InputError("입력 정보가 필요합니다.")
-    result = {}
-    if data.get("airportCode") != AIRPORT or str(data.get("parkingId")) != PARKING:
-        raise InputError("지원하는 김포공항 예약주차장을 선택해주세요.")
-    result.update(airportCode=AIRPORT, parkingId=PARKING)
+def _validate_period(data, now=None):
     limits = policy(now)
     entry, end = parse_date(data.get("entryAt")), parse_date(data.get("exitAt"))
     if entry.minute % 10 or end.minute % 10:
@@ -58,7 +52,29 @@ def validate(data, interval_default=30, now=None):
         raise InputError("입차는 현재부터 2시간 이후, 출차는 오늘부터 45일 이내로 선택해주세요.")
     if not timedelta(hours=2) <= end - entry <= timedelta(days=30):
         raise InputError("예약 기간은 2시간 이상, 30일 이하여야 합니다.")
-    result.update(entryAt=entry.strftime("%Y-%m-%d %H:%M"), exitAt=end.strftime("%Y-%m-%d %H:%M"))
+    return entry.strftime("%Y-%m-%d %H:%M"), end.strftime("%Y-%m-%d %H:%M")
+
+
+def validate_fee_query(args, now=None):
+    """GET /api/fee 입력 검증. 예약 생성에 필요한 나머지 필드(차량번호 등)는 요구하지 않는다."""
+    if str(args.get("parkingId")) != PARKING:
+        raise InputError("지원하는 김포공항 예약주차장을 선택해주세요.")
+    entry_at, exit_at = _validate_period(args, now)
+    discount = args.get("discountSelection", "DC001")
+    if discount not in {item["value"] for item in DISCOUNTS}:
+        raise InputError("공식 할인 구분을 선택해주세요.")
+    return {"parkingId": PARKING, "entryAt": entry_at, "exitAt": exit_at, "discountSelection": discount}
+
+
+def validate(data, interval_default=30, now=None):
+    if not isinstance(data, dict):
+        raise InputError("입력 정보가 필요합니다.")
+    result = {}
+    if data.get("airportCode") != AIRPORT or str(data.get("parkingId")) != PARKING:
+        raise InputError("지원하는 김포공항 예약주차장을 선택해주세요.")
+    result.update(airportCode=AIRPORT, parkingId=PARKING)
+    entry_at, exit_at = _validate_period(data, now)
+    result.update(entryAt=entry_at, exitAt=exit_at)
     car = re.sub(r"\s", "", str(data.get("carNumber", "")))
     patterns = (r"(?:[가-힣]{2})?[0-9]{1,3}[가-힣][0-9]{4}", r"[가-힣]{1,2}[0-9]{4,6}", r"[가-힣]{0,2}[0-9]{2,4}-[0-9]{2,4}")
     if not any(re.fullmatch(p, car) for p in patterns):

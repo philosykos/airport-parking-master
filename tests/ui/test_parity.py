@@ -119,9 +119,9 @@ def test_form_card_aligns_with_log_panel_first_card(client, t2_server, ui_contex
         assert not errors
 
 
-def test_gimpo_log_rows_and_summary_render_correctly_on_pc(ui_server, ui_context):
-    # 로그 행이 있는 상태(빈 표 문구가 아님)에서 .cell-time 글자 크기를, 요약 다섯 칸이 보이는 상태에서
-    # 칸 사이 간격과 카드 정렬을 확인한다. 빈 상태로는 통과할 수 없도록 실제 작업을 만든다.
+def test_gimpo_log_rows_render_correctly_and_progress_card_aligns_on_pc(ui_server, ui_context):
+    # 로그 행이 있는 상태(빈 표 문구가 아님)에서 .cell-time 글자 크기를, 진행 상황 카드(안내 띠)가 보이는
+    # 상태에서 카드 정렬을 확인한다. 빈 상태로는 통과할 수 없도록 실제 작업을 만든다.
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)
     assert job['logs'], '로그가 있는 상태에서 확인해야 한다'
@@ -135,25 +135,8 @@ def test_gimpo_log_rows_and_summary_render_correctly_on_pc(ui_server, ui_context
         time_size = page.eval_on_selector('.cell-time', 'el => getComputedStyle(el).fontSize')
         assert time_size == '13px'
 
-        page.wait_for_function("() => document.querySelectorAll('#summary .summary-item').length === 5")
-        metrics = page.evaluate("""() => {
-            const card = document.querySelector('.progress-card');
-            const cardRect = card.getBoundingClientRect();
-            const style = getComputedStyle(card);
-            const innerLeft = cardRect.left + parseFloat(style.paddingLeft);
-            const innerRight = cardRect.right - parseFloat(style.paddingRight);
-            const items = [...document.querySelectorAll('#summary .summary-item')].map(el => el.getBoundingClientRect());
-            const gaps = [];
-            for (let i = 1; i < items.length; i++) gaps.push(Math.round((items[i].left - items[i - 1].right) * 10) / 10);
-            return {gaps, firstLeft: items[0].left, lastRight: items[items.length - 1].right, innerLeft, innerRight};
-        }""")
-        assert len(metrics['gaps']) == 4
-        assert max(metrics['gaps']) - min(metrics['gaps']) <= 1
-        assert all(gap >= 16 - 0.5 for gap in metrics['gaps'])
-        assert abs(metrics['firstLeft'] - metrics['innerLeft']) <= 1
-        assert abs(metrics['lastRight'] - metrics['innerRight']) <= 1
-
-        # 폼 카드는 (요약이 보이는) 진행 카드의 위 끝, 실행 로그 카드의 아래 끝에 맞춘다
+        page.wait_for_function("() => document.getElementById('progress-card').offsetParent !== null")
+        # 폼 카드는 (안내 띠가 보이는) 진행 카드의 위 끝, 실행 로그 카드의 아래 끝에 맞춘다
         alignment = page.evaluate("""() => {
             const formBody = document.querySelector('.form-body');
             const progressCard = document.querySelector('.progress-card');
@@ -230,35 +213,23 @@ def test_pc_log_tag_is_bordered_square_and_status_chip_unchanged_on_gimpo(ui_ser
 
 
 @pytest.mark.parametrize('width', [1200, 1000, 961])
-def test_gimpo_summary_shrinks_without_clipping_and_parking_first(ui_server, ui_context, width):
-    # 좁은 PC 폭(961~1100px)에서도 요약 칸이 카드 밖으로 잘려 나가면 안 된다. 주차장 칸이 먼저 줄어들어
-    # 말줄임하고, 그래도 모자라면 나머지 칸도 순서대로 줄어들어 말줄임한다(조용히 잘리지 않는다).
+def test_gimpo_fee_row_stays_inside_form_card_at_narrow_pc_widths(ui_server, ui_context, width):
+    # 폼 카드 안 요금 줄(예상 주차요금·예약 보증금)도 좁은 PC 폭에서 카드 밖으로 잘려 나가면 안 된다.
     base, runtime = ui_server
-    wait_state(runtime, runtime.create(inputs())['id'], READY)
     with open_page(ui_context, base, width=width, height=900) as (page, errors):
         page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
-        page.wait_for_function("() => document.querySelectorAll('#summary .summary-item').length === 5")
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent !== '계산 중'")
         rows = page.evaluate("""() => {
-            const card = document.querySelector('.progress-card');
+            const card = document.querySelector('.form-body');
             const cardRect = card.getBoundingClientRect();
             const style = getComputedStyle(card);
             const innerRight = cardRect.right - parseFloat(style.paddingRight);
-            return [...document.querySelectorAll('#summary .summary-item')].map(el => {
-                const dd = el.querySelector('dd');
-                return {right: el.getBoundingClientRect().right, innerRight,
-                        cut: dd.scrollWidth - dd.clientWidth};
-            });
+            return [...document.querySelectorAll('.fee-cell')].map(el => ({right: el.getBoundingClientRect().right, innerRight}));
         }""")
-        assert len(rows) == 5
-        # 카드 밖(오른쪽)으로 잘려 나간 칸이 없다(그 전에는 뒤 네 칸이 overflow:hidden에 잘렸다).
+        assert len(rows) == 2
         for row in rows:
             assert row['right'] <= row['innerRight'] + 1, row
-        # 주차장(첫 칸)이 이 폭들에서 이미 뚜렷하게 말줄임된 상태이고(글자 몇 개가 아니라 한 뭉치가 잘림),
-        # 다른 어느 칸보다 더 많이(먼저) 줄어들어 있다. 나머지 칸도 1px 안팎의 미세한 반올림 차이 정도는
-        # 있을 수 있지만(레이아웃 배분 오차), 주차장만큼 뚜렷하게 잘리지는 않는다.
-        assert rows[0]['cut'] > 10, rows
-        assert rows[0]['cut'] >= max(row['cut'] for row in rows[1:]), rows
         assert not errors
 
 

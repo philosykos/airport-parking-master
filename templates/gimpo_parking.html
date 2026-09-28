@@ -1,6 +1,6 @@
 {% extends 'service_base.html' %}
 {% from 'partials/date_input.html' import date_input %}
-{% from 'partials/ui.html' import field, action_button %}
+{% from 'partials/ui.html' import field, action_button, fee_row %}
 {% block title %}김포공항 국내선 예약주차장{% endblock %}
 {% block description %}김포공항 국내선 예약주차장 예약 도우미{% endblock %}
 {% block body_class %}service gimpo{% endblock %}
@@ -47,6 +47,8 @@
     </div>
 </form>
 {% endblock %}
+{% block fee_row %}{{ fee_row([{'id': 'fee-estimated', 'label': '예상 주차요금', 'initial': '—'},
+                              {'id': 'fee-deposit', 'label': '예약 보증금', 'initial': '예약 정보 입력 때 확인'}]) }}{% endblock %}
 {% block form_actions %}
     {{ action_button('watch', '자동 예약 시작', 'play_arrow', 'start', disabled=true) }}
     {{ action_button('stop', '중지', 'stop', 'stop', disabled=true, hidden=true) }}
@@ -55,8 +57,7 @@
 {% endblock %}
 {% block progress %}
 <div class="progress-card" id="progress-card" hidden>
-    <h2 id="status-title">예약 요약</h2>
-    <dl id="summary" hidden></dl>
+    <h2 id="status-title">진행 상황</h2>
     <div class="job-notice" id="job-notice" hidden><p id="job-notice-text"></p><button type="button" id="show-browser" class="primary" hidden>공항 예약창 보기</button></div>
     <div class="job-actions" id="job-actions" hidden>
         <button type="button" id="prepare" hidden>예약 정보 입력</button>

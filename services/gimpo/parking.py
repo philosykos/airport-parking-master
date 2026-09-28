@@ -5,9 +5,10 @@ import threading
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from services.gimpo.config import CONFIG, reservation_password
+from services.gimpo.fee import AirportFeeClient, FeeUnavailable
 from services.gimpo.jobs import GimpoRuntime, RuntimeUnavailable
 from services.gimpo.store import Conflict
-from services.gimpo.validation import AIRPORT, DEFAULT_FIELDS, DISCOUNTS, PARKING, PARKING_NAME, InputError, policy, validate
+from services.gimpo.validation import AIRPORT, DEFAULT_FIELDS, DISCOUNTS, PARKING, PARKING_NAME, InputError, policy, validate, validate_fee_query
 from services.notifications.background import BackgroundNotifications
 from services.notifications.config import CONFIG as NOTIFICATION_CONFIG, TelegramSettings
 from services.notifications.messages import ReservationMessages
@@ -18,10 +19,11 @@ bp = Blueprint("gimpo_parking", __name__, url_prefix="/gimpo-parking")
 
 class GimpoService:
     """Lazy composition root: no workers, browsers or DB writes during import."""
-    def __init__(self, config=CONFIG, runtime_factory=GimpoRuntime):
+    def __init__(self, config=CONFIG, runtime_factory=GimpoRuntime, fee_client_factory=AirportFeeClient):
         self.config, self.runtime_factory = config, runtime_factory
         self._runtime = None
         self._lock = threading.Lock()
+        self.fee = fee_client_factory()
         self.notification_settings = TelegramSettings.from_environment()
         self.notifications = BackgroundNotifications(TelegramNotifier(self.notification_settings),
                                                      NOTIFICATION_CONFIG.max_attempts)
@@ -96,6 +98,11 @@ def unavailable(error):
     return jsonify(error=str(error)), 503
 
 
+@bp.errorhandler(FeeUnavailable)
+def fee_unavailable(error):
+    return jsonify(error=str(error)), 502
+
+
 @bp.errorhandler(KeyError)
 def missing(error):
     return jsonify(error="작업을 찾을 수 없습니다."), 404
@@ -113,6 +120,12 @@ def options():
                    discounts=DISCOUNTS,
                    policy=policy(), intervalSeconds=service().config.interval_sec,
                    handoffMaxAgeSeconds=service().config.handoff_max_age_sec)
+
+
+@bp.get("/api/fee")
+def fee():
+    inputs = validate_fee_query(request.args)
+    return jsonify(service().fee.quote(**inputs))
 
 
 @bp.post("/api/reservation-password")

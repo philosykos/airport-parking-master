@@ -14,6 +14,19 @@
 </button>
 {%- endmacro %}
 
+{% macro fee_row(cells) -%}
+{%- if cells %}
+<div class="fee-row" id="fee-row">
+    {%- for cell in cells %}
+    <div class="fee-cell">
+        <span class="fee-label">{{ cell.label }}</span>
+        <span class="fee-value" id="{{ cell.id }}">{{ cell.initial | default('—') }}</span>
+    </div>
+    {%- endfor %}
+</div>
+{%- endif %}
+{%- endmacro %}
+
 {% macro log_sheet_bar() -%}
 <div class="log-sheet-bar">
     <div class="log-sheet-handle" aria-hidden="true"></div>

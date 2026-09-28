@@ -10,6 +10,20 @@ from services.notifications.telegram import Delivery
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+class FakeFeeClient:
+    """UI 테스트용 가짜 공항 요금 조회. 실제 네트워크를 부르지 않는다."""
+    def __init__(self, calculate_amt=8000, discount_amt=1600, error=None):
+        self.calculate_amt, self.discount_amt, self.error = calculate_amt, discount_amt, error
+        self.calls = []
+
+    def quote(self, *, parkingId, entryAt, exitAt, discountSelection):
+        self.calls.append({"parkingId": parkingId, "entryAt": entryAt, "exitAt": exitAt, "discountSelection": discountSelection})
+        if self.error:
+            raise self.error
+        return {"calculateAmt": self.calculate_amt, "discountAmt": self.discount_amt,
+                "estimatedAmt": self.calculate_amt - self.discount_amt}
+
+
 class FakeNotifier:
     enabled = True
     configured = True

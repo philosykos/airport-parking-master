@@ -367,7 +367,7 @@ def test_gimpo_page_drops_intro_copy_and_shows_status_only_in_header(client):
     assert 'id="header-status"' in html
     assert 'id="state"' not in html
     assert 'id="status-badge"' not in html
-    assert ">예약 요약<" in html and "진행 상황" not in html
+    assert ">진행 상황<" in html and "예약 요약" not in html
     assert ">실행 로그<" in html and "작업 로그" not in html
 
 
@@ -386,3 +386,11 @@ def test_form_has_title_and_log_clear_in_log_header(client, path):
     assert html.count('id="log-clear"') == 1 and 'id="btn-clear"' not in html
     header = html[html.index('class="log-header"'):html.index('class="log-scroll')]
     assert 'id="log-clear"' in header
+
+
+def test_gimpo_page_draws_fee_row_but_t2_does_not(client):
+    gimpo_html = client.get("/gimpo-parking/").get_data(as_text=True)
+    t2_html = client.get("/t2-valet/").get_data(as_text=True)
+    assert 'class="fee-row"' in gimpo_html
+    assert 'id="fee-estimated"' in gimpo_html and 'id="fee-deposit"' in gimpo_html
+    assert 'class="fee-row"' not in t2_html

@@ -101,6 +101,7 @@
                 this.setJob(existing.job || existing.recent);
                 if (this.job?.active) this.apply(this.job.inputs);
                 this.render();
+                this.scheduleFee();
             } catch (error) { this.message(error.message); }
             this.poll();
         }
@@ -255,10 +256,11 @@
                 if (this.connected && !this.job?.active) this.saveDefaults().catch(error => this.message(error.message));
             };
             $('reservation-form').addEventListener('input', event => event.target.closest('.field-group')?.classList.remove('has-error'));
-            $('reservation-form').addEventListener('change', saveChanges);
+            $('reservation-form').addEventListener('change', () => { saveChanges(); this.scheduleFee(); });
             $('reservation-form').addEventListener('vp.change', event => {
                 event.target.closest('.field-group')?.classList.remove('has-error');
                 saveChanges();
+                this.scheduleFee();
             });
             $('watch').onclick = () => this.perform(() => this.start('watch'));
             for (const action of ['prepare', 'show-browser']) $(action).onclick = () => this.perform(() => this.command(action));
@@ -311,18 +313,9 @@
             for (const [id, show] of Object.entries({prepare: state === 'AVAILABLE', proceed: state === 'PREPARED'})) $(id).hidden = !show;
             document.querySelectorAll('#job-actions button').forEach(b => b.disabled = this.busy);
             $('job-actions').hidden = !Array.from($('job-actions').children).some(button => !button.hidden);
-            $('summary').replaceChildren();
-            $('summary').hidden = !job?.summary;
-            // 예상 주차요금은 할인 후 금액이다(기존 동작 유지, test_summary_displays_discounted_price).
-            const values = job?.summary ? {...job.summary, estimatedAmt: job.summary.calculateAmt - (job.summary.discountAmt || 0)} : null;
-            if (values) for (const [key, name] of [['parkingName', '주차장'], ['entryAt', '입차'], ['exitAt', '출차'], ['estimatedAmt', '예상 주차요금'], ['depositAmt', '예약 보증금']]) {
-                const dt = document.createElement('dt'), dd = document.createElement('dd');
-                dt.textContent = name; dd.textContent = typeof values[key] === 'number' ? values[key].toLocaleString() + '원' : values[key];
-                const item = document.createElement('div');
-                item.className = 'summary-item';
-                item.append(dt, dd);
-                $('summary').append(item);
-            }
+            // 예약 보증금은 공항 요금 API가 주지 않아 가장 최근 작업 요약에서만 얻는다.
+            const deposit = job?.summary?.depositAmt;
+            $('fee-deposit').textContent = typeof deposit === 'number' ? deposit.toLocaleString() + '원' : '예약 정보 입력 때 확인';
             // 끝난 작업은 예약 완료·종료됨만 안내한다(그 밖의 끝난 상태는 헤더 상태와 로그로 충분하다).
             const current = active || ['RESERVED', 'CLOSED_BY_USER'].includes(state) ? notice(job) : null;
             $('job-notice').hidden = !current;
@@ -332,7 +325,7 @@
             }
             $('show-browser').hidden = !(current?.browser && active && this.browserAvailable);
             $('show-browser').disabled = this.busy;
-            $('progress-card').hidden = $('summary').hidden && $('job-notice').hidden && $('job-actions').hidden && $('job-notification').hidden;
+            $('progress-card').hidden = $('job-notice').hidden && $('job-actions').hidden && $('job-notification').hidden;
             const logKey = job ? `${job.id}:${job.stateVersion}` : '';
             if (logKey !== this.logKey) {
                 this.logKey = logKey;
@@ -373,6 +366,42 @@
                     actions: [{label: '공항 예약창 보기', onClick: () => { remember(); this.perform(() => this.command('show-browser')); }},
                         {label: '닫기', variant: 'secondary', onClick: remember}],
                     onDismiss: remember});
+            }
+        }
+        // 폼의 입차·출차·주차장·할인이 모두 유효할 때만 조회 대상으로 삼는다(validate_fee_query와 같은 기준).
+        feeQuery() {
+            if (!this.options?.policy) return null;
+            // fieldset이 잠긴(작업 진행 중) 동안에도 값을 읽어야 하므로 FormData 대신 값을 직접 읽는다
+            // (비활성 입력은 FormData에서 빠진다).
+            const entryAt = $('entryAt').value, exitAt = $('exitAt').value,
+                  parkingId = $('parkingId').value, discountSelection = $('discountSelection').value;
+            if (!entryAt || !exitAt || !parkingId || !discountSelection) return null;
+            const entry = this.parse(entryAt), exit = this.parse(exitAt);
+            if (!entry || !exit || entry.getMinutes() % 10 || exit.getMinutes() % 10) return null;
+            if (entry < this.parse(this.options.policy.entryMin) || exit > this.parse(this.options.policy.exitMax)) return null;
+            const duration = exit.getTime() - entry.getTime();
+            if (duration < 7200000 || duration > 30 * 86400000) return null;
+            return {entryAt, exitAt, parkingId, discountSelection};
+        }
+        // 유효 입력이 바뀐 뒤 500ms 동안 더 바뀌지 않으면 조회한다. 조회 중엔 "계산 중", 실패하면 "확인 불가".
+        scheduleFee() {
+            const query = this.feeQuery();
+            const key = query ? JSON.stringify(query) : null;
+            if (key === this.feeQueryKey) return;
+            this.feeQueryKey = key;
+            clearTimeout(this.feeTimer);
+            if (!query) { $('fee-estimated').textContent = '—'; return; }
+            $('fee-estimated').textContent = '계산 중';
+            this.feeTimer = setTimeout(() => this.fetchFee(query, key), 500);
+        }
+        async fetchFee(query, key) {
+            try {
+                const result = await this.api.call('/fee?' + new URLSearchParams(query).toString());
+                if (key !== this.feeQueryKey) return;  // 늦게 온 옛 응답은 무시한다
+                $('fee-estimated').textContent = result.estimatedAmt.toLocaleString() + '원';
+            } catch (error) {
+                if (key !== this.feeQueryKey) return;
+                $('fee-estimated').textContent = '확인 불가';  // 요금 조회 실패는 로그에 남기지 않는다
             }
         }
         async poll() {

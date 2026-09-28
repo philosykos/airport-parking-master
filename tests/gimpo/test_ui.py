@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import replace
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -8,10 +9,11 @@ from playwright.sync_api import expect
 
 from app import app
 from services.gimpo.config import CONFIG
+from services.gimpo.fee import FeeUnavailable
 from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.parking import GimpoService
 from tests.support.ui import open_page, run_app_server
-from tests.gimpo.fakes import FakeBrowser, FakeNotifier
+from tests.gimpo.fakes import FakeBrowser, FakeFeeClient, FakeNotifier
 from tests.gimpo.helpers import inputs, wait_state
 from tests.support.waiting import eventually
 from services.gimpo.store import READY
@@ -21,10 +23,55 @@ from services.gimpo.store import READY
 def ui_server(client, ui_intervals, tmp_path, monkeypatch):
     monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
     runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,notifier=FakeNotifier())
-    service=GimpoService(runtime.config);service._runtime=runtime
+    service=GimpoService(runtime.config);service._runtime=runtime;service.fee=FakeFeeClient();runtime.fee=service.fee
     monkeypatch.setitem(app.extensions,'gimpo',service)
     with run_app_server(app, runtime=runtime) as base:
         yield base, runtime
+
+
+def test_fee_row_shows_estimate_and_refetches_on_period_change(ui_server, ui_context):
+    base, runtime = ui_server
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        # 기본 입차·출차·주차장·할인은 이미 유효하므로 페이지가 뜨자마자 가짜 요금(8000-1600)을 조회한다.
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '6,400원'")
+        assert len(runtime.fee.calls) == 1
+        first_exit_at = page.input_value('#exitAt')
+        next_exit_at = (datetime.strptime(first_exit_at, '%Y-%m-%d %H:%M') + timedelta(minutes=10)).strftime('%Y-%m-%d %H:%M')
+        page.evaluate("""value => {
+            const exit = document.getElementById('exitAt');
+            exit.value = value;
+            exit.dispatchEvent(new Event('change', {bubbles: true}));
+        }""", next_exit_at)
+        # 500ms 디바운스 뒤 다시 조회한다: "계산 중"을 거쳐 값이 다시 채워지는 것으로 재조회를 확인한다
+        # (같은 가짜 요금이라 값 자체는 그대로지만, 상태를 오가는 것이 재조회의 증거다).
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '계산 중'")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '6,400원'")
+        assert len(runtime.fee.calls) == 2
+        assert runtime.fee.calls[-1]['exitAt'] == next_exit_at
+        assert not errors
+
+
+def test_fee_row_shows_unavailable_when_fee_lookup_fails(ui_server, ui_context):
+    base, runtime = ui_server
+    runtime.fee.error = FeeUnavailable('공항 요금을 확인할 수 없습니다.')
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent === '확인 불가'")
+        assert not errors
+
+
+def test_progress_card_has_no_summary_element_and_title_is_progress(ui_server, ui_context):
+    base, runtime = ui_server
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        assert page.locator('#summary').count() == 0
+        assert page.locator('#status-title').inner_text() == '진행 상황'
+        assert page.locator('#fee-deposit').inner_text() == '예약 정보 입력 때 확인'
+        assert not errors
 
 
 def test_form_to_handoff_refresh_and_stop(ui_server, ui_context):
@@ -242,23 +289,6 @@ def test_once_full_displays_one_result_row(ui_server, ui_context):
         page.reload()
         page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
         assert page.locator('#log-body tr.log-row').count() == 1
-
-
-def test_summary_displays_discounted_price(ui_server, ui_context):
-    base, runtime = ui_server
-    class Discounted(FakeBrowser):
-        async def prepare(self, **kwargs):
-            summary = await super().prepare(**kwargs)
-            return {**summary, 'calculateAmt': 104000, 'discountAmt': 52000, 'receiptAmt': 42000}
-    runtime.client_factory = Discounted
-    job = runtime.create(inputs())
-    wait_state(runtime, job['id'], READY)
-    with ui_context() as context:
-        page = context.new_page()
-        page.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
-        page.goto(base + '/gimpo-parking/')
-        page.wait_for_function("() => document.querySelector('#summary').textContent.includes('52,000원')")
-        assert '104,000원' not in page.locator('#summary').inner_text()
 
 
 def test_saved_interval_survives_reload_with_previous_job(ui_server, ui_context):
@@ -532,12 +562,12 @@ def test_completion_overlay_stays_closed_after_reload(ui_server, ui_context):
         assert not errors
 
 
-def test_log_time_keeps_date_and_empty_summary_card_is_hidden(ui_server, ui_context):
+def test_log_time_keeps_date_and_empty_progress_card_is_hidden(ui_server, ui_context):
     base, runtime = ui_server
     with open_page(ui_context, base) as (page, errors):
         page.goto(base + '/gimpo-parking/')
         page.wait_for_function("() => !document.getElementById('check').disabled")
-        # 작업이 없으면 요약할 내용이 없으므로 카드를 숨긴다.
+        # 작업이 없으면 안내 띠·작업 버튼·알림 줄이 모두 없으므로 카드를 숨긴다.
         assert not page.locator('#progress-card').is_visible()
         page.fill('#carNumber', '123가4567')
         page.fill('#phone', '01012345678')
@@ -612,7 +642,7 @@ def test_notice_strip_follows_payment_flow(ui_server, ui_context):
         assert page.locator('#job-notice').get_attribute('data-tone') == 'warn'
         assert notice(page).endswith('까지 공항 예약창에서 결제를 진행해주세요. 자리는 아직 확보되지 않았습니다.')
         expect(page.locator('#job-notice #show-browser')).to_be_visible()  # 첫 폴링(browserAvailable) 뒤에 보인다
-        assert page.locator('#summary .summary-item').count() == 5
+        assert page.locator('#fee-deposit').inner_text() == '10,000원'  # 가장 최근 작업 요약의 depositAmt
         runtime.store.dispatch_payment(job['id'], job)
         runtime.store.transition(job['id'], 'PAYMENT_IN_PROGRESS', '공항 결제창에서 결제를 진행하고 있습니다.')
         page.wait_for_function("() => document.getElementById('job-notice').dataset.tone === 'info'")
