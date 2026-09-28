@@ -5,10 +5,12 @@ import pytest
 
 from app import app as flask_app
 from services.gimpo.config import CONFIG
+from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.parking import GimpoService
 from services.t2 import valet as t2_valet
 from services.t2.scheduler import Scheduler
 from services.t2.storage import LogStore, UserDataStore
+from tests.gimpo.fakes import FakeBrowser, FakeFeeClient, FakeNotifier
 from tests.support.ui import run_app_server
 
 TEST_URL = "https://example.invalid/reserve"
@@ -77,3 +79,13 @@ def t2_server(client, ui_intervals, tmp_path, monkeypatch):
     monkeypatch.setitem(flask_app.extensions, 'gimpo', service)
     with run_app_server(flask_app, runtime=service) as base:
         yield base
+
+
+@pytest.fixture
+def ui_server(client, ui_intervals, tmp_path, monkeypatch):
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    service = GimpoService(runtime.config); service._runtime = runtime; service.fee = FakeFeeClient(); runtime.fee = service.fee
+    monkeypatch.setitem(flask_app.extensions, 'gimpo', service)
+    with run_app_server(flask_app, runtime=runtime) as base:
+        yield base, runtime

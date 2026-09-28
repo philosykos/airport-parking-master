@@ -6,7 +6,6 @@ import pytest
 from services.gimpo.store import READY
 from services.t2 import valet as t2_valet
 from tests.gimpo.helpers import inputs, wait_state
-from tests.gimpo.test_ui import ui_server
 from tests.support.ui import open_page
 
 STYLE_PROBES = {

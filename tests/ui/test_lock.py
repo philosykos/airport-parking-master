@@ -2,7 +2,6 @@
 import pytest
 
 from tests.gimpo.helpers import inputs
-from tests.gimpo.test_ui import ui_server  # noqa: F401 (공통 픽스처)
 from tests.support.ui import open_page
 
 WIDTHS = [(1280, 900), (390, 844)]

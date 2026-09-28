@@ -1,6 +1,5 @@
 import json
 import re
-from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -8,25 +7,12 @@ import pytest
 from playwright.sync_api import expect
 
 from app import app
-from services.gimpo.config import CONFIG
 from services.gimpo.fee import FeeUnavailable
-from services.gimpo.jobs import GimpoRuntime
-from services.gimpo.parking import GimpoService
-from tests.support.ui import open_page, run_app_server
-from tests.gimpo.fakes import FakeBrowser, FakeFeeClient, FakeNotifier
+from tests.support.ui import open_page
+from tests.gimpo.fakes import FakeBrowser
 from tests.gimpo.helpers import inputs, wait_state
 from tests.support.waiting import eventually
 from services.gimpo.store import READY
-
-
-@pytest.fixture
-def ui_server(client, ui_intervals, tmp_path, monkeypatch):
-    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
-    runtime=GimpoRuntime(replace(CONFIG,directory=tmp_path/'data'),FakeBrowser,notifier=FakeNotifier())
-    service=GimpoService(runtime.config);service._runtime=runtime;service.fee=FakeFeeClient();runtime.fee=service.fee
-    monkeypatch.setitem(app.extensions,'gimpo',service)
-    with run_app_server(app, runtime=runtime) as base:
-        yield base, runtime
 
 
 def test_fee_row_shows_estimate_and_refetches_on_period_change(ui_server, ui_context):
