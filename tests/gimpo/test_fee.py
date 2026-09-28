@@ -1,4 +1,7 @@
+import ssl
+
 import requests
+import truststore
 
 from services.gimpo.client import ORIGIN
 from services.gimpo.fee import AirportFeeClient, FeeUnavailable
@@ -43,10 +46,10 @@ class FakeSession:
         return FakeResponse(self.discount_json if self.discount_json is not None else {"discountAmt": self.discount_amt})
 
 
-INPUTS = dict(parkingId="2", entryAt="2026-10-10 10:00", exitAt="2026-10-10 14:00", discountSelection="DC001")
+INPUTS = dict(parkingId="2", entryAt="2026-10-10 10:00", exitAt="2026-10-10 14:00", discountSelection="DC005")
 
 
-def test_quote_returns_calculate_discount_and_estimated_amounts():
+def test_quote_calls_calculate_amt_with_dc001_regardless_of_selection():
     session = FakeSession(calculate_amt=8000, discount_amt=1600)
     client = AirportFeeClient(session=session)
     result = client.quote(**INPUTS)
@@ -55,9 +58,24 @@ def test_quote_returns_calculate_discount_and_estimated_amounts():
     assert method == "POST" and url == ORIGIN + "/main/calculateAmt.json"
     assert data == {"sectnId": "2", "inDttm": "2026-10-10 10:00:00", "outDttm": "2026-10-10 14:00:00", "discountCd": "DC001"}
     assert headers["X-Requested-With"] == "XMLHttpRequest" and timeout == 5
+
+
+def test_quote_calls_discount_with_selected_code_and_received_calculate_amt():
+    session = FakeSession(calculate_amt=8000, discount_amt=1600)
+    client = AirportFeeClient(session=session)
+    client.quote(**INPUTS)
     method, url, params, headers, timeout = session.calls[1]
     assert method == "GET" and url == ORIGIN + "/reservation/calculateDiscountAmt.json"
+    assert params["discountCd"] == "DC005"
     assert params["calculateAmt"] == 8000
+
+
+def test_quote_skips_discount_call_when_selection_is_dc001():
+    session = FakeSession(calculate_amt=8000, discount_amt=1600)
+    client = AirportFeeClient(session=session)
+    result = client.quote(**{**INPUTS, "discountSelection": "DC001"})
+    assert result == {"calculateAmt": 8000, "discountAmt": 0, "estimatedAmt": 8000}
+    assert len(session.calls) == 1
 
 
 def test_quote_caches_second_call_for_same_input():
@@ -126,6 +144,13 @@ def test_quote_fails_on_bad_http_status():
         assert False, "should have raised"
     except FeeUnavailable:
         pass
+
+
+def test_default_session_mounts_truststore_context_for_https():
+    client = AirportFeeClient()
+    adapter = client.session.get_adapter("https://example.com")
+    ssl_context = adapter.poolmanager.connection_pool_kw.get("ssl_context")
+    assert isinstance(ssl_context, truststore.SSLContext)
 
 
 def test_route_rejects_invalid_input_with_400(client):
