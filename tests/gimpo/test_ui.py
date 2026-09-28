@@ -49,6 +49,31 @@ def test_fee_row_shows_unavailable_when_fee_lookup_fails(ui_server, ui_context, 
         assert not errors
 
 
+def test_stale_policy_refreshes_options_and_retries_fee_once(ui_server, ui_context, fee_client):
+    base, runtime = ui_server
+    with open_page(ui_context, base) as (page, errors):
+        option_requests = []
+        page.on('request', lambda request: option_requests.append(request.url) if '/api/options' in request.url else None)
+        fee_failed = []
+
+        def fail_once(route):
+            if not fee_failed:
+                fee_failed.append(route.request.url)
+                route.fulfill(status=400, json={'error': '정책이 오래되었습니다.'})
+            else:
+                route.continue_()
+
+        page.route('**/gimpo-parking/api/fee**', fail_once)
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function(
+            "() => document.getElementById('fee-estimated').textContent !== '확인 불가' "
+            "&& document.getElementById('fee-estimated').textContent !== '계산 중'")
+        assert fee_failed
+        assert len(option_requests) >= 2
+        assert not errors
+
+
 def test_progress_card_has_no_summary_element_and_title_is_progress(ui_server, ui_context):
     base, runtime = ui_server
     with open_page(ui_context, base) as (page, errors):

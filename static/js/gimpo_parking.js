@@ -77,7 +77,7 @@
     }
     class ReservationScreen {
         constructor() { this.api = new GimpoApi(); this.job = null; this.connected = false; this.busy = false; this.events = []; this.pickers = {};
-            this.completion = new CompletionMemory(); this.shownKey = null;
+            this.completion = new CompletionMemory(); this.shownKey = null; this.feeRetriedKey = null;
             this.runToggle = new UI.RunToggle($('watch'), $('stop'));
             this.logPanel = new UI.LogPanel($('log-panel'));
             new UI.SelectPicker($('select-picker-overlay')).attach(document.querySelector('.form-panel')); }
@@ -398,9 +398,22 @@
             try {
                 const result = await this.api.call('/fee?' + new URLSearchParams(query).toString());
                 if (key !== this.feeQueryKey) return;  // 늦게 온 옛 응답은 무시한다
+                this.feeRetriedKey = null;
                 $('fee-estimated').textContent = result.estimatedAmt.toLocaleString() + '원';
             } catch (error) {
                 if (key !== this.feeQueryKey) return;
+                // 브라우저가 들고 있던 policy가 낡아 서버가 400을 낸 것일 수 있다: 정책을 다시 읽어 한 번만 재시도한다.
+                // 같은 키로 다시 400이 오면(재조회로도 낡은 채면) 아래에서 확인 불가로 끝내 무한 반복하지 않는다.
+                if (error.status === 400 && this.feeRetriedKey !== key) {
+                    this.feeRetriedKey = key;
+                    try {
+                        const options = await this.api.call('/options');
+                        this.updatePolicy(options.policy);
+                    } catch (_) { /* 정책 재조회가 실패해도 아래에서 확인 불가로 끝난다 */ }
+                    this.feeQueryKey = null;
+                    this.scheduleFee();
+                    return;
+                }
                 $('fee-estimated').textContent = '확인 불가';  // 요금 조회 실패는 로그에 남기지 않는다
             }
         }

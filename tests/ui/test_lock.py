@@ -67,6 +67,32 @@ def test_gimpo_locked_select_does_not_open_mobile_sheet(ui_server, ui_context):
         assert not errors
 
 
+def test_unlocked_t2_input_transitions_background_and_border_only_on_focus(t2_server, ui_context):
+    with open_page(ui_context, t2_server) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_load_state('networkidle')
+        blurred = page.locator('#carNumber').evaluate("el => getComputedStyle(el).transitionProperty")
+        assert 'background' not in blurred
+        assert 'border-color' not in blurred
+        page.focus('#carNumber')
+        focused = page.locator('#carNumber').evaluate("el => getComputedStyle(el).transitionProperty")
+        assert 'background' in focused
+        assert 'border-color' in focused
+        assert not errors
+
+
+def test_locked_gimpo_input_has_no_background_or_border_transition(ui_server, ui_context):
+    base, runtime = ui_server
+    runtime.create(inputs())
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('input-fields').disabled === true")
+        locked = page.locator('#airportCode').evaluate("el => getComputedStyle(el).transitionProperty")
+        assert 'background' not in locked
+        assert 'border-color' not in locked
+        assert not errors
+
+
 @pytest.mark.parametrize('width,height', WIDTHS)
 def test_t2_locks_inputs_while_running_and_restores_after_stop(t2_server, ui_context, width, height):
     with open_page(ui_context, t2_server, width=width, height=height) as (page, errors):

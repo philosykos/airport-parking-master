@@ -246,8 +246,9 @@
         async stop() {
             try {
                 await UI.api(API + '/stop', {method: 'POST'});
-                // 서버는 이미 STOP 이벤트를 남겼지만, 로그를 다시 받기 전에도 배지가 바로 "중지됨"이 되도록 넘긴다.
-                this.updateUI(false, [{type: 'event', status: 'STOP'}]);
+                // 서버는 이미 STOP 이벤트를 남겼지만, 로그를 다시 받기 전에도 배지가 바로 "중지됨"이 되도록
+                // 지금까지의 로그 뒤에 같은 내용을 캐시로 붙인다(로그를 못 받아도 이 캐시가 남는다).
+                this.updateUI(false, [...this.logs, {type: 'event', status: 'STOP'}]);
                 await this.fetchLogs();
             } catch (error) { this.runToggle.release(); UI.toast(error.message, 'error'); }
         }

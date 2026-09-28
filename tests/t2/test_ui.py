@@ -134,6 +134,29 @@ def test_stop_shows_idle_immediately_even_if_logs_request_fails(t2_server, ui_co
         assert not errors
 
 
+def test_stop_appends_real_stop_event_to_cached_logs(t2_server, ui_context):
+    with open_page(ui_context, t2_server, height=900) as (page, errors):
+        page.goto(t2_server + '/t2-valet/')
+        page.wait_for_load_state('networkidle')
+        page.fill('#name', '홍길동')
+        page.fill('#phone', '01012345678')
+        page.fill('#carNumber', '12가3456')
+        page.fill('#carModel', '그랜저')
+        page.select_option('#carBrand', 'HY')
+        page.select_option('#carColor', 'WHITE')
+        page.click('#btn-start')
+        page.wait_for_function("() => Number(document.getElementById('log-count').textContent) >= 1", timeout=10000)
+        before = page.evaluate("window.t2Screen.logs.length")
+        page.route('**/t2-valet/api/logs', lambda route: route.fulfill(status=503, json={'error': 'busy'}))
+        page.click('#btn-stop')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '중지됨'")
+        after = page.evaluate("window.t2Screen.logs.length")
+        assert after == before + 1
+        last_status = page.evaluate("window.t2Screen.logs[window.t2Screen.logs.length - 1].status")
+        assert last_status == 'STOP'
+        assert not errors
+
+
 def test_empty_payload_omits_request_payload_section(t2_server, ui_context):
     t2_valet.log_store.append({'time': '2026-01-01 00:00:00', 'type': 'test', 'status': 200,
                                'body': '{}', 'url': 'https://example.invalid/reserve', 'payload': {}})
