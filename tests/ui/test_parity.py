@@ -233,6 +233,66 @@ def test_gimpo_fee_row_stays_inside_form_card_at_narrow_pc_widths(ui_server, ui_
         assert not errors
 
 
+def test_gimpo_fee_row_sits_directly_above_button_row_on_tall_pc(ui_server, ui_context):
+    # 요금 줄은 버튼 줄 바로 위에 있어야 한다(스펙 2절). 카드가 로그 패널 바닥까지 늘어나는 키 큰
+    # 뷰포트(1280x1400)에서, 폼 필드 아래 남는 공간을 요금 줄이 흡수해 버튼 줄에 붙어야 한다.
+    base, runtime = ui_server
+    with open_page(ui_context, base, width=1280, height=1400) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent !== '계산 중'")
+        metrics = page.evaluate("""() => {
+            const feeRow = document.querySelector('.fee-row');
+            const actionBar = document.querySelector('.action-bar');
+            const lastField = [...document.querySelectorAll('.field-row')].pop();
+            const gap = getComputedStyle(actionBar).marginTop;
+            return {feeBottom: feeRow.getBoundingClientRect().bottom, actionTop: actionBar.getBoundingClientRect().top,
+                    feeTop: feeRow.getBoundingClientRect().top, lastFieldBottom: lastField.getBoundingClientRect().bottom,
+                    gap: parseFloat(gap)};
+        }""")
+        assert abs((metrics['actionTop'] - metrics['feeBottom']) - metrics['gap']) <= 1, metrics
+        assert metrics['feeTop'] >= metrics['lastFieldBottom'] - 1, metrics
+        assert not errors
+
+
+def test_gimpo_fee_row_order_is_fields_then_fee_then_buttons_on_mobile(ui_server, ui_context):
+    base, runtime = ui_server
+    with open_page(ui_context, base, width=390, height=844) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent !== '계산 중'")
+        metrics = page.evaluate("""() => {
+            const lastField = [...document.querySelectorAll('.field-row')].pop();
+            const feeRow = document.querySelector('.fee-row');
+            const actionBar = document.querySelector('.action-bar');
+            return {lastFieldBottom: lastField.getBoundingClientRect().bottom,
+                    feeTop: feeRow.getBoundingClientRect().top, feeBottom: feeRow.getBoundingClientRect().bottom,
+                    actionTop: actionBar.getBoundingClientRect().top};
+        }""")
+        assert metrics['lastFieldBottom'] <= metrics['feeTop'] + 1, metrics
+        assert metrics['feeBottom'] <= metrics['actionTop'] + 1, metrics
+        assert not errors
+
+
+def test_gimpo_fee_cells_align_with_field_columns_on_pc(ui_server, ui_context):
+    # 요금 줄 두 칸은 위 필드 줄(.field-row)과 같은 2열 격자를 써 왼쪽 끝이 필드 열과 나란해야 한다.
+    base, runtime = ui_server
+    with open_page(ui_context, base, width=1280, height=900) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => !document.getElementById('check').disabled")
+        page.wait_for_function("() => document.getElementById('fee-estimated').textContent !== '계산 중'")
+        metrics = page.evaluate("""() => {
+            const fieldRow = document.querySelector('.field-row');
+            const fieldLefts = [...fieldRow.children].map(el => Math.round(el.getBoundingClientRect().left));
+            const feeLefts = [...document.querySelectorAll('.fee-cell')].map(el => Math.round(el.getBoundingClientRect().left));
+            return {fieldLefts, feeLefts};
+        }""")
+        assert len(metrics['feeLefts']) == 2
+        for field_left, fee_left in zip(metrics['fieldLefts'], metrics['feeLefts']):
+            assert abs(field_left - fee_left) <= 1, metrics
+        assert not errors
+
+
 @pytest.mark.parametrize('path,ready', [('/t2-valet/', "() => !document.getElementById('btn-start').disabled"),
                                         ('/gimpo-parking/', "() => !document.getElementById('check').disabled")])
 def test_action_grid_button_labels_stay_on_one_line(client, t2_server, ui_context, path, ready):

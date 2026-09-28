@@ -503,12 +503,15 @@ select {
     margin: 0 0 var(--space-1);
 }
 
-/* ── 요금 줄(김포): 폼 카드 안, 버튼 줄 바로 위. 모든 폭에서 같다. T2는 칸이 없어 그리지 않는다. ── */
+/* ── 요금 줄(김포): 폼 카드 안, 버튼 줄 바로 위. 모든 폭에서 같다. T2는 칸이 없어 그리지 않는다.
+   .form-body가 flex column이라 margin-top:auto로 남는 세로 공간을 이 줄이 흡수해 버튼 줄 바로
+   위까지 내려온다(버튼 줄 자신은 고정 간격만 둔다. 아래 .fee-row + .action-bar 참고). 두 칸은
+   위 필드 줄(.field-row)과 같은 2열 격자를 써 칸 왼쪽 끝이 필드 열과 나란하다. */
 .fee-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: var(--space-2);
-    margin-top: var(--space-2);
+    margin-top: auto;
     padding-top: var(--space-2);
     border-top: 1px solid #EEF0F3;
 }
@@ -532,6 +535,10 @@ select {
 .action-bar {
     padding: 0;
     margin-top: auto;
+}
+/* 요금 줄이 있으면(김포) 남는 공간은 이미 요금 줄이 흡수했으므로, 버튼 줄은 고정 간격만 둔다. */
+.fee-row + .action-bar {
+    margin-top: var(--space-2);
 }
 .action-grid {
     display: grid;
