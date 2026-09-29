@@ -134,15 +134,13 @@ class GimpoRuntime:
                 and self.store.resume_data(job["id"]) is not None)
 
     async def _pause_for_restart(self, job_id):
-        """정상 종료 때 감시 작업의 브라우저를 닫고, 다음 시작 때 이어 가도록 활성으로 남긴다."""
+        """정상 종료 때 감시 작업의 브라우저를 닫고, 다음 시작 때 이어 가도록 활성으로 남긴다.
+
+        결제 대기를 먼저 떠난 뒤에 브라우저를 닫아, 닫는 사이 결제 요청이 받아들여지지 않게 한다."""
         task = self.tasks.get(job_id)
         if task and task is not asyncio.current_task():
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
-        try:
-            await self._close_client(job_id)
-        except Conflict:
-            return
         job = self.store.get(job_id)
         try:
             self.store.transition(job_id, "WAITING_AVAILABLE", "앱이 종료되어 감시를 멈췄습니다. 앱을 다시 켜면 이어 갑니다.",
@@ -150,9 +148,13 @@ class GimpoRuntime:
                                   commandId=uuid.uuid4().hex,  # 마지막 회차 행을 덮지 않고 새 행으로 남긴다
                                   cause="INTERRUPTED" if job["state"] == READY else None)
         except Conflict:
-            pass
-        if self.store.get(job_id)["paymentMayHaveBeenSent"]:
-            self.payment_unknown(job_id)  # 종료 직전에 사용자가 결제를 시작했다
+            if self.store.get(job_id)["paymentMayHaveBeenSent"]:
+                self.payment_unknown(job_id)  # 종료 직전에 사용자가 결제를 시작했다. 결제 중인 예약창은 닫지 않는다.
+            return
+        try:
+            await self._close_client(job_id)
+        except Conflict:
+            return
 
     def stop(self, job_id, version, replacement=None):
         with self.command_lock:

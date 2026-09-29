@@ -549,16 +549,49 @@ def test_shutdown_in_watch_handoff_pauses_for_restart(tmp_path):
         store.close()
 
 
+PAUSE_REASON = '앱이 종료되어 감시를 멈췄습니다. 앱을 다시 켜면 이어 갑니다.'
+
+
+def test_shutdown_pause_transitions_before_closing(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    job = ready(runtime)
+    browser = runtime.clients[job['id']]
+    close_client = runtime._close_client
+    refused = []
+    async def payment_before_close(job_id, *args, **kwargs):
+        # 종료가 브라우저를 닫기 직전에 사용자가 결제를 누른 순서를 재현한다. 이미 결제 대기를 떠났어야 한다.
+        current = runtime.store.get(job_id)
+        try:
+            runtime.store.dispatch_payment(job_id, current)
+        except Conflict:
+            refused.append(current['state'])
+        await close_client(job_id, *args, **kwargs)
+    runtime._close_client = payment_before_close
+    runtime.close()
+    assert refused and set(refused) == {'WAITING_AVAILABLE'}
+    assert browser.closed
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert (final['state'], final['active'], final['paymentMayHaveBeenSent']) == ('WAITING_AVAILABLE', True, False)
+        assert final['reason'] == PAUSE_REASON
+    finally:
+        store.close()
+
+
 def test_shutdown_pause_racing_payment_marks_result_unknown(tmp_path):
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
     job = ready(runtime)
-    close_client = runtime._close_client
-    async def payment_first(job_id, *args, **kwargs):
-        # 종료가 결제 대기를 읽은 직후 사용자가 결제를 시작한 순서를 재현한다.
-        runtime.store.dispatch_payment(job_id, runtime.store.get(job_id))
-        await close_client(job_id, *args, **kwargs)
-    runtime._close_client = payment_first
+    browser = runtime.clients[job['id']]
+    transition = runtime.store.transition
+    def payment_first(job_id, state, reason, **kwargs):
+        if reason == PAUSE_REASON:
+            # 종료가 결제 대기를 읽은 직후, 멈춤 전이 전에 사용자가 결제를 시작한 순서를 재현한다.
+            runtime.store.dispatch_payment(job_id, runtime.store.get(job_id))
+        return transition(job_id, state, reason, **kwargs)
+    runtime.store.transition = payment_first
     runtime.close()
+    assert not browser.closed  # 진행 중인 결제의 예약창을 멈춤이 닫지 않는다
     store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
     try:
         final = store.get(job['id'])
