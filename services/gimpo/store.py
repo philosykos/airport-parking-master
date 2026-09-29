@@ -82,6 +82,7 @@ class JobStore:
                    "returnedFromPayment": False,
                    "paymentAttemptId": None, "handoffDeadline": None, "availabilityCheckedAt": None,
                    "inputs": {k: inputs[k] for k in PUBLIC_INPUT}, "summary": None,
+                   "attemptExitAt": None, "exitCandidateIndex": 0, "consecutiveFailures": 0,
                    "reason": "빈자리를 조회합니다.", "updatedAt": self.clock(), "logs": [],
                    "commandId": uuid.uuid4().hex, "commandStatus": "RUNNING"}
             self._log(job)
@@ -170,9 +171,10 @@ class JobStore:
                 "active": True, "runId": run_id, "generation": job["generation"] + 1,
                 "inputVersion": job["inputVersion"] + 1, "summary": None, "handoffDeadline": None,
                 "inputs": {k: inputs[k] for k in PUBLIC_INPUT}, "commandId": uuid.uuid4().hex,
-                "returnedFromPayment": False, "commandStatus": "RUNNING"})
+                "returnedFromPayment": False, "commandStatus": "RUNNING",
+                "attemptExitAt": None, "exitCandidateIndex": 0, "consecutiveFailures": 0})
 
-    def ready(self, job_id, generation, summary, checked_at, max_age):
+    def ready(self, job_id, generation, summary, checked_at, max_age, **updates):
         with self.transaction():
             job = self._get(job_id)
             if job["state"] != "RECHECKING" or job["generation"] != generation:
@@ -180,7 +182,7 @@ class JobStore:
             return self._transition(job, READY, "결제 대기 — 예약 미완료", {
                 "handoffEpoch": job["handoffEpoch"] + 1, "summary": summary,
                 "availabilityCheckedAt": checked_at, "handoffDeadline": checked_at + max_age,
-                "commandStatus": "DONE"})
+                "commandStatus": "DONE", **updates})
 
     def dispatch_payment(self, job_id, version):
         """The durable record is committed BEFORE allowing the original network request."""

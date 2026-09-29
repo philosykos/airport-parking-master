@@ -290,3 +290,17 @@ def test_store_messages_do_not_ask_to_record_result(store):
         store.create(validate(valid_input(), now=NOW), 'run1')
     with pytest.raises(Conflict, match='이 작업은 다시 시작할 수 없습니다. 진행 중인 작업이 있다면 먼저 끝내주세요.'):
         store.restart(job['id'], job, validate(valid_input(), now=NOW), 'run1')
+
+
+def test_restart_resets_watch_counters(store):
+    job = store.create(validate(valid_input(mode='watch'), now=NOW), 'run1')
+    store.transition(job['id'], 'WAITING_AVAILABLE', 'test', exitCandidateIndex=5, consecutiveFailures=2,
+                     attemptExitAt='2026-09-29 10:00')
+    job = store.release(job['id'], 'STOPPED', 'test', {'WAITING_AVAILABLE'})
+    restarted = store.restart(job['id'], job, validate(valid_input(mode='watch'), now=NOW), 'run2')
+    assert (restarted['exitCandidateIndex'], restarted['consecutiveFailures'], restarted['attemptExitAt']) == (0, 0, None)
+
+
+def test_new_job_starts_watch_counters_at_zero(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    assert (job['exitCandidateIndex'], job['consecutiveFailures'], job['attemptExitAt']) == (0, 0, None)

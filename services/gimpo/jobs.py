@@ -3,6 +3,7 @@ import asyncio
 import atexit
 import fcntl
 import os
+import random
 import threading
 import uuid
 
@@ -11,6 +12,7 @@ from playwright.async_api import Error as PlaywrightError
 from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
 from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
 from services.gimpo.validation import InputError, validate
+from services.gimpo.watch import exit_candidates, exit_note, jittered, short_time, wait_text
 from services.notifications.outbox import NotificationOutbox
 from services.notifications.telegram import Notifier
 from services.notifications.config import CONFIG as NOTIFICATION_CONFIG
@@ -46,7 +48,8 @@ class ProcessLease:
 
 
 class GimpoRuntime:
-    def __init__(self, config, client_factory=PlaywrightGimpoClient, *, notifier: Notifier, completion_hold_sec=10):
+    def __init__(self, config, client_factory=PlaywrightGimpoClient, *, notifier: Notifier, completion_hold_sec=10,
+                 rng=None, sleep=None):
         self.config, self.client_factory = config, client_factory
         self.completion_hold_sec = completion_hold_sec  # 예약 완료 뒤 사용자가 공항 완료 화면을 볼 시간
         self.run_id = uuid.uuid4().hex
@@ -57,6 +60,8 @@ class GimpoRuntime:
         self.store.recover(self.run_id)
         self.clients, self.inputs, self.tasks = {}, {}, {}
         self.closing = False
+        self.random = rng or random.Random()
+        self.sleep = sleep or asyncio.sleep  # 감시 대기만 이 함수를 쓴다. 테스트가 주입해 시간을 멈춘다.
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run, name="gimpo-browser", daemon=True)
         self.thread.start()
@@ -229,10 +234,18 @@ class GimpoRuntime:
         except InputError:
             raise BrowserFault("예약 가능한 기간을 벗어났습니다. 입출차 시간을 수정한 뒤 다시 조회해주세요.") from None
 
+    def _watch_exit(self, job_id):
+        """이번 회차에 시도할 출차. 감시 모드는 후보를 차례로 돌고, 1회 조회는 원하는 출차 그대로다."""
+        inputs = self.inputs[job_id]
+        if inputs["mode"] != "watch":
+            return inputs["exitAt"]
+        candidates = exit_candidates(inputs["entryAt"], inputs["exitAt"])
+        return candidates[self.store.get(job_id).get("exitCandidateIndex", 0) % len(candidates)]
+
     async def _prepare(self, job_id, automatic, bootstrap=False):
         try:
             self._validate_current_input(job_id)
-            summary = await self.clients[job_id].prepare(bootstrap=bootstrap)
+            summary = await self.clients[job_id].prepare(bootstrap=bootstrap, exit_at=self._watch_exit(job_id))
             self.store.transition(job_id, "PREPARED", "입출차 시간과 주차장, 요금을 확인했습니다.", expected={"PREPARING"}, summary=summary, commandStatus="DONE")
             if automatic:
                 self.store.transition(job_id, "RECHECKING", "중복 예약과 잔여석을 다시 확인합니다.", expected={"PREPARED"})
@@ -251,17 +264,25 @@ class GimpoRuntime:
                 job = self.store.get(job_id)
                 if job["state"] != "RECHECKING":
                     return
-                available, checked, summary = await self.clients[job_id].proceed()
+                inputs = self.inputs[job_id]
+                exit_at = self._watch_exit(job_id)
+                available, checked, summary = await self.clients[job_id].proceed(exit_at)
                 if available:
-                    self.store.ready(job_id, job["generation"], summary, checked, self.config.handoff_max_age_sec)
+                    summary = {**summary, "requestedExitAt": inputs["exitAt"], "exitNote": exit_note(inputs["exitAt"], exit_at)}
+                    self.store.ready(job_id, job["generation"], summary, checked, self.config.handoff_max_age_sec,
+                                     attemptExitAt=exit_at, consecutiveFailures=0)
                     return
-                if self.inputs[job_id]["mode"] != "watch":
+                if inputs["mode"] != "watch":
                     await self._finish_pre(job_id, "STOPPED", "최종 재조회 결과 만차입니다.", {"RECHECKING"})
                     return
+                delay = jittered(inputs["intervalSeconds"], self.random)
                 # Preserve the application document, its filled inputs, and session.
-                self.store.transition(job_id, "WAITING_AVAILABLE", "만차입니다. 예약신청 화면에서 다시 시도합니다.",
-                                      expected={"RECHECKING"}, availabilityCheckedAt=checked, commandStatus="DONE")
-                await asyncio.sleep(self.inputs[job_id]["intervalSeconds"])
+                self.store.transition(job_id, "WAITING_AVAILABLE",
+                                      f"만차입니다(출차 {short_time(exit_at)}). {wait_text(delay)} 후 재시도합니다.",
+                                      expected={"RECHECKING"}, availabilityCheckedAt=checked, commandStatus="DONE",
+                                      attemptExitAt=exit_at, exitCandidateIndex=job.get("exitCandidateIndex", 0) + 1,
+                                      consecutiveFailures=0)
+                await self.sleep(delay)
                 self.store.transition(job_id, "RECHECKING", "예약신청 화면에서 다시 시도합니다.", expected={"WAITING_AVAILABLE"},
                                       commandStatus="RUNNING")
         except Conflict:

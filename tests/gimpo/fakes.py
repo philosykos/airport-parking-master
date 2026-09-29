@@ -24,6 +24,19 @@ class FakeFeeClient:
                 "estimatedAmt": self.calculate_amt - self.discount_amt}
 
 
+class GatedSleep:
+    """대기 시간을 기록한다. 처음 free번은 바로 돌려주고, 그 뒤로는 취소될 때까지 멈춘다."""
+    def __init__(self, free=0):
+        self.free = free
+        self.delays = []
+    async def __call__(self, seconds):
+        self.delays.append(seconds)
+        if len(self.delays) <= self.free:
+            await asyncio.sleep(0)
+            return
+        await asyncio.Event().wait()
+
+
 class FakeNotifier:
     enabled = True
     configured = True

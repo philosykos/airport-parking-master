@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 import subprocess
 import sys
 import time
@@ -11,8 +12,8 @@ import pytest
 from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.store import READY
-from services.gimpo.watch import exit_candidates
-from tests.gimpo.fakes import FakeNotifier, FixtureBrowser
+from services.gimpo.watch import exit_candidates, jittered
+from tests.gimpo.fakes import FakeNotifier, FixtureBrowser, GatedSleep
 from tests.gimpo.helpers import inputs, long_inputs, wait_state
 from tests.support.waiting import eventually
 
@@ -475,3 +476,47 @@ def test_manual_confirmation_shows_current_candidate_dates(browser_runtime):
         assert dialog.message == f"작성 내용을 다시 한번 확인해주세요. {raw['entryAt']}:00 {d1}:00"
         await dialog.dismiss()
     runtime._submit(inspect()).result(timeout=5)
+
+
+def test_bootstrap_window_wait_is_jittered_and_stoppable(tmp_path):
+    gate = GatedSleep(free=1)
+    class WindowsFull(FixtureBrowser):
+        codes = ('10', '10', '00')
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data', browser_timeout_sec=5), WindowsFull,
+                           notifier=FakeNotifier(), rng=random.Random(3), sleep=gate)
+    try:
+        job = runtime.create(inputs())
+        eventually(lambda: len(gate.delays) == 2, timeout=15)
+        replica = random.Random(3)
+        assert gate.delays == [jittered(30, replica), jittered(30, replica)]
+        client = runtime.clients[job['id']]
+        assert client.check_count == 2
+        runtime.stop(job['id'], runtime.store.get(job['id']))
+        eventually(lambda: not runtime.store.get(job['id'])['active'])
+        assert client.check_count == 2 and client.closed
+    finally:
+        runtime.close()
+
+
+def test_candidate_completion_is_judged_with_candidate_exit(tmp_path):
+    gate = GatedSleep(free=1)
+    class SecondFree(FixtureBrowser):
+        codes = ('00', '10', '00')
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data', browser_timeout_sec=5), SecondFree,
+                           notifier=FakeNotifier(), rng=random.Random(3), sleep=gate)
+    runtime.completion_hold_sec = 0
+    try:
+        raw = long_inputs()
+        job = runtime.create(raw)
+        eventually(lambda: runtime.store.get(job['id'])['state'] == READY, timeout=15)
+        d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[1]
+        assert runtime.store.get(job['id'])['summary']['exitAt'] == d1
+        client = runtime.clients[job['id']]
+        async def pay():
+            await client.page.locator('#confirmOk').click()
+            await asyncio.sleep(.4)
+            await client.page.goto('https://park.airport.co.kr/reservation/resComplete.do')
+        runtime._submit(pay()).result(timeout=5)
+        eventually(lambda: runtime.store.get(job['id'])['state'] == 'RESERVED', timeout=10)
+    finally:
+        runtime.close()

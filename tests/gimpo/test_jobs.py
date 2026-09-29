@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 import time
 from dataclasses import replace
 from datetime import datetime
@@ -12,8 +13,9 @@ from services.gimpo.jobs import GimpoRuntime, ProcessLease, RuntimeUnavailable
 from services.gimpo.parking import GimpoService
 from services.gimpo.store import Conflict, JobStore, READY
 from services.gimpo.validation import SEOUL, validate
-from tests.gimpo.fakes import FakeBrowser, FakeNotifier
-from tests.gimpo.helpers import inputs, valid_input, wait_state
+from services.gimpo.watch import exit_candidates, jittered, short_time, wait_text
+from tests.gimpo.fakes import FakeBrowser, FakeNotifier, GatedSleep
+from tests.gimpo.helpers import inputs, long_inputs, valid_input, wait_state
 from tests.support.waiting import eventually
 
 
@@ -27,6 +29,84 @@ def runtime(tmp_path):
 def ready(runtime):
     job = runtime.create(inputs())
     return wait_state(runtime, job['id'], READY)
+
+
+def make_runtime(tmp_path, client=FakeBrowser, free=0, seed=7):
+    gate = GatedSleep(free)
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), client, notifier=FakeNotifier(),
+                           rng=random.Random(seed), sleep=gate)
+    return runtime, gate
+
+
+class AlwaysFull(FakeBrowser):
+    final_available = False
+
+
+def test_watch_rotates_exit_candidates_with_jittered_waits(tmp_path):
+    runtime, gate = make_runtime(tmp_path, AlwaysFull, free=3)
+    try:
+        raw = long_inputs()
+        job = runtime.create(raw)
+        eventually(lambda: len(gate.delays) == 4)
+        client = runtime.clients[job['id']]
+        d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
+        assert client.prepared_exit == d and client.prepares == 1
+        assert client.attempted_exits == [d, d1, d2, d]
+        replica = random.Random(7)
+        assert gate.delays == [jittered(30, replica) for _ in range(4)]
+        messages = [log['message'] for log in runtime.store.get(job['id'])['logs'] if log['state'] == 'WAITING_AVAILABLE']
+        assert messages == [f'만차입니다(출차 {short_time(e)}). {wait_text(w)} 후 재시도합니다.'
+                            for e, w in zip([d, d1, d2, d], gate.delays)]
+        current = runtime.store.get(job['id'])
+        assert (current['attemptExitAt'], current['exitCandidateIndex'], current['consecutiveFailures']) == (d, 4, 0)
+    finally:
+        runtime.close()
+
+
+def test_watch_ready_uses_candidate_and_notes_earlier_exit(tmp_path):
+    class SecondFree(FakeBrowser):
+        async def proceed(self, exit_at=None):
+            self.final_available = self.proceeds >= 1
+            return await super().proceed(exit_at)
+    runtime, gate = make_runtime(tmp_path, SecondFree, free=1)
+    try:
+        raw = long_inputs()
+        job = runtime.create(raw)
+        current = wait_state(runtime, job['id'], READY)
+        d, d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[:2]
+        assert current['summary']['exitAt'] == d1
+        assert current['summary']['requestedExitAt'] == d
+        assert current['summary']['exitNote'] == f'원하는 출차({short_time(d)})보다 1일 이릅니다'
+        assert (current['attemptExitAt'], current['consecutiveFailures']) == (d1, 0)
+    finally:
+        runtime.close()
+
+
+def test_short_period_keeps_single_candidate(tmp_path):
+    runtime, gate = make_runtime(tmp_path, AlwaysFull, free=2)
+    try:
+        raw = inputs()
+        job = runtime.create(raw)
+        eventually(lambda: len(gate.delays) == 3)
+        assert runtime.clients[job['id']].attempted_exits == [raw['exitAt']] * 3
+    finally:
+        runtime.close()
+
+
+def test_once_mode_ignores_candidates(tmp_path):
+    runtime, gate = make_runtime(tmp_path)
+    try:
+        raw = long_inputs(mode='once')
+        job = runtime.create(raw)
+        wait_state(runtime, job['id'], 'AVAILABLE')
+        runtime.prepare(job['id'], job)
+        wait_state(runtime, job['id'], 'PREPARED')
+        runtime.proceed(job['id'], job, True)
+        current = wait_state(runtime, job['id'], READY)
+        assert runtime.clients[job['id']].attempted_exits == [raw['exitAt']]
+        assert current['summary']['exitNote'] is None and gate.delays == []
+    finally:
+        runtime.close()
 
 
 REASON = '공항 예약확인 화면에서 예약 완료를 확인했습니다(예약번호 1234AB5678).'

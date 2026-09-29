@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from services.gimpo.validation import AGREEMENTS, AIRPORT, PARKING, PARKING_NAME, SEOUL
 from services.gimpo.store import Conflict, PAYMENT_STATES, READY
+from services.gimpo.watch import jittered
 
 ORIGIN = "https://park.airport.co.kr"
 START_URL = ORIGIN + "/reservation/recheck.do"
@@ -385,7 +386,7 @@ class PlaywrightGimpoClient:
     async def _find_application_window(self):
         for index, (entry, end) in enumerate(self._bootstrap_windows()):
             if index:
-                await asyncio.sleep(self.inputs["intervalSeconds"])
+                await self.owner.sleep(jittered(self.inputs["intervalSeconds"], self.owner.random))
             await self._load_search_form(entry, end)
             if await self._check_loaded_search_form():
                 return entry, end
