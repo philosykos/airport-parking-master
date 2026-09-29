@@ -483,7 +483,15 @@ def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime
     d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
     def discount_requests():
         return sum(path == '/reservation/calculateDiscountAmt.json' for path, _ in client.requests)
+    def shown():
+        return runtime._submit(client.page.evaluate(
+            "() => ['ccAmt', 'dpsAmt', 'rcpAmt'].map(name => document.querySelector(`p[name=${name}]`).textContent)"
+        )).result(timeout=5)
     first_form = runtime._submit(client._form()).result(timeout=5)
+    first_shown = shown()
+    # 화면 요금 표시는 할인 적용 금액이다(discountReqAmt → settingAmt(요금 − 할인)).
+    calculate = int(first_form['calculateAmt'][0])
+    assert first_shown == [f'{calculate - 4000:,}', '10,000', f'{calculate - 4000 - 10000:,}']
     assert client.exit_at == d
     assert (len(client.quote_requests), discount_requests()) == (1, 1)
 
@@ -497,6 +505,7 @@ def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime
     # 이미 받은 후보로 돌아가면 공항 요금을 다시 부르지 않고, 폼은 처음 받은 값과 같다.
     runtime._submit(client.proceed(d)).result(timeout=10)
     assert runtime._submit(client._form()).result(timeout=5) == first_form
+    assert shown() == first_shown
     runtime._submit(client.proceed(d1)).result(timeout=10)
     assert (len(client.quote_requests), discount_requests()) == (2, 2)
 

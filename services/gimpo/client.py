@@ -60,11 +60,12 @@ SET_PERIOD_SCRIPT = """([oldStart, oldEnd, start, end, amount]) => {
     }
     window.__gimpoFormDates = [start, end];
 }"""
-# 받아 둔 할인액을 공식 할인 선택 처리와 같은 방식으로 넣는다: 할인액, 그리고 요금 − 할인액 − 보증금.
+# 캐시된 할인액 적용: 공식 할인 응답 처리와 동일하게 할인액을 설정하고 공식 discountReqAmt를 호출해
+# 폼 금액 필드와 화면 요금 표시를 settingAmt(요금 − 할인액) 기준으로 함께 갱신한다.
 CACHED_DISCOUNT_SCRIPT = """amount => {
-    const value = id => Number(document.getElementById(id).value);
+    if (typeof discountReqAmt !== 'function') throw new Error('Official discount handler missing');
     document.getElementById('discountAmt').value = String(amount);
-    document.getElementById('receiptAmt').value = String(value('calculateAmt') - amount - value('depositAmt'));
+    discountReqAmt();
 }"""
 
 

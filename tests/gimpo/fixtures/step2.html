@@ -4,6 +4,7 @@
 <input id="carNo" name="carNo"><input id="mobile" name="mobile"><input id="password" name="password" type="password"><input id="passwordCk" type="password">
 <select id="discountCd" name="discountCd"><option value="DC001">(할인없음) 일반차량</option><option value="DC005">50%</option><option value="DC007">20%</option></select>
 <input type="checkbox" style="display:none" id="agree01"><input type="checkbox" style="display:none" id="agree03"><input type="checkbox" style="display:none" id="agree04"><input type="checkbox" style="display:none" id="agree05">
+<p name="ccAmt"></p><p name="dpsAmt"></p><p name="rcpAmt"></p>
 <button type="button" id="reservationBtn">예약</button></form>
 <div id="confirm" style="display:none"><p id="confirmMassage">결제 하시겠습니까?</p><button id="confirmOk">확인</button><button id="confirmNo">취소</button></div>
 <div id="flashMessage" style="display:none;position:fixed;inset:0;z-index:9999;background:white"><p id="alertMassage">예약가능 주차면수 : 0</p><button id="flashMessageClose">확인</button></div>
@@ -11,15 +12,24 @@
 document.getElementById('flashMessageClose').onclick = () => document.getElementById('flashMessage').style.display = 'none';
 window.$ = arg => typeof arg === 'function' ? arg() : {val: value => document.querySelector(arg).value = value};
 const form = document.getElementById('reservationVO');
-function settingAmt(amount) {
+// 공식 화면 금액 처리 모사: settingAmt는 금액 필드와 요금 표시를, discountReqAmt는 settingAmt(요금 − 할인)을 수행한다.
+const commas = n => Number(n).toLocaleString('en-US');
+function settingAmt(calculate) {
+ document.querySelectorAll('p[name=ccAmt]').forEach(p => p.textContent = commas(calculate));
+ document.querySelectorAll('p[name=dpsAmt]').forEach(p => p.textContent = commas(10000));
+ document.querySelectorAll('p[name=rcpAmt]').forEach(p => p.textContent = commas(calculate - 10000));
  document.getElementById('depositAmt').value = '10000';
  document.getElementById('paymentAmt').value = '10000';
- document.getElementById('receiptAmt').value = amount - 10000;
+ document.getElementById('receiptAmt').value = calculate - 10000;
+}
+function discountReqAmt() {
+ settingAmt(document.getElementById('calculateAmt').value - document.getElementById('discountAmt').value);
 }
 document.getElementById('discountCd').onchange = async event => {
- const result = await fetch('/reservation/calculateDiscountAmt.json?discountCd=' + event.target.value).then(r => r.json());
+ const query = new URLSearchParams({discountCd: event.target.value, calculateAmt: document.getElementById('calculateAmt').value});
+ const result = await fetch('/reservation/calculateDiscountAmt.json?' + query).then(r => r.json());
  document.getElementById('discountAmt').value = result.discountAmt;
- document.getElementById('receiptAmt').value = Number(document.getElementById('calculateAmt').value) - result.discountAmt - Number(document.getElementById('depositAmt').value);
+ discountReqAmt();
 };
 function payment() {
  document.getElementById('confirm').style.display = 'block';
