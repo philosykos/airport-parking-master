@@ -156,6 +156,20 @@ def test_airport_status_decides_retry(browser_runtime, path, status):
     assert not any(e['kind'] == 'READY' for e in runtime.store.events())
 
 
+def test_quote_error_page_with_ok_status_is_retried(browser_runtime):
+    # 세션이 끊겨 요금 조회가 200 오류 화면으로 끝나면 일시 오류다. JSON인데 금액이 없으면 멈춘다
+    # (test_missing_official_requested_price_stops_before_reservation).
+    runtime = browser_runtime
+    class ErrorPage(FixtureBrowser):
+        statuses = {'/main/calculateAmt.json': 200}
+    runtime.client_factory = ErrorPage
+    job = runtime.create(inputs())
+    current = eventually(lambda: now if (now := runtime.store.get(job['id']))['state'] == 'WAITING_AVAILABLE'
+                         and now['reason'].startswith('일시 오류로') else None, timeout=15)
+    assert current['reason'].endswith('정상 조회 대신 오류 화면을 받았습니다.'), current['reason']
+    assert current['active']
+
+
 def test_cancel_and_immediate_modal_reentry_never_sends(browser_runtime):
     runtime=browser_runtime
     job=runtime.create(inputs())

@@ -406,13 +406,14 @@ class PlaywrightGimpoClient:
             });
             // 오류 화면처럼 JSON이 아닌 본문이어도 상태 코드로 오류를 가를 수 있게 한다.
             const text = await response.text();
-            let data = null;
-            try { data = JSON.parse(text); } catch (error) {}
-            return {status: response.status, data};
+            try { return {status: response.status, json: true, data: JSON.parse(text)}; }
+            catch (error) { return {status: response.status, json: false, data: null}; }
         }""", {"sectnId": self.inputs["parkingId"], "inDttm": entry_at + ":00",
                 "outDttm": exit_at + ":00", "discountCd": "DC001"})
         unknown = BrowserFault("실제 예약 기간의 공식 예상요금을 확인할 수 없습니다.")
         check_status(quote.get("status"), unknown)
+        if not quote.get("json"):
+            raise BrowserFault("정상 조회 대신 오류 화면을 받았습니다.", "SESSION_EXPIRED", retryable=True)
         data = quote.get("data")
         amount = data.get("calculateAmt") if isinstance(data, dict) else None
         if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
