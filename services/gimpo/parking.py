@@ -37,6 +37,13 @@ class GimpoService:
                 self._runtime = self.runtime_factory(self.config, notifier=TelegramNotifier(self.notification_settings))
             return self._runtime
 
+    def start(self):
+        """앱 시작 때 런타임을 띄워, 앱 종료로 멈춘 감시 작업을 화면 요청 없이 이어 간다."""
+        try:
+            self.runtime()
+        except RuntimeUnavailable as error:
+            print(f"[김포] {error}")
+
     def notification_status(self):
         status = self.notifications.status()
         with self._lock:

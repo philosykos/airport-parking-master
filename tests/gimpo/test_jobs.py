@@ -32,6 +32,25 @@ def ready(runtime):
     return wait_state(runtime, job['id'], READY)
 
 
+def once_ready(runtime):
+    job = runtime.create(inputs('once'))
+    wait_state(runtime, job['id'], 'AVAILABLE')
+    runtime.prepare(job['id'], job)
+    wait_state(runtime, job['id'], 'PREPARED')
+    runtime.proceed(job['id'], job, True)
+    return wait_state(runtime, job['id'], READY)
+
+
+def crash(runtime):
+    """종료 처리 없이 프로세스가 죽은 것처럼 멈춘다(저장소는 마지막 기록 그대로 남는다)."""
+    runtime.closing = True
+    runtime.outbox.close()
+    runtime.loop.call_soon_threadsafe(runtime.loop.stop)
+    runtime.thread.join(5)
+    runtime.store.close()
+    runtime.lease.close()
+
+
 def make_runtime(tmp_path, client=FakeBrowser, free=0, seed=7):
     gate = GatedSleep(free)
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), client, notifier=FakeNotifier(),
@@ -483,7 +502,7 @@ def test_user_closing_window_in_handoff_is_cancel_without_correction(runtime):
 
 def test_shutdown_in_handoff_interrupts(tmp_path):
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
-    job = ready(runtime)
+    job = once_ready(runtime)
     eventually(lambda: [e['status'] for e in runtime.store.events() if e['kind'] == 'READY'] == ['SENT'])
     runtime.close()
     store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
@@ -497,7 +516,7 @@ def test_shutdown_in_handoff_interrupts(tmp_path):
 
 def test_shutdown_racing_payment_start_marks_result_unknown(tmp_path):
     runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
-    job = ready(runtime)
+    job = once_ready(runtime)
     finish_pre = runtime._finish_pre
     async def payment_first(job_id, *args):
         # 종료가 결제 대기를 읽은 직후 사용자가 결제를 시작한 순서를 재현한다.
@@ -511,6 +530,112 @@ def test_shutdown_racing_payment_start_marks_result_unknown(tmp_path):
         assert (final['state'], final['active']) == ('PAYMENT_RESULT_UNKNOWN', True)
     finally:
         store.close()
+
+
+def test_shutdown_in_watch_handoff_pauses_for_restart(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    job = ready(runtime)
+    eventually(lambda: [e['status'] for e in runtime.store.events() if e['kind'] == 'READY'] == ['SENT'])
+    browser = runtime.clients[job['id']]
+    runtime.close()
+    assert browser.closed
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert (final['state'], final['active'], final['summary']) == ('WAITING_AVAILABLE', True, None)
+        assert final['reason'] == '앱이 종료되어 감시를 멈췄습니다. 앱을 다시 켜면 이어 갑니다.'
+        assert [e['cause'] for e in store.events() if e['kind'] == 'CORRECTION'] == ['INTERRUPTED']
+    finally:
+        store.close()
+
+
+def test_shutdown_pause_racing_payment_marks_result_unknown(tmp_path):
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), FakeBrowser, notifier=FakeNotifier())
+    job = ready(runtime)
+    close_client = runtime._close_client
+    async def payment_first(job_id, *args, **kwargs):
+        # 종료가 결제 대기를 읽은 직후 사용자가 결제를 시작한 순서를 재현한다.
+        runtime.store.dispatch_payment(job_id, runtime.store.get(job_id))
+        await close_client(job_id, *args, **kwargs)
+    runtime._close_client = payment_first
+    runtime.close()
+    store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
+    try:
+        final = store.get(job['id'])
+        assert (final['state'], final['active']) == ('PAYMENT_RESULT_UNKNOWN', True)
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize('stop', ['graceful', 'crash'])
+def test_app_restart_resumes_watch(tmp_path, monkeypatch, stop):
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
+    config = replace(CONFIG, directory=tmp_path / 'data')
+    first = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    job = first.create(inputs())
+    wait_state(first, job['id'], 'WAITING_AVAILABLE')
+    first.close() if stop == 'graceful' else crash(first)
+    second = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    try:
+        eventually(lambda: job['id'] in second.clients and second.clients[job['id']].proceeds == 1)
+        current = second.store.get(job['id'])
+        assert current['active'] and current['runId'] == second.run_id
+        assert second.clients[job['id']].bootstrap
+        assert second.inputs[job['id']]['carNumber'] == '123가4567'
+        assert second.inputs[job['id']]['reservationPassword'] == 'PrivatePass44'
+    finally:
+        second.close()
+
+
+def test_user_stop_is_not_resumed(tmp_path, monkeypatch):
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'PrivatePass44')
+    config = replace(CONFIG, directory=tmp_path / 'data')
+    first = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    job = first.create(inputs())
+    current = wait_state(first, job['id'], 'WAITING_AVAILABLE')
+    first.stop(job['id'], current)
+    wait_state(first, job['id'], 'STOPPED')
+    first.close()
+    second = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    try:
+        time.sleep(.5)
+        assert second.store.active() is None and second.clients == {}
+    finally:
+        second.close()
+
+
+def test_resume_with_invalid_password_interrupts(tmp_path, monkeypatch):
+    config = replace(CONFIG, directory=tmp_path / 'data')
+    first = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    job = first.create(inputs())
+    wait_state(first, job['id'], 'WAITING_AVAILABLE')
+    first.close()
+    monkeypatch.setenv('RESERVATION_PASSWORD', 'x!')
+    second = GimpoRuntime(config, AlwaysFull, notifier=FakeNotifier())
+    try:
+        final = second.store.get(job['id'])
+        assert (final['state'], final['active']) == ('INTERRUPTED', False)
+        assert final['reason'].startswith('감시를 이어 가지 못했습니다. .env의 RESERVATION_PASSWORD')
+        assert second.clients == {} and second.store.resume_data(job['id']) is None
+    finally:
+        second.close()
+
+
+def test_service_start_creates_runtime(tmp_path):
+    from flask import Flask
+    created = []
+    class Stub:
+        def __init__(self, config, notifier):
+            created.append(config)
+        def close(self):
+            pass
+    service = GimpoService(replace(CONFIG, directory=tmp_path / 'data'), runtime_factory=Stub)
+    try:
+        with Flask(__name__).app_context():
+            service.start()
+        assert len(created) == 1
+    finally:
+        service.close()
 
 
 def test_expiration_and_cancellation_release_slot(runtime):

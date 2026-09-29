@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from types import SimpleNamespace
@@ -304,3 +305,60 @@ def test_restart_resets_watch_counters(store):
 def test_new_job_starts_watch_counters_at_zero(store):
     job = store.create(validate(valid_input(), now=NOW), 'run1')
     assert (job['exitCandidateIndex'], job['consecutiveFailures'], job['attemptExitAt']) == (0, 0, None)
+
+
+def watch_job(store, run='run1'):
+    return store.create(validate(valid_input(mode='watch'), now=NOW), run)
+
+
+def test_watch_job_keeps_resume_data_apart_from_job(store):
+    job = watch_job(store)
+    assert store.resume_data(job['id']) == {'carNumber': '123가4567', 'phone': '01012345678', 'autoProceedConsent': True}
+    text = json.dumps(store.get(job['id']), ensure_ascii=False)
+    assert '01012345678' not in text and '123가4567' not in text
+    assert 'PrivatePass44' not in '\n'.join(store.db.iterdump())
+    store.release(job['id'], 'STOPPED', 'test', {'CHECKING'})
+    assert store.resume_data(job['id']) is None
+
+
+def test_once_job_has_no_resume_data(store):
+    job = store.create(validate(valid_input(), now=NOW), 'run1')
+    assert store.resume_data(job['id']) is None
+
+
+def test_recover_resumes_watch_job(store):
+    job = watch_job(store)
+    store.transition(job['id'], 'WAITING_AVAILABLE', 'test', exitCandidateIndex=2, consecutiveFailures=3,
+                     summary={'exitAt': 'x'})
+    assert store.recover('run2') == [job['id']]
+    current = store.get(job['id'])
+    assert (current['state'], current['active'], current['runId']) == ('WAITING_AVAILABLE', True, 'run2')
+    assert current['reason'] == '앱이 다시 시작되어 감시를 이어 갑니다.'
+    assert (current['summary'], current['exitCandidateIndex'], current['consecutiveFailures']) == (None, 2, 0)
+    assert store.recover('run2') == []  # 같은 실행은 다시 건드리지 않는다
+
+
+def test_recover_from_watch_handoff_sends_correction_and_resumes(store):
+    job = watch_job(store)
+    store.transition(job['id'], 'RECHECKING', 'test')
+    job = store.ready(job['id'], 1, {'exitAt': 'x'}, 1000, 120)
+    ready_event = store.events()[0]
+    store.claim_event(ready_event['id'])
+    store.finish_event(ready_event['id'], 'SENT', message_id=7)
+    assert store.recover('run2') == [job['id']]
+    assert [e['cause'] for e in store.events() if e['kind'] == 'CORRECTION'] == ['INTERRUPTED']
+
+
+@pytest.mark.parametrize('case', ['once', 'no_resume_row', 'stopping', 'payment'])
+def test_recover_does_not_resume(store, case):
+    job = store.create(validate(valid_input(), now=NOW), 'run1') if case == 'once' else watch_job(store)
+    if case == 'no_resume_row':
+        store.db.execute("DELETE FROM resume")
+    if case == 'stopping':
+        store.transition(job['id'], 'STOPPING', 'test')
+    if case == 'payment':
+        store.transition(job['id'], 'RECHECKING', 'test')
+        job = store.ready(job['id'], 1, {'exitAt': 'x'}, 1000, 120)
+        store.dispatch_payment(job['id'], job)
+    assert store.recover('run2') == []
+    assert store.get(job['id'])['state'] == ('PAYMENT_RESULT_UNKNOWN' if case == 'payment' else 'INTERRUPTED')

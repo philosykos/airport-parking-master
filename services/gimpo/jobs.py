@@ -10,8 +10,9 @@ import uuid
 from playwright.async_api import Error as PlaywrightError
 
 from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
+from services.gimpo.config import reservation_password
 from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
-from services.gimpo.validation import InputError, validate
+from services.gimpo.validation import AGREEMENTS, InputError, validate
 from services.gimpo.watch import MAX_CONSECUTIVE_FAILURES, exit_candidates, exit_note, jittered, retry_delay, short_time, wait_text
 from services.notifications.outbox import NotificationOutbox
 from services.notifications.telegram import Notifier
@@ -57,7 +58,7 @@ class GimpoRuntime:
         self.lease = ProcessLease(config.directory)
         self.store = JobStore(config.directory / "jobs.sqlite3")
         os.chmod(config.directory / "jobs.sqlite3", 0o600)
-        self.store.recover(self.run_id)
+        resumed = self.store.recover(self.run_id)
         self.clients, self.inputs, self.tasks = {}, {}, {}
         self.closing = False
         self.random = rng or random.Random()
@@ -67,6 +68,8 @@ class GimpoRuntime:
         self.thread.start()
         self.outbox = NotificationOutbox(self.store, notifier, self.notification_valid, NOTIFICATION_CONFIG.max_attempts)
         self.outbox.start()
+        for job_id in resumed:
+            self._resume(job_id)
         atexit.register(self.close)
 
     def _run(self):
@@ -111,6 +114,45 @@ class GimpoRuntime:
             self.inputs[job_id] = inputs
             self._schedule(job_id, self._flow(job_id))
             return job
+
+    def _resume(self, job_id):
+        """앱 재시작 전 감시 작업을 저장된 입력과 .env의 예약 비밀번호로 다시 시작한다."""
+        job = self.store.get(job_id)
+        try:
+            password = reservation_password()
+            inputs = validate({**job["inputs"], **(self.store.resume_data(job_id) or {}),
+                               "reservationPassword": password, "passwordConfirmation": password,
+                               "agreements": {k: True for k in AGREEMENTS}}, self.config.interval_sec)
+        except InputError as error:
+            self.store.release(job_id, "INTERRUPTED", f"감시를 이어 가지 못했습니다. {error}", {"WAITING_AVAILABLE"})
+            return
+        self.inputs[job_id] = inputs
+        self._schedule(job_id, self._flow(job_id))
+
+    def _resumable(self, job):
+        return (job["inputs"].get("mode") == "watch" and job["state"] in PREPAYMENT
+                and self.store.resume_data(job["id"]) is not None)
+
+    async def _pause_for_restart(self, job_id):
+        """정상 종료 때 감시 작업의 브라우저를 닫고, 다음 시작 때 이어 가도록 활성으로 남긴다."""
+        task = self.tasks.get(job_id)
+        if task and task is not asyncio.current_task():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        try:
+            await self._close_client(job_id)
+        except Conflict:
+            return
+        job = self.store.get(job_id)
+        try:
+            self.store.transition(job_id, "WAITING_AVAILABLE", "앱이 종료되어 감시를 멈췄습니다. 앱을 다시 켜면 이어 갑니다.",
+                                  expected=PREPAYMENT, summary=None, handoffDeadline=None, commandStatus="DONE",
+                                  commandId=uuid.uuid4().hex,  # 마지막 회차 행을 덮지 않고 새 행으로 남긴다
+                                  cause="INTERRUPTED" if job["state"] == READY else None)
+        except Conflict:
+            pass
+        if self.store.get(job_id)["paymentMayHaveBeenSent"]:
+            self.payment_unknown(job_id)  # 종료 직전에 사용자가 결제를 시작했다
 
     def stop(self, job_id, version, replacement=None):
         with self.command_lock:
@@ -522,6 +564,8 @@ class GimpoRuntime:
                 await self._release_reserved(job["id"])
             elif job["paymentMayHaveBeenSent"]:
                 self.payment_unknown(job["id"])
+            elif self._resumable(job):
+                await self._pause_for_restart(job["id"])
             elif job["state"] == READY:
                 await self._finish_pre(job["id"], "INTERRUPTED", "프로그램이 종료되어 결제 대기를 끝냈습니다.", {READY})
                 if self.store.get(job["id"])["paymentMayHaveBeenSent"]:

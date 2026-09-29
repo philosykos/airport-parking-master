@@ -43,6 +43,8 @@ def warn_legacy_env(env_path):
 
 if __name__ == "__main__":
     warn_legacy_env(os.path.join(BASE_DIR, ".env"))
+    with app.app_context():
+        app.extensions["gimpo"].start()
     import signal
     def shutdown(signum, frame):
         app.extensions["gimpo"].close()

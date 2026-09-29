@@ -16,6 +16,10 @@ READY = "PAYMENT_CONFIRM_READY"
 CORRECTION_CAUSES = {"HANDOFF_EXPIRED": "EXPIRED", "SESSION_EXPIRED": "INTERRUPTED", "ERROR": "INTERRUPTED",
                      "REVIEW_REQUIRED": "INTERRUPTED", "INTERRUPTED": "INTERRUPTED"}
 HANDOFF_KEYS = ("inputVersion", "generation", "handoffEpoch")
+RESUME_FIELDS = ("carNumber", "phone", "autoProceedConsent")
+# 결제가 시작됐을 수 없는 감시 단계. 앱이 다시 켜지면 이 단계의 작업만 이어 간다.
+RESUMABLE_STATES = frozenset({"CHECKING", "WAITING_AVAILABLE", "AVAILABLE", "PREPARING", "PREPARED", "RECHECKING",
+                              "PAYMENT_CONFIRM_READY"})
 
 
 class Conflict(Exception):
@@ -35,6 +39,7 @@ class JobStore:
             CREATE UNIQUE INDEX IF NOT EXISTS one_active_job ON jobs(active) WHERE active=1;
             CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, job_id TEXT NOT NULL, data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS defaults (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS resume (job_id TEXT PRIMARY KEY, data TEXT NOT NULL);
         ''')
 
     @contextmanager
@@ -87,7 +92,19 @@ class JobStore:
                    "commandId": uuid.uuid4().hex, "commandStatus": "RUNNING"}
             self._log(job)
             self._save(job)
+            self._save_resume(job["id"], inputs)
             return job
+
+    def _save_resume(self, job_id, inputs):
+        """감시 작업만 재개용 입력을 둔다. 예약 비밀번호는 두지 않는다(재개 때 .env에서 읽는다)."""
+        if inputs.get("mode") == "watch":
+            self.db.execute("INSERT OR REPLACE INTO resume VALUES (?, ?)",
+                            (job_id, json.dumps({k: inputs[k] for k in RESUME_FIELDS}, ensure_ascii=False)))
+
+    def resume_data(self, job_id):
+        with self.lock:
+            row = self.db.execute("SELECT data FROM resume WHERE job_id=?", (job_id,)).fetchone()
+            return json.loads(row[0]) if row else None
 
     @staticmethod
     def _compact_logs(logs):
@@ -131,22 +148,24 @@ class JobStore:
                                                for k in ("inputVersion", "generation")):
             raise Conflict("예약 정보가 변경되었습니다. 새로고침 후 다시 시도해주세요.")
 
-    def transition(self, job_id, state, reason, *, expected=None, **updates):
+    def transition(self, job_id, state, reason, *, expected=None, cause=None, **updates):
         with self.transaction():
             job = self._get(job_id)
             if expected is not None and job["state"] not in expected:
                 raise Conflict("작업 상태가 변경되었습니다.")
-            return self._transition(job, state, reason, updates)
+            return self._transition(job, state, reason, updates, cause)
 
-    def _transition(self, job, state, reason, updates=None):
+    def _transition(self, job, state, reason, updates=None, cause=None):
         old = job["state"]
         handoff = {k: job[k] for k in HANDOFF_KEYS}
         job.update(updates or {})
         job.update(state=state, reason=reason, stateVersion=job["stateVersion"] + 1, updatedAt=self.clock())
         self._log(job)
         self._save(job)
+        if not job["active"]:
+            self.db.execute("DELETE FROM resume WHERE job_id=?", (job["id"],))
         if old == READY and state != READY:
-            self._leave_handoff(job["id"], handoff, CORRECTION_CAUSES.get(state))
+            self._leave_handoff(job["id"], handoff, cause or CORRECTION_CAUSES.get(state))
         if state == READY:
             self._event(job, "READY")
         return job
@@ -167,12 +186,14 @@ class JobStore:
             active = self.active()
             if job["active"] or job["state"] not in RESTARTABLE or job["paymentMayHaveBeenSent"] or active:
                 raise Conflict("이 작업은 다시 시작할 수 없습니다. 진행 중인 작업이 있다면 먼저 끝내주세요.")
-            return self._transition(job, "CHECKING", "예약창을 새로 열어 빈자리를 조회합니다.", {
+            restarted = self._transition(job, "CHECKING", "예약창을 새로 열어 빈자리를 조회합니다.", {
                 "active": True, "runId": run_id, "generation": job["generation"] + 1,
                 "inputVersion": job["inputVersion"] + 1, "summary": None, "handoffDeadline": None,
                 "inputs": {k: inputs[k] for k in PUBLIC_INPUT}, "commandId": uuid.uuid4().hex,
                 "returnedFromPayment": False, "commandStatus": "RUNNING",
                 "attemptExitAt": None, "exitCandidateIndex": 0, "consecutiveFailures": 0})
+            self._save_resume(job_id, inputs)
+            return restarted
 
     def ready(self, job_id, generation, summary, checked_at, max_age, **updates):
         with self.transaction():
@@ -210,6 +231,8 @@ class JobStore:
         return self.transition(job_id, state, reason, expected=expected, active=False, commandStatus="DONE")
 
     def recover(self, run_id):
+        """다른 실행이 남긴 활성 작업을 정리하고, 이어 갈 감시 작업 id를 돌려준다."""
+        resumed = []
         with self.transaction():
             for event in self.events():
                 if event["status"] == "SENDING":
@@ -227,9 +250,19 @@ class JobStore:
                     continue
                 if job["state"] == "PAYMENT_RESULT_UNKNOWN" and job.get("recoveredWithoutBrowser"):
                     continue
+                if (job["inputs"].get("mode") == "watch" and not job["paymentMayHaveBeenSent"]
+                        and job["state"] in RESUMABLE_STATES
+                        and self.db.execute("SELECT 1 FROM resume WHERE job_id=?", (job["id"],)).fetchone()):
+                    self._transition(job, "WAITING_AVAILABLE", "앱이 다시 시작되어 감시를 이어 갑니다.", {
+                        "runId": run_id, "summary": None, "handoffDeadline": None, "consecutiveFailures": 0,
+                        "commandId": uuid.uuid4().hex, "commandStatus": "RUNNING"},
+                        "INTERRUPTED" if job["state"] == READY else None)
+                    resumed.append(job["id"])
+                    continue
                 state = "PAYMENT_RESULT_UNKNOWN" if job["paymentMayHaveBeenSent"] else "INTERRUPTED"
                 self._transition(job, state, "이전 실행이 종료되었습니다. 공식 사이트에서 진행 여부를 확인해주세요.",
                                  {"active": job["paymentMayHaveBeenSent"], "commandStatus": "DONE", "recoveredWithoutBrowser": True})
+        return resumed
 
     def events(self, job_id=None):
         with self.lock:
