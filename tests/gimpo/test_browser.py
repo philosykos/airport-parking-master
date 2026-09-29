@@ -123,6 +123,9 @@ def test_non_success_is_never_ready(browser_runtime,setting,value,state):
     job=runtime.create(raw)
     eventually(lambda:runtime.store.get(job['id'])['state']==state,timeout=15)
     assert not any(e['kind']=='READY' for e in runtime.store.events())
+    if setting=='error_html':
+        reason=runtime.store.get(job['id'])['reason']
+        assert reason.startswith('일시 오류로') and reason.endswith('정상 조회 대신 오류 화면을 받았습니다.'), reason
 
 
 # 공항 5xx는 일시 오류로 재시도 대기에 들어가고, 401·403·429는 접근 제한으로 멈춘다(명세 §5).
@@ -230,6 +233,13 @@ def test_official_discount_recalculation(browser_runtime, discount, amount):
     assert browser_runtime.clients[job['id']].forwarded == []
 
 
+def in_application_wait(runtime, job_id):
+    """만차로 예약신청 화면에서 기다리는 중인지 본다. 일시 오류 재시도 대기도 WAITING_AVAILABLE이지만 요약을 비우고
+    브라우저를 닫으므로, 요약이 남아 있어야 runtime.clients의 창을 읽을 수 있다."""
+    job = runtime.store.get(job_id)
+    return job['state'] == 'WAITING_AVAILABLE' and job['summary']
+
+
 def advance_application_retry(runtime, job_id):
     """Wake the configured wait without shortening production input limits."""
     async def resume():
@@ -247,7 +257,7 @@ def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_docum
         codes = ('00', '10', '10', '00')
     runtime.client_factory = Polling
     job = runtime.create(inputs())
-    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
     browser, context, page = client.browser, client.context, client.page
     dialogs = []
@@ -270,7 +280,7 @@ def test_watch_bootstraps_then_repeats_requested_dates_in_same_application_docum
     assert stages[-1] == 'submit'
     assert len(runtime.store.get(job['id'])['logs']) == 1
     advance_application_retry(runtime, job['id'])
-    eventually(lambda: client.check_count == 3 and runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE')
+    eventually(lambda: client.check_count == 3 and in_application_wait(runtime, job['id']))
     assert len(runtime.store.get(job['id'])['logs']) == 2
     advance_application_retry(runtime, job['id'])
     current = wait_state(runtime, job['id'], READY)
@@ -313,7 +323,7 @@ def test_stop_while_waiting_in_application_closes_browser(browser_runtime):
         codes = ('00', '10')
     runtime.client_factory = Full
     job = runtime.create(inputs())
-    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
     runtime.stop(job['id'], runtime.store.get(job['id']))
     eventually(lambda: not runtime.store.get(job['id'])['active'])
@@ -357,7 +367,7 @@ def test_background_confirmation_rejects_mismatch_and_preserves_manual_dialog(br
         codes = ('00', '10')
     runtime.client_factory = Full
     job = runtime.create(inputs())
-    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
     async def inspect():
         assert await client.page.evaluate('''() => {
@@ -454,7 +464,7 @@ def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime
     runtime.client_factory = Full
     raw = long_inputs(discount='DC005')
     job = runtime.create(raw)
-    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
     d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
     def discount_requests():
@@ -494,7 +504,7 @@ def test_manual_confirmation_shows_current_candidate_dates(browser_runtime):
     runtime.client_factory = Full
     raw = long_inputs()
     job = runtime.create(raw)
-    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
     d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[1]
     runtime._submit(client.proceed(d1)).result(timeout=10)
