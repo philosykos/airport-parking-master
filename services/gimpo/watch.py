@@ -27,7 +27,7 @@ def jittered(interval, rng):
 
 
 def retry_delay(j, failures):
-    """연속 실패 수만큼 대기를 두 배씩 늘리되 기본 상한 600초를 넘지 않는다. j가 더 길면 j를 보존한다."""
+    """연속 실패 수만큼 j를 두 배씩 늘린다. 기본 상한은 600초이고, j가 600초를 넘으면 상한 대신 j 자체를 보존한다."""
     return min(j * 2 ** (failures - 1), max(RETRY_BASE_CAP_SEC, j))
 
 
