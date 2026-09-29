@@ -28,3 +28,12 @@ def ready_job(store):
     job = store.create(validate(valid_input(), now=NOW), 'run1')
     store.transition(job['id'], 'RECHECKING', 'test')
     return store.ready(job['id'], 1, {'parkingName':'fixture', 'entryAt':'date', 'exitAt':'date', 'calculateAmt':8000, 'depositAmt':10000}, 1000, 120)
+
+
+def long_inputs(mode='watch', days=3, discount='DC001'):
+    """입차 내일 10:00, 출차 days일 뒤 10:00. 출차 후보가 여럿 나오는 기간."""
+    raw = valid_input(datetime.now(SEOUL), mode)
+    entry = datetime.strptime(raw['entryAt'], '%Y-%m-%d %H:%M')
+    raw['exitAt'] = (entry + timedelta(days=days)).strftime('%Y-%m-%d %H:%M')
+    raw['discountSelection'] = discount
+    return validate(raw)

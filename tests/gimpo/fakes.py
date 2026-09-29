@@ -46,17 +46,25 @@ class FakeBrowser:
         self.checks = 0
         self.prepares = 0
         self.proceeds = 0
+        self.exit_at = inputs.get("exitAt")
+        self.prepared_exit = None
+        self.attempted_exits = []
+    def _summary(self):
+        return {"parkingName": "국내선 제2주차장 주차타워 2, 3층", "entryAt": self.inputs["entryAt"], "exitAt": self.exit_at,
+                "calculateAmt": 8000, "depositAmt": 10000, "paymentAmt": 10000, "receiptAmt": -2000, "discountAmt": 0}
     async def check(self):
         self.checks += 1
         return self.available
-    async def prepare(self, *, bootstrap=False):
+    async def prepare(self, *, bootstrap=False, exit_at=None):
         self.bootstrap = bootstrap
         self.prepares += 1
-        return {"parkingName": "국내선 제2주차장 주차타워 2, 3층", "entryAt": self.inputs["entryAt"], "exitAt": self.inputs["exitAt"],
-                "calculateAmt": 8000, "depositAmt": 10000, "paymentAmt": 10000, "receiptAmt": -2000, "discountAmt": 0}
-    async def proceed(self):
+        self.exit_at = self.prepared_exit = exit_at or self.inputs["exitAt"]
+        return self._summary()
+    async def proceed(self, exit_at=None):
         self.proceeds += 1
-        return self.final_available, self.owner.store.clock()
+        self.exit_at = exit_at or self.exit_at
+        self.attempted_exits.append(self.exit_at)
+        return self.final_available, self.owner.store.clock(), self._summary()
     async def alive(self):
         return not self.closed
     async def inspect(self):
@@ -149,7 +157,7 @@ class FixtureBrowser(PlaywrightGimpoClient):
             self.forwarded.append(path)
             await route.fulfill(json={"fixture": "no real payment response"})
         elif path == '/reservation/resComplete.do':
-            values = {'__ENTRY_AT__': self.inputs['entryAt'], '__EXIT_AT__': self.inputs['exitAt'],
+            values = {'__ENTRY_AT__': self.inputs['entryAt'], '__EXIT_AT__': self.exit_at,
                       '__CAR_NUMBER__': self.inputs['carNumber'], '__RESERVATION_NO__': '1234AB5678', **self.completion_overrides}
             body = (FIXTURES / 'step3_complete.html').read_text(encoding='utf-8')
             for key, value in values.items():

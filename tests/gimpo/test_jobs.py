@@ -367,9 +367,9 @@ def test_process_lease(runtime):
 
 def test_stop_during_application_preparation_cannot_create_ready(runtime):
     class Slow(FakeBrowser):
-        async def prepare(self, *, bootstrap=False):
+        async def prepare(self, *, bootstrap=False, exit_at=None):
             await asyncio.sleep(30)
-            return await super().prepare(bootstrap=bootstrap)
+            return await super().prepare(bootstrap=bootstrap, exit_at=exit_at)
     runtime.client_factory = Slow
     job = runtime.create(inputs())
     runtime.stop(job['id'], job)

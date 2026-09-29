@@ -11,8 +11,9 @@ import pytest
 from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime
 from services.gimpo.store import READY
+from services.gimpo.watch import exit_candidates
 from tests.gimpo.fakes import FakeNotifier, FixtureBrowser
-from tests.gimpo.helpers import inputs, wait_state
+from tests.gimpo.helpers import inputs, long_inputs, wait_state
 from tests.support.waiting import eventually
 
 
@@ -412,3 +413,65 @@ def test_stop_during_transition_pause_never_opens_application(browser_runtime):
     assert client.closed
     assert not any(path == '/reservation/resInsert.do' for path, _ in client.requests)
     assert client.forwarded == []
+
+
+def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime):
+    runtime = browser_runtime
+    class Full(FixtureBrowser):
+        # 1단계 진입 00 → 런타임의 첫 신청 10 → 아래 직접 신청 10, 10, 10, 00
+        codes = ('00', '10', '10', '10', '10', '00')
+    runtime.client_factory = Full
+    raw = long_inputs(discount='DC005')
+    job = runtime.create(raw)
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    client = runtime.clients[job['id']]
+    d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
+    def discount_requests():
+        return sum(path == '/reservation/calculateDiscountAmt.json' for path, _ in client.requests)
+    first_form = runtime._submit(client._form()).result(timeout=5)
+    assert client.exit_at == d
+    assert (len(client.quote_requests), discount_requests()) == (1, 1)
+
+    available, _, summary = runtime._submit(client.proceed(d1)).result(timeout=10)
+    assert not available and summary['exitAt'] == d1
+    assert client.availability_forms[-1]['resInDttm'] == [raw['entryAt'] + ':00']
+    assert client.availability_forms[-1]['resOutDttm'] == [d1 + ':00']
+    assert client.quote_requests[-1]['outDttm'] == [d1 + ':00']
+    assert (len(client.quote_requests), discount_requests()) == (2, 2)
+
+    # 이미 받은 후보로 돌아가면 공항 요금을 다시 부르지 않고, 폼은 처음 받은 값과 같다.
+    runtime._submit(client.proceed(d)).result(timeout=10)
+    assert runtime._submit(client._form()).result(timeout=5) == first_form
+    runtime._submit(client.proceed(d1)).result(timeout=10)
+    assert (len(client.quote_requests), discount_requests()) == (2, 2)
+
+    available, _, summary = runtime._submit(client.proceed(d2)).result(timeout=10)
+    assert available and summary['exitAt'] == d2 and summary['discountAmt'] == 4000
+    assert client.sealed_form['resOutDttm'] == [d2 + ':00']
+    async def inspect():
+        display = await client.page.locator('#application-date-display').inner_text()
+        assert display == f"{raw['entryAt']}:00 ~ {d2}:00"
+        assert await client.page.evaluate('window.__gimpoConfirmationMismatch') is False
+    runtime._submit(inspect()).result(timeout=5)
+    assert client.forwarded == []
+
+
+def test_manual_confirmation_shows_current_candidate_dates(browser_runtime):
+    runtime = browser_runtime
+    class Full(FixtureBrowser):
+        codes = ('00', '10', '10')
+    runtime.client_factory = Full
+    raw = long_inputs()
+    job = runtime.create(raw)
+    eventually(lambda: runtime.store.get(job['id'])['state'] == 'WAITING_AVAILABLE', timeout=15)
+    client = runtime.clients[job['id']]
+    d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[1]
+    runtime._submit(client.proceed(d1)).result(timeout=10)
+    async def inspect():
+        async with client.page.expect_event('dialog') as pending:
+            await client.page.evaluate("setTimeout(() => confirm('작성 내용을 다시 한번 확인해주세요. ' + "
+                                       "window.__gimpoPageDates.join(' ')), 0)")
+        dialog = await pending.value
+        assert dialog.message == f"작성 내용을 다시 한번 확인해주세요. {raw['entryAt']}:00 {d1}:00"
+        await dialog.dismiss()
+    runtime._submit(inspect()).result(timeout=5)

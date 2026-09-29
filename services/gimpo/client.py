@@ -21,6 +21,50 @@ COMPLETION_SCRIPT = """() => ({
         .map(th => [th.textContent.trim(), (th.nextElementSibling?.textContent || '').trim()]))
 })"""
 RESERVATION_NO = re.compile(r"[A-Z0-9]{6,20}")
+# 공식 확인창 문구에는 신청 화면에 들어올 때의 기간이 박혀 있다. 지금 폼의 기간으로 바꿔 보이고,
+# 자동 확인일 때만 기대 문구와 대조한다. 두 날짜는 한 번에 바꾼다(차례로 바꾸면 바뀐 값이 다시 바뀔 수 있다).
+CONFIRM_SCRIPT = """pageDates => {
+    const originalConfirm = window.confirm.bind(window);
+    window.__gimpoReplaceDates = (text, [from1, from2], [to1, to2]) =>
+        text.split(from1).map(part => part.split(from2).join(to2)).join(to1);
+    window.__gimpoPageDates = pageDates;
+    window.__gimpoFormDates = pageDates;
+    window.__gimpoExpected = [];
+    window.__gimpoAutomaticConfirmation = false;
+    window.__gimpoConfirmationMismatch = false;
+    window.confirm = message => {
+        if (typeof message === 'string' && message.startsWith('작성 내용을 다시 한번 확인해주세요.'))
+            message = window.__gimpoReplaceDates(message, window.__gimpoPageDates, window.__gimpoFormDates);
+        if (!window.__gimpoAutomaticConfirmation) return originalConfirm(message);
+        const valid = typeof message === 'string'
+            && message.startsWith('작성 내용을 다시 한번 확인해주세요.')
+            && window.__gimpoExpected.every(value => message.includes(value));
+        if (!valid) window.__gimpoConfirmationMismatch = true;
+        return valid;
+    };
+}"""
+SET_PERIOD_SCRIPT = """([oldStart, oldEnd, start, end, amount]) => {
+    if (typeof settingAmt !== 'function') throw new Error('Official amount calculator missing');
+    const form = document.getElementById('reservationVO');
+    form.querySelector('#resInDttm').value = start;
+    form.querySelector('#resOutDttm').value = end;
+    form.querySelector('#calculateAmt').value = String(amount);
+    form.querySelector('#discountAmt').value = '0';
+    settingAmt(amount);
+    const walker = document.createTreeWalker(form, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!node.parentElement.closest('script, style'))
+            node.textContent = window.__gimpoReplaceDates(node.textContent, [oldStart, oldEnd], [start, end]);
+    }
+    window.__gimpoFormDates = [start, end];
+}"""
+# 받아 둔 할인액을 공식 할인 선택 처리와 같은 방식으로 넣는다: 할인액, 그리고 요금 − 할인액 − 보증금.
+CACHED_DISCOUNT_SCRIPT = """amount => {
+    const value = id => Number(document.getElementById(id).value);
+    document.getElementById('discountAmt').value = String(amount);
+    document.getElementById('receiptAmt').value = String(value('calculateAmt') - amount - value('depositAmt'));
+}"""
 
 
 class BrowserFault(Exception):
@@ -32,8 +76,8 @@ class BrowserFault(Exception):
 
 class BrowserClient(Protocol):
     async def check(self) -> bool: ...
-    async def prepare(self, *, bootstrap=False) -> dict: ...
-    async def proceed(self) -> tuple[bool, float]: ...
+    async def prepare(self, *, bootstrap=False, exit_at=None) -> dict: ...
+    async def proceed(self, exit_at=None) -> tuple[bool, float, dict]: ...
     async def alive(self) -> bool: ...
     async def inspect(self) -> bool: ...
     async def show(self) -> None: ...
@@ -101,6 +145,23 @@ class PlaywrightGimpoClient:
         self.payment_response_ok = False
         self.closed = False
         self.check_page_ready = False
+        self.form_period = (inputs.get("entryAt"), inputs.get("exitAt"))
+        self.quotes = {}
+
+    @property
+    def exit_at(self):
+        return self.form_period[1]
+
+    def _period_inputs(self):
+        """입력에서 기간만 폼에 지금 들어 있는 기간으로 바꾼 값. 폼 대조·확인창·완료 판정의 기준이다."""
+        return {**self.inputs, "entryAt": self.form_period[0], "exitAt": self.form_period[1]}
+
+    def _expected_confirmation(self):
+        current = self._period_inputs()
+        return [current["entryAt"] + ":00", current["exitAt"] + ":00", PARKING_NAME, current["carNumber"], current["phone"]]
+
+    async def _sync_expected(self):
+        await self.page.evaluate("values => { window.__gimpoExpected = values; }", self._expected_confirmation())
 
     async def _pace(self, stage):
         # Cancellable pauses between actions; never shorten the polling interval
@@ -170,7 +231,7 @@ class PlaywrightGimpoClient:
     async def _verify_completion(self):
         try:
             await self.page.wait_for_load_state("load")
-            number = OfficialContract.completion(await self.page.evaluate(COMPLETION_SCRIPT), self.inputs)
+            number = OfficialContract.completion(await self.page.evaluate(COMPLETION_SCRIPT), self._period_inputs())
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -240,8 +301,7 @@ class PlaywrightGimpoClient:
         if job["paymentMayHaveBeenSent"] or not self.allow_confirmation:
             # Native dialogs during PG belong to the user; do not acknowledge them.
             return
-        values = (self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00",
-                  PARKING_NAME, self.inputs["carNumber"], self.inputs["phone"])
+        values = tuple(self._expected_confirmation())
         if (self.allow_confirmation and dialog.type == "confirm"
                 and dialog.message.startswith("작성 내용을 다시 한번 확인해주세요.")
                 and all(v in dialog.message for v in values)):
@@ -331,7 +391,7 @@ class PlaywrightGimpoClient:
                 return entry, end
         raise BrowserFault("예약신청 화면 진입용 평일 시간대를 찾지 못했습니다. 잠시 후 다시 시작해주세요.")
 
-    async def _apply_requested_dates(self, bootstrap):
+    async def _quote(self, entry_at, exit_at):
         # Obtain the requested period's price from the official calculator, not
         # from the short bootstrap stay rendered into the application page.
         quote = await self.page.evaluate("""async values => {
@@ -340,36 +400,60 @@ class PlaywrightGimpoClient:
                 body: new URLSearchParams(values)
             });
             return {status: response.status, data: await response.json()};
-        }""", {"sectnId": self.inputs["parkingId"], "inDttm": self.inputs["entryAt"] + ":00",
-                "outDttm": self.inputs["exitAt"] + ":00", "discountCd": "DC001"})
+        }""", {"sectnId": self.inputs["parkingId"], "inDttm": entry_at + ":00",
+                "outDttm": exit_at + ":00", "discountCd": "DC001"})
         data = quote.get("data")
         amount = data.get("calculateAmt") if isinstance(data, dict) else None
         if quote.get("status") != 200 or not re.fullmatch(r"[0-9]{1,10}", str(amount)):
             raise BrowserFault("실제 예약 기간의 공식 예상요금을 확인할 수 없습니다.")
-        await self.page.evaluate("""([oldStart, oldEnd, start, end, amount]) => {
-            if (typeof settingAmt !== 'function') throw new Error('Official amount calculator missing');
-            const form = document.getElementById('reservationVO');
-            form.querySelector('#resInDttm').value = start;
-            form.querySelector('#resOutDttm').value = end;
-            form.querySelector('#calculateAmt').value = String(amount);
-            form.querySelector('#discountAmt').value = '0';
-            settingAmt(amount);
-            // The official page embeds the bootstrap dates in display text and
-            // its native confirmation message. Keep both consistent with the form.
-            const replaceDates = text => text.split(oldStart).map(part => part.split(oldEnd).join(end)).join(start);
-            const walker = document.createTreeWalker(form, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) {
-                const node = walker.currentNode;
-                if (!node.parentElement.closest('script, style')) node.textContent = replaceDates(node.textContent);
-            }
-            const nativeConfirm = window.confirm.bind(window);
-            window.confirm = message => nativeConfirm(
-                typeof message === 'string' && message.startsWith('작성 내용을 다시 한번 확인해주세요.')
-                    ? replaceDates(message) : message);
-        }""", [bootstrap[0] + ":00", bootstrap[1] + ":00", self.inputs["entryAt"] + ":00",
-                self.inputs["exitAt"] + ":00", int(amount)])
+        return int(amount)
 
-    async def prepare(self, *, bootstrap=False):
+    async def _set_period(self, entry_at, exit_at, amount):
+        old = self.form_period
+        await self.page.evaluate(SET_PERIOD_SCRIPT, [old[0] + ":00", old[1] + ":00", entry_at + ":00", exit_at + ":00", int(amount)])
+        self.form_period = (entry_at, exit_at)
+        await self._sync_expected()
+
+    async def _apply_discount(self, *, select):
+        """공식 화면의 할인 선택 처리로 할인액을 받는다. select가 거짓이면 이미 고른 할인을 새 기간으로 다시 계산시킨다."""
+        async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
+            if select:
+                await self.page.select_option("#discountCd", self.inputs["discountSelection"])
+            else:
+                await self.page.locator("#discountCd").dispatch_event("change")
+        response = await pending.value
+        if not response.ok:
+            raise BrowserFault("공식 할인 요금을 조회할 수 없습니다.")
+        try:
+            amount = (await response.json())["discountAmt"]
+            if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise BrowserFault("공식 할인 요금 응답을 확인할 수 없습니다.") from None
+        await self.page.wait_for_function(
+            "amount => document.getElementById('discountAmt').value === String(amount)", arg=amount)
+        return int(amount)
+
+    async def _switch_exit(self, exit_at):
+        """예약신청 화면의 출차만 이번 후보로 바꾼다. 후보별 요금은 처음 한 번만 공항에서 받는다."""
+        if exit_at == self.exit_at:
+            return
+        await self._pace("field")
+        entry_at = self.inputs["entryAt"]
+        cached = self.quotes.get(exit_at)
+        amount = cached["calculateAmt"] if cached else await self._quote(entry_at, exit_at)
+        await self._set_period(entry_at, exit_at, amount)
+        discount = 0
+        if self.inputs["discountSelection"] != "DC001":
+            if cached:
+                discount = cached["discountAmt"]
+                await self.page.evaluate(CACHED_DISCOUNT_SCRIPT, discount)
+            else:
+                discount = await self._apply_discount(select=False)
+        self.quotes[exit_at] = {"calculateAmt": int(amount), "discountAmt": discount}
+
+    async def prepare(self, *, bootstrap=False, exit_at=None):
+        exit_at = exit_at or self.inputs["exitAt"]
         entry_window = await self._find_application_window() if bootstrap else None
         await self.page.locator("#requestBtn").wait_for(state="visible")
         await self._pace("transition")
@@ -400,47 +484,25 @@ class PlaywrightGimpoClient:
             }).observe(modal, {attributes: true, attributeFilter: ['class', 'style', 'hidden']});
             window.addEventListener('beforeunload', () => { if (visible) cancel(); });
         }""")
+        # 공항이 그린 신청 화면의 기간. 부트스트랩이면 짧은 진입용 기간, 아니면 원하는 기간이다.
+        self.form_period = entry_window or (self.inputs["entryAt"], self.inputs["exitAt"])
+        self.quotes = {}
         # Native confirm dialogs can activate the OS window even when immediately
         # accepted by Playwright. Handle only our validated automatic confirmation
         # in-page; manual confirmations and payment dialogs retain native behavior.
-        await self.page.evaluate("""expected => {
-            const originalConfirm = window.confirm.bind(window);
-            window.__gimpoAutomaticConfirmation = false;
-            window.__gimpoConfirmationMismatch = false;
-            window.confirm = message => {
-                if (!window.__gimpoAutomaticConfirmation) return originalConfirm(message);
-                const valid = typeof message === 'string'
-                    && message.startsWith('작성 내용을 다시 한번 확인해주세요.')
-                    && expected.every(value => message.includes(value));
-                if (!valid) window.__gimpoConfirmationMismatch = true;
-                return valid;
-            };
-        }""", [self.inputs["entryAt"] + ":00", self.inputs["exitAt"] + ":00",
-                 PARKING_NAME, self.inputs["carNumber"], self.inputs["phone"]])
-        # Check the server-rendered bootstrap identity before replacing the dates.
-        initial = {**self.inputs, "discountSelection": "DC001"}
-        if entry_window:
-            initial.update(entryAt=entry_window[0], exitAt=entry_window[1])
-        OfficialContract.summary(await self._form(), initial)
-        if entry_window:
-            await self._apply_requested_dates(entry_window)
-        OfficialContract.summary(await self._form(), {**self.inputs, "discountSelection": "DC001"})
+        await self.page.evaluate(CONFIRM_SCRIPT, [self.form_period[0] + ":00", self.form_period[1] + ":00"])
+        await self._sync_expected()
+        # Check the server-rendered identity before replacing the dates.
+        OfficialContract.summary(await self._form(), {**self._period_inputs(), "discountSelection": "DC001"})
+        if self.form_period != (self.inputs["entryAt"], exit_at):
+            await self._set_period(self.inputs["entryAt"], exit_at, await self._quote(self.inputs["entryAt"], exit_at))
+        OfficialContract.summary(await self._form(), {**self._period_inputs(), "discountSelection": "DC001"})
+        discount = 0
         if self.inputs["discountSelection"] != "DC001":
             await self._pace("field")
-            async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
-                await self.page.select_option("#discountCd", self.inputs["discountSelection"])
-            response = await pending.value
-            if not response.ok:
-                raise BrowserFault("공식 할인 요금을 조회할 수 없습니다.")
-            try:
-                amount = (await response.json())["discountAmt"]
-                if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
-                    raise ValueError
-            except (KeyError, TypeError, ValueError):
-                raise BrowserFault("공식 할인 요금 응답을 확인할 수 없습니다.") from None
-            await self.page.wait_for_function(
-                "amount => document.getElementById('discountAmt').value === String(amount)", arg=amount)
-        summary = OfficialContract.summary(await self._form(), self.inputs)
+            discount = await self._apply_discount(select=True)
+        self.quotes[exit_at] = {"calculateAmt": int((await self._form())["calculateAmt"][0]), "discountAmt": discount}
+        summary = OfficialContract.summary(await self._form(), self._period_inputs())
         for selector, key in (("#carNo", "carNumber"), ("#mobile", "phone"),
                               ("#password", "reservationPassword"), ("#passwordCk", "reservationPassword")):
             await self._pace("field")
@@ -457,12 +519,13 @@ class PlaywrightGimpoClient:
             }""")
         return summary
 
-    async def proceed(self):
+    async def proceed(self, exit_at=None):
         if self.sealed_form is not None:
             raise BrowserFault("이미 진행한 결제는 다시 요청할 수 없습니다.")
         if not await self.alive() or urlparse(self.page.url).path != "/reservation/resInsert.do":
             raise BrowserFault("예약신청 화면이 닫혔거나 변경되었습니다.", "SESSION_EXPIRED")
-        OfficialContract.summary(await self._form(), self.inputs)
+        await self._switch_exit(exit_at or self.exit_at)
+        summary = OfficialContract.summary(await self._form(), self._period_inputs())
         self.dialog_error = False
         self.allow_confirmation = True
         responses = {path: asyncio.Queue() for path in ("/reservation/duplicateReservation.json", "/reservation/reservationCheck.json")}
@@ -507,13 +570,13 @@ class PlaywrightGimpoClient:
                 if not re.fullmatch(r"예약가능\s*주차면수\s*:\s*0", message.strip()):
                     raise BrowserFault("공식 만차 안내 문구가 변경되었습니다.")
                 # Leave the result visible until the next scheduled attempt.
-                return False, checked_at
+                return False, checked_at, summary
             await self.page.locator("#confirm").wait_for(state="visible")
             if self.dialog_error or "결제 하시겠습니까?" not in await self.page.locator("#confirmMassage").inner_text():
                 raise BrowserFault("공식 예약내용 또는 결제 확인 문구가 일치하지 않습니다.")
             self.sealed_form = await self._form()
-            OfficialContract.summary(self.sealed_form, self.inputs)
-            return True, checked_at
+            summary = OfficialContract.summary(self.sealed_form, self._period_inputs())
+            return True, checked_at, summary
         finally:
             self.allow_confirmation = False
             self.page.remove_listener("response", collect)

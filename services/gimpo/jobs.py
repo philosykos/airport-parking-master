@@ -251,9 +251,9 @@ class GimpoRuntime:
                 job = self.store.get(job_id)
                 if job["state"] != "RECHECKING":
                     return
-                available, checked = await self.clients[job_id].proceed()
+                available, checked, summary = await self.clients[job_id].proceed()
                 if available:
-                    self.store.ready(job_id, job["generation"], job["summary"], checked, self.config.handoff_max_age_sec)
+                    self.store.ready(job_id, job["generation"], summary, checked, self.config.handoff_max_age_sec)
                     return
                 if self.inputs[job_id]["mode"] != "watch":
                     await self._finish_pre(job_id, "STOPPED", "최종 재조회 결과 만차입니다.", {"RECHECKING"})
