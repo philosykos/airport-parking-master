@@ -125,6 +125,34 @@ def test_non_success_is_never_ready(browser_runtime,setting,value,state):
     assert not any(e['kind']=='READY' for e in runtime.store.events())
 
 
+# 공항 5xx는 일시 오류로 재시도 대기에 들어가고, 401·403·429는 접근 제한으로 멈춘다(명세 §5).
+@pytest.mark.parametrize('path,status', [
+    ('/main/calculateAmt.json', 500), ('/main/calculateAmt.json', 502), ('/main/calculateAmt.json', 401),
+    ('/main/calculateAmt.json', 403), ('/main/calculateAmt.json', 429),
+    ('/reservation/calculateDiscountAmt.json', 503), ('/reservation/calculateDiscountAmt.json', 429),
+    ('/reservation/recheck.do', 502), ('/reservation/recheck.do', 403),
+    ('/reservation/reservationCheck.json', 401), ('/reservation/reservationCheck.json', 403),
+    ('/reservation/reservationCheck.json', 429)])
+def test_airport_status_decides_retry(browser_runtime, path, status):
+    runtime = browser_runtime
+    class Failing(FixtureBrowser):
+        statuses = {path: status}
+    runtime.client_factory = Failing
+    raw = inputs()
+    raw['discountSelection'] = 'DC005'
+    job = runtime.create(raw)
+    if status >= 500:
+        current = eventually(lambda: now if (now := runtime.store.get(job['id']))['state'] == 'WAITING_AVAILABLE'
+                             and now['reason'].startswith('일시 오류로') else None, timeout=15)
+        assert current['reason'].endswith('공항 서버 응답이 지연되고 있습니다.'), current['reason']
+        assert current['active']
+    else:
+        eventually(lambda: not runtime.store.get(job['id'])['active'], timeout=15)
+        current = runtime.store.get(job['id'])
+        assert (current['state'], current['reason']) == ('ERROR', '공항 사이트에서 접근 또는 조회를 제한했습니다.')
+    assert not any(e['kind'] == 'READY' for e in runtime.store.events())
+
+
 def test_cancel_and_immediate_modal_reentry_never_sends(browser_runtime):
     runtime=browser_runtime
     job=runtime.create(inputs())

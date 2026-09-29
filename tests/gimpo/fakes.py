@@ -98,6 +98,7 @@ class FixtureBrowser(PlaywrightGimpoClient):
     error_html = False
     quote_amount = "8000"
     completion_overrides = {}
+    statuses = {}  # 경로별 공항 오류 응답 상태 코드(본문은 JSON이 아닌 오류 화면)
     def __init__(self, owner, job, inputs):
         super().__init__(owner, job, inputs, headless=True)
         self.forwarded = []
@@ -140,7 +141,9 @@ class FixtureBrowser(PlaywrightGimpoClient):
     async def _fixture(self, route):
         path = urlparse(route.request.url).path
         self.requests.append((path, route.request.frame.url))
-        if path == '/reservation/recheck.do':
+        if path in self.statuses:
+            await route.fulfill(status=self.statuses[path], content_type='text/html', body='<html>airport error</html>')
+        elif path == '/reservation/recheck.do':
             await route.fulfill(content_type='text/html', body=(FIXTURES / 'step1.html').read_text())
         elif path == '/reservation/resInsert.do':
             data = {k: v[0] for k,v in parse_qs(route.request.post_data).items()}

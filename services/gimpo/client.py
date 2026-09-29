@@ -75,6 +75,16 @@ class BrowserFault(Exception):
         self.retryable = retryable
 
 
+def check_status(status, otherwise):
+    """공항 응답 상태를 오류로 가른다. 401·403·429는 멈추고 5xx는 재시도하며, 그 밖의 200 아닌 응답은 otherwise다."""
+    if status in {401, 403, 429}:
+        raise BrowserFault("공항 사이트에서 접근 또는 조회를 제한했습니다.", "ERROR")
+    if status >= 500:
+        raise BrowserFault("공항 서버 응답이 지연되고 있습니다.", "ERROR", retryable=True)
+    if status != 200:
+        raise otherwise
+
+
 class BrowserClient(Protocol):
     async def check(self) -> bool: ...
     async def prepare(self, *, bootstrap=False, exit_at=None) -> dict: ...
@@ -312,12 +322,7 @@ class PlaywrightGimpoClient:
             await dialog.dismiss()
 
     async def _read_code(self, response, duplicate=False):
-        if response.status in {401, 403, 429}:
-            raise BrowserFault("공항 사이트에서 접근 또는 조회를 제한했습니다.", "ERROR")
-        if response.status >= 500:
-            raise BrowserFault("공항 서버 응답이 지연되고 있습니다.", "ERROR", retryable=True)
-        if response.status != 200:
-            raise BrowserFault("공항 세션 또는 화면을 확인할 수 없습니다.", "SESSION_EXPIRED", retryable=True)
+        check_status(response.status, BrowserFault("공항 세션 또는 화면을 확인할 수 없습니다.", "SESSION_EXPIRED", retryable=True))
         try:
             data = await response.json()
         except Exception:
@@ -335,8 +340,7 @@ class PlaywrightGimpoClient:
         if not self.check_page_ready or self.page.url != START_URL:
             self.check_page_ready = False
             response = await self.page.goto(START_URL, wait_until="load")
-            if response.status != 200:
-                raise BrowserFault("공항 시작 화면을 열 수 없습니다.", "ERROR")
+            check_status(response.status, BrowserFault("공항 시작 화면을 열 수 없습니다.", "ERROR"))
             await self.page.wait_for_function("typeof rescheck === 'function'")
             await self.page.evaluate("() => new Promise(resolve => $(resolve))")
             self.check_page_ready = True
@@ -400,13 +404,19 @@ class PlaywrightGimpoClient:
                 method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
                 body: new URLSearchParams(values)
             });
-            return {status: response.status, data: await response.json()};
+            // 오류 화면처럼 JSON이 아닌 본문이어도 상태 코드로 오류를 가를 수 있게 한다.
+            const text = await response.text();
+            let data = null;
+            try { data = JSON.parse(text); } catch (error) {}
+            return {status: response.status, data};
         }""", {"sectnId": self.inputs["parkingId"], "inDttm": entry_at + ":00",
                 "outDttm": exit_at + ":00", "discountCd": "DC001"})
+        unknown = BrowserFault("실제 예약 기간의 공식 예상요금을 확인할 수 없습니다.")
+        check_status(quote.get("status"), unknown)
         data = quote.get("data")
         amount = data.get("calculateAmt") if isinstance(data, dict) else None
-        if quote.get("status") != 200 or not re.fullmatch(r"[0-9]{1,10}", str(amount)):
-            raise BrowserFault("실제 예약 기간의 공식 예상요금을 확인할 수 없습니다.")
+        if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
+            raise unknown
         return int(amount)
 
     async def _set_period(self, entry_at, exit_at, amount):
@@ -423,8 +433,7 @@ class PlaywrightGimpoClient:
             else:
                 await self.page.locator("#discountCd").dispatch_event("change")
         response = await pending.value
-        if not response.ok:
-            raise BrowserFault("공식 할인 요금을 조회할 수 없습니다.")
+        check_status(response.status, BrowserFault("공식 할인 요금을 조회할 수 없습니다."))
         try:
             amount = (await response.json())["discountAmt"]
             if not re.fullmatch(r"[0-9]{1,10}", str(amount)):
