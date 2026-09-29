@@ -27,8 +27,12 @@
     const notice = job => {
         if (!job) return null;
         const {state, active} = job;
-        if (state === 'PAYMENT_CONFIRM_READY') return {tone: 'warn', browser: true,
-            text: `${formatClock(job.handoffDeadline)}까지 공항 예약창에서 결제를 진행해주세요. 자리는 아직 확보되지 않았습니다.`};
+        if (state === 'PAYMENT_CONFIRM_READY') {
+            // 감시가 출차를 앞당긴 후보로 자리를 찾았으면 실제 예약될 출차를 함께 알린다.
+            const note = job.summary?.exitNote ? ` 출차 ${job.summary.exitAt} — ${job.summary.exitNote}.` : '';
+            return {tone: 'warn', browser: true,
+                text: `${formatClock(job.handoffDeadline)}까지 공항 예약창에서 결제를 진행해주세요. 자리는 아직 확보되지 않았습니다.${note}`};
+        }
         if (state === 'PAYMENT_DISPATCHING' || state === 'PAYMENT_IN_PROGRESS') return {tone: 'info', browser: true,
             text: '공항 예약창에서 결제를 진행하고 있습니다. 결제를 마치면 예약 완료를 자동으로 확인합니다.'};
         if (state === 'PAYMENT_RESULT_UNKNOWN') return {tone: 'warn', browser: true,

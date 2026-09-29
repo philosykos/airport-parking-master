@@ -211,3 +211,15 @@ def test_discounted_parking_price_in_notification():
                        'discountAmt': 52000, 'depositAmt': 10000}}
     message = ReservationMessages.gimpo({'kind': 'READY', 'round': 1}, job)
     assert ('예상 주차요금', '52,000원') in message.fields
+
+
+def test_ready_message_notes_earlier_exit():
+    from services.notifications.messages import ReservationMessages
+    job = {'id': 'GMP-test', 'availabilityCheckedAt': 1000,
+           'summary': {'parkingName': '김포', 'entryAt': '2026-10-03 11:00', 'exitAt': '2026-10-05 18:00',
+                       'requestedExitAt': '2026-10-06 18:00', 'exitNote': '원하는 출차(10/06 18:00)보다 1일 이릅니다',
+                       'calculateAmt': 80000, 'discountAmt': 0, 'depositAmt': 10000}}
+    message = ReservationMessages.gimpo({'kind': 'READY', 'round': 1}, job)
+    assert ('출차', '2026-10-05 18:00 — 원하는 출차(10/06 18:00)보다 1일 이릅니다') in message.fields
+    job['summary'].update(exitAt='2026-10-06 18:00', exitNote=None)
+    assert ('출차', '2026-10-06 18:00') in ReservationMessages.gimpo({'kind': 'READY', 'round': 1}, job).fields

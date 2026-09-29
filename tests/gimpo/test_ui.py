@@ -680,6 +680,19 @@ def test_notice_strip_follows_payment_flow(ui_server, ui_context):
         assert not errors
 
 
+def test_ready_notice_shows_earlier_candidate_exit(ui_server, ui_context):
+    base, runtime = ui_server
+    job = wait_state(runtime, runtime.create(inputs())['id'], READY)
+    summary = {**job['summary'], 'exitAt': '2026-10-05 18:00', 'exitNote': '원하는 출차(10/06 18:00)보다 1일 이릅니다'}
+    runtime.store.transition(job['id'], READY, '결제 대기 — 예약 미완료', summary=summary)
+    with open_page(ui_context, base) as (page, errors):
+        page.goto(base + '/gimpo-parking/')
+        page.wait_for_function("() => document.getElementById('header-status-text').textContent === '결제 대기'")
+        page.locator('#completion-overlay').get_by_role('button', name='닫기').click()
+        assert notice(page).endswith('자리는 아직 확보되지 않았습니다. 출차 2026-10-05 18:00 — 원하는 출차(10/06 18:00)보다 1일 이릅니다.')
+        assert not errors
+
+
 def test_payment_stop_asks_then_ends_as_closed(ui_server, ui_context):
     base, runtime = ui_server
     job = wait_state(runtime, runtime.create(inputs())['id'], READY)

@@ -64,8 +64,9 @@ class ReservationMessages:
             title, instruction = CORRECTIONS.get(event.get("cause"), CORRECTIONS["INTERRUPTED"])
             return NotificationMessage(GIMPO, title, (), instruction)
         summary = job["summary"]
+        exit_line = summary["exitAt"] + (f' — {summary["exitNote"]}' if summary.get("exitNote") else "")
         return NotificationMessage(GIMPO, "결제 대기 — 예약 미완료", (
-            ("주차장", summary["parkingName"]), ("입차", summary["entryAt"]), ("출차", summary["exitAt"]),
+            ("주차장", summary["parkingName"]), ("입차", summary["entryAt"]), ("출차", exit_line),
             ("예상 주차요금", f'{summary["calculateAmt"] - summary.get("discountAmt", 0):,}원'),
             ("예약 보증금", f'{summary["depositAmt"]:,}원'),
             ("확인 시각", cls._minute(datetime.fromtimestamp(job["availabilityCheckedAt"], SEOUL)))),
