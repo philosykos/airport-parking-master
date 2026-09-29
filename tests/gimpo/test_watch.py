@@ -8,12 +8,12 @@ from services.gimpo.watch import (MAX_CONSECUTIVE_FAILURES, RETRY_BASE_CAP_SEC, 
 
 @pytest.mark.parametrize('entry,desired,expected', [
     ('2026-10-03 11:00', '2026-10-06 18:00', ['2026-10-06 18:00', '2026-10-05 18:00', '2026-10-04 18:00']),
-    # D−2가 입차부터 정확히 24시간이면 남긴다.
+    # 입차 후 정확히 24시간인 D−2는 포함한다.
     ('2026-10-03 18:00', '2026-10-06 18:00', ['2026-10-06 18:00', '2026-10-05 18:00', '2026-10-04 18:00']),
-    # D−2가 24시간에 10분 모자라면 버린다.
+    # 입차 후 24시간 미만인 D−2는 제외한다.
     ('2026-10-03 18:10', '2026-10-06 18:00', ['2026-10-06 18:00', '2026-10-05 18:00']),
     ('2026-10-03 11:00', '2026-10-04 18:00', ['2026-10-04 18:00']),
-    # 원하는 기간이 24시간 미만이어도 D는 남는다.
+    # 요청 기간이 24시간 미만이어도 D는 포함한다.
     ('2026-10-03 11:00', '2026-10-03 15:00', ['2026-10-03 15:00']),
 ])
 def test_exit_candidates(entry, desired, expected):
@@ -40,7 +40,7 @@ def test_jittered_stays_between_one_and_one_and_half_times(interval):
 
 
 def test_jittered_is_the_same_distribution_every_time():
-    # 회차가 쌓여도 대기 범위를 늘리지 않는다: 같은 난수 흐름이면 같은 값을 낸다.
+    # 대기 분포는 회차와 무관하다: 동일 난수열이면 동일 값을 반환한다.
     a, b = random.Random(5), random.Random(5)
     assert [jittered(30, a) for _ in range(50)] == [jittered(30, b) for _ in range(50)]
 
@@ -50,7 +50,7 @@ def test_jittered_is_the_same_distribution_every_time():
     (200, 3, 600), (200, 4, 600),          # 기본 상한 600초
     (600, 1, 600), (600, 4, 600),          # j가 600이면 j
     (900, 1, 900), (900, 4, 900),          # j가 600보다 크면 j를 보존한다
-    (5400, 2, 5400),                       # 3600초 설정에서 뽑힌 최대 j
+    (5400, 2, 5400),                       # 최대 간격 3600초의 최대 j
 ])
 def test_retry_delay(j, failures, expected):
     assert retry_delay(j, failures) == expected

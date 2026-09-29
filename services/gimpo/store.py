@@ -17,7 +17,7 @@ CORRECTION_CAUSES = {"HANDOFF_EXPIRED": "EXPIRED", "SESSION_EXPIRED": "INTERRUPT
                      "REVIEW_REQUIRED": "INTERRUPTED", "INTERRUPTED": "INTERRUPTED"}
 HANDOFF_KEYS = ("inputVersion", "generation", "handoffEpoch")
 RESUME_FIELDS = ("carNumber", "phone", "autoProceedConsent")
-# 결제가 시작됐을 수 없는 감시 단계. 앱이 다시 켜지면 이 단계의 작업만 이어 간다.
+# 자동 재개 대상 상태: 결제가 시작될 수 없는 감시 단계.
 RESUMABLE_STATES = frozenset({"CHECKING", "WAITING_AVAILABLE", "AVAILABLE", "PREPARING", "PREPARED", "RECHECKING",
                               "PAYMENT_CONFIRM_READY"})
 
@@ -96,7 +96,7 @@ class JobStore:
             return job
 
     def _save_resume(self, job_id, inputs):
-        """감시 작업만 재개용 입력을 둔다. 예약 비밀번호는 두지 않는다(재개 때 .env에서 읽는다)."""
+        """감시 작업의 재개 입력을 저장한다. 예약 비밀번호는 저장하지 않으며 재개 시 .env에서 읽는다."""
         if inputs.get("mode") == "watch":
             self.db.execute("INSERT OR REPLACE INTO resume VALUES (?, ?)",
                             (job_id, json.dumps({k: inputs[k] for k in RESUME_FIELDS}, ensure_ascii=False)))
@@ -231,7 +231,7 @@ class JobStore:
         return self.transition(job_id, state, reason, expected=expected, active=False, commandStatus="DONE")
 
     def recover(self, run_id):
-        """다른 실행이 남긴 활성 작업을 정리하고, 이어 갈 감시 작업 id를 돌려준다."""
+        """이전 실행의 활성 작업을 정리하고 자동 재개 대상 감시 작업 id 목록을 반환한다."""
         resumed = []
         with self.transaction():
             for event in self.events():

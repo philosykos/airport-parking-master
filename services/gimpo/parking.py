@@ -38,7 +38,7 @@ class GimpoService:
             return self._runtime
 
     def start(self):
-        """앱 시작 때 런타임을 띄워, 앱 종료로 멈춘 감시 작업을 화면 요청 없이 이어 간다."""
+        """앱 시작 시 런타임을 기동하고 일시 정지된 감시 작업을 자동 재개한다."""
         try:
             self.runtime()
         except RuntimeUnavailable as error:

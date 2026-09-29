@@ -28,7 +28,7 @@
         if (!job) return null;
         const {state, active} = job;
         if (state === 'PAYMENT_CONFIRM_READY') {
-            // 감시가 출차를 앞당긴 후보로 자리를 찾았으면 실제 예약될 출차를 함께 알린다.
+            // 앞당긴 출차 후보로 예약 가능한 경우 실제 출차와 안내 문구를 표시한다.
             const note = job.summary?.exitNote ? ` 출차 ${job.summary.exitAt} — ${job.summary.exitNote}.` : '';
             return {tone: 'warn', browser: true,
                 text: `${formatClock(job.handoffDeadline)}까지 공항 예약창에서 결제를 진행해주세요. 자리는 아직 확보되지 않았습니다.${note}`};

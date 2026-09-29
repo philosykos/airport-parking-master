@@ -22,8 +22,8 @@ COMPLETION_SCRIPT = """() => ({
         .map(th => [th.textContent.trim(), (th.nextElementSibling?.textContent || '').trim()]))
 })"""
 RESERVATION_NO = re.compile(r"[A-Z0-9]{6,20}")
-# 공식 확인창 문구에는 신청 화면에 들어올 때의 기간이 박혀 있다. 지금 폼의 기간으로 바꿔 보이고,
-# 자동 확인일 때만 기대 문구와 대조한다. 두 날짜는 한 번에 바꾼다(차례로 바꾸면 바뀐 값이 다시 바뀔 수 있다).
+# 확인창 문구 보정: 공식 확인창에 표시되는 신청 화면 진입 시점의 기간을 현재 폼 기간으로 치환하고,
+# 자동 확인 모드에서는 기대 문구와 대조한다. 입차·출차는 단일 패스로 치환해 연쇄 치환을 방지한다.
 CONFIRM_SCRIPT = """pageDates => {
     const originalConfirm = window.confirm.bind(window);
     window.__gimpoReplaceDates = (text, [from1, from2], [to1, to2]) =>
@@ -77,7 +77,7 @@ class BrowserFault(Exception):
 
 
 def check_status(status, otherwise):
-    """공항 응답 상태를 오류로 가른다. 401·403·429는 멈추고 5xx는 재시도하며, 그 밖의 200 아닌 응답은 otherwise다."""
+    """공항 응답 상태 분류. 401·403·429는 중단 오류, 5xx는 재시도 오류, 그 밖의 비정상 응답은 otherwise를 발생시킨다."""
     if status in {401, 403, 429}:
         raise BrowserFault("공항 사이트에서 접근 또는 조회를 제한했습니다.", "ERROR")
     if status >= 500:
@@ -165,7 +165,7 @@ class PlaywrightGimpoClient:
         return self.form_period[1]
 
     def _period_inputs(self):
-        """입력에서 기간만 폼에 지금 들어 있는 기간으로 바꾼 값. 폼 대조·확인창·완료 판정의 기준이다."""
+        """현재 폼 기간을 반영한 입력값. 폼 대조·확인창 검증·완료 판정의 기준으로 사용한다."""
         return {**self.inputs, "entryAt": self.form_period[0], "exitAt": self.form_period[1]}
 
     def _expected_confirmation(self):
@@ -405,7 +405,7 @@ class PlaywrightGimpoClient:
                 method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
                 body: new URLSearchParams(values)
             });
-            // 오류 화면처럼 JSON이 아닌 본문이어도 상태 코드로 오류를 가를 수 있게 한다.
+            // 본문이 JSON이 아닌 경우(오류 화면)에도 상태 코드와 파싱 여부를 반환해 오류를 분류한다.
             const text = await response.text();
             try { return {status: response.status, json: true, data: JSON.parse(text)}; }
             catch (error) { return {status: response.status, json: false, data: null}; }
@@ -428,7 +428,7 @@ class PlaywrightGimpoClient:
         await self._sync_expected()
 
     async def _apply_discount(self, *, select):
-        """공식 화면의 할인 선택 처리로 할인액을 받는다. select가 거짓이면 이미 고른 할인을 새 기간으로 다시 계산시킨다."""
+        """공식 할인 처리를 통해 할인액을 조회·적용한다. select가 거짓이면 선택된 할인을 현재 기간으로 재계산한다."""
         async with self.page.expect_response("**/reservation/calculateDiscountAmt.json?*") as pending:
             if select:
                 await self.page.select_option("#discountCd", self.inputs["discountSelection"])
@@ -447,7 +447,7 @@ class PlaywrightGimpoClient:
         return int(amount)
 
     async def _switch_exit(self, exit_at):
-        """예약신청 화면의 출차만 이번 후보로 바꾼다. 후보별 요금은 처음 한 번만 공항에서 받는다."""
+        """예약신청 화면의 출차를 지정 후보로 전환한다. 후보별 요금·할인액은 최초 1회 조회 후 캐시를 사용한다."""
         if exit_at == self.exit_at:
             return
         await self._pace("field")
@@ -496,7 +496,7 @@ class PlaywrightGimpoClient:
             }).observe(modal, {attributes: true, attributeFilter: ['class', 'style', 'hidden']});
             window.addEventListener('beforeunload', () => { if (visible) cancel(); });
         }""")
-        # 공항이 그린 신청 화면의 기간. 부트스트랩이면 짧은 진입용 기간, 아니면 원하는 기간이다.
+        # 공항이 렌더링한 신청 화면 기간: 부트스트랩 진입 시 진입용 단기 기간, 그 외에는 요청 기간.
         self.form_period = entry_window or (self.inputs["entryAt"], self.inputs["exitAt"])
         self.quotes = {}
         # Native confirm dialogs can activate the OS window even when immediately

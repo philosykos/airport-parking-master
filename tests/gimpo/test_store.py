@@ -335,7 +335,7 @@ def test_recover_resumes_watch_job(store):
     assert (current['state'], current['active'], current['runId']) == ('WAITING_AVAILABLE', True, 'run2')
     assert current['reason'] == '앱이 다시 시작되어 감시를 이어 갑니다.'
     assert (current['summary'], current['exitCandidateIndex'], current['consecutiveFailures']) == (None, 2, 0)
-    assert store.recover('run2') == []  # 같은 실행은 다시 건드리지 않는다
+    assert store.recover('run2') == []  # 동일 실행 id는 재처리하지 않는다
 
 
 def test_recover_from_watch_handoff_sends_correction_and_resumes(store):

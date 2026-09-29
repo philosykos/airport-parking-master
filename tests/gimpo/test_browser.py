@@ -110,8 +110,8 @@ def test_handoff_invalidates_before_any_payment(browser_runtime,mutation,state):
 
 # 중복 코드 '10'/'20'과 결제 금액 '0'/'-1'은 각각 같은 분기(code != '00', paymentAmt <= 0)로 끝나므로 브라우저는
 # 한 건씩만 돈다. 코드·금액 판정 자체는 test_gimpo_contract.py가 OfficialContract로 직접 확인한다.
-# error_html은 "정상 조회 대신 오류 화면을 받았습니다."로 Task 4부터 일시 오류(재시도 대상)라 감시 모드는
-# 끝나지 않고 WAITING_AVAILABLE로 재시도 대기에 들어간다(터미널 상태가 아니다).
+# error_html은 일시 오류("정상 조회 대신 오류 화면을 받았습니다.")로 분류되어 감시 모드는 종료되지 않고
+# WAITING_AVAILABLE 재시도 대기로 전환된다.
 @pytest.mark.parametrize('setting,value,state', [('codes',('10',),'STOPPED'),('duplicate','10','REVIEW_REQUIRED'),
     ('payment_amount','0','REVIEW_REQUIRED'),('error_html',True,'WAITING_AVAILABLE')])
 def test_non_success_is_never_ready(browser_runtime,setting,value,state):
@@ -128,7 +128,7 @@ def test_non_success_is_never_ready(browser_runtime,setting,value,state):
         assert reason.startswith('일시 오류로') and reason.endswith('정상 조회 대신 오류 화면을 받았습니다.'), reason
 
 
-# 공항 5xx는 일시 오류로 재시도 대기에 들어가고, 401·403·429는 접근 제한으로 멈춘다(명세 §5).
+# 공항 5xx는 재시도 대기로 전환하고, 401·403·429는 접근 제한으로 중단한다.
 @pytest.mark.parametrize('path,status', [
     ('/main/calculateAmt.json', 500), ('/main/calculateAmt.json', 502), ('/main/calculateAmt.json', 401),
     ('/main/calculateAmt.json', 403), ('/main/calculateAmt.json', 429),
@@ -157,7 +157,7 @@ def test_airport_status_decides_retry(browser_runtime, path, status):
 
 
 def test_quote_error_page_with_ok_status_is_retried(browser_runtime):
-    # 세션이 끊겨 요금 조회가 200 오류 화면으로 끝나면 일시 오류다. JSON인데 금액이 없으면 멈춘다
+    # 요금 조회가 200 상태의 오류 화면(세션 만료)을 받으면 재시도 대상이다. JSON 응답에 금액이 없으면 중단한다
     # (test_missing_official_requested_price_stops_before_reservation).
     runtime = browser_runtime
     class ErrorPage(FixtureBrowser):
@@ -248,8 +248,8 @@ def test_official_discount_recalculation(browser_runtime, discount, amount):
 
 
 def in_application_wait(runtime, job_id):
-    """만차로 예약신청 화면에서 기다리는 중인지 본다. 일시 오류 재시도 대기도 WAITING_AVAILABLE이지만 요약을 비우고
-    브라우저를 닫으므로, 요약이 남아 있어야 runtime.clients의 창을 읽을 수 있다."""
+    """예약신청 화면의 만차 대기 여부. 재시도 대기도 WAITING_AVAILABLE이지만 요약이 없고 브라우저가 닫혀 있으므로
+    요약 존재로 구분한다."""
     job = runtime.store.get(job_id)
     return job['state'] == 'WAITING_AVAILABLE' and job['summary']
 
@@ -473,7 +473,7 @@ def test_stop_during_transition_pause_never_opens_application(browser_runtime):
 def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime):
     runtime = browser_runtime
     class Full(FixtureBrowser):
-        # 1단계 진입 00 → 런타임의 첫 신청 10 → 아래 직접 신청 10, 10, 10, 00
+        # 응답 순서: 1단계 진입 00, 런타임 첫 신청 10, 테스트 직접 신청 10·10·10·00
         codes = ('00', '10', '10', '10', '10', '00')
     runtime.client_factory = Full
     raw = long_inputs(discount='DC005')
@@ -502,7 +502,7 @@ def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime
     assert client.quote_requests[-1]['outDttm'] == [d1 + ':00']
     assert (len(client.quote_requests), discount_requests()) == (2, 2)
 
-    # 이미 받은 후보로 돌아가면 공항 요금을 다시 부르지 않고, 폼은 처음 받은 값과 같다.
+    # 캐시된 후보로 전환하면 요금을 재조회하지 않으며 폼 값과 화면 표시는 최초 조회 결과와 같다.
     runtime._submit(client.proceed(d)).result(timeout=10)
     assert runtime._submit(client._form()).result(timeout=5) == first_form
     assert shown() == first_shown

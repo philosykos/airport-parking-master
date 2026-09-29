@@ -31,7 +31,7 @@ def ready_job(store):
 
 
 def long_inputs(mode='watch', days=3, discount='DC001'):
-    """입차 내일 10:00, 출차 days일 뒤 10:00. 출차 후보가 여럿 나오는 기간."""
+    """출차 후보가 복수로 생성되는 입력: 입차 내일 10:00, 출차 days일 뒤 10:00."""
     raw = valid_input(datetime.now(SEOUL), mode)
     entry = datetime.strptime(raw['entryAt'], '%Y-%m-%d %H:%M')
     raw['exitAt'] = (entry + timedelta(days=days)).strftime('%Y-%m-%d %H:%M')

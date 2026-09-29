@@ -42,7 +42,7 @@ def once_ready(runtime):
 
 
 def crash(runtime):
-    """종료 처리 없이 프로세스가 죽은 것처럼 멈춘다(저장소는 마지막 기록 그대로 남는다)."""
+    """비정상 종료 모사: 종료 처리 없이 런타임을 중단하며 저장소는 마지막 기록을 유지한다."""
     runtime.closing = True
     runtime.outbox.close()
     runtime.loop.call_soon_threadsafe(runtime.loop.stop)
@@ -63,7 +63,7 @@ class AlwaysFull(FakeBrowser):
 
 
 def scripted(*outcomes, user_closed=False):
-    """신청 결과를 차례로 정한다. 'raise'는 응답 시간 초과, 그 밖에는 만차. 목록이 끝나면 만차다."""
+    """신청 결과 시나리오 클라이언트. 'raise'는 응답 시간 초과, 그 밖의 값과 목록 소진 후는 만차."""
     queue = list(outcomes)
     class Scripted(FakeBrowser):
         final_available = False
@@ -108,7 +108,7 @@ def test_transient_error_restarts_from_bootstrap(tmp_path, error):
         assert gate.delays[0] == retry_delay(jittered(30, replica), 1)
         assert any(m.startswith(f'일시 오류로 {wait_text(gate.delays[0])} 뒤 다시 시작합니다(연속 1/5): ')
                    for m in messages(runtime, job['id']))
-        assert runtime.store.get(job['id'])['consecutiveFailures'] == 0  # 두 번째 브라우저의 만차 응답이 되돌렸다
+        assert runtime.store.get(job['id'])['consecutiveFailures'] == 0  # 공식 응답(만차) 수신 시 연속 실패 수 초기화
     finally:
         runtime.close()
 
@@ -200,9 +200,9 @@ def test_unexpected_browser_exit_while_waiting_is_retried(tmp_path):
     runtime, gate = make_runtime(tmp_path, Client, free=0)
     try:
         job = runtime.create(inputs())
-        eventually(lambda: len(gate.delays) == 1)       # 만차 뒤 정상 대기에서 멈춰 있다
-        Client.instances[0].closed = True                  # 창이 아니라 브라우저가 통째로 죽었다
-        eventually(lambda: len(gate.delays) == 2)       # 감시 루프가 재시도 대기로 넘겼다
+        eventually(lambda: len(gate.delays) == 1)       # 만차 후 회차 대기 중
+        Client.instances[0].closed = True                  # 브라우저 프로세스 비정상 종료
+        eventually(lambda: len(gate.delays) == 2)       # 재시도 대기로 전환
         current = runtime.store.get(job['id'])
         assert current['state'] == 'WAITING_AVAILABLE' and current['summary'] is None
         assert current['reason'].endswith('(연속 1/5): 공식 브라우저가 종료되었습니다.')
@@ -559,7 +559,7 @@ def test_shutdown_pause_transitions_before_closing(tmp_path):
     close_client = runtime._close_client
     refused = []
     async def payment_before_close(job_id, *args, **kwargs):
-        # 종료가 브라우저를 닫기 직전에 사용자가 결제를 누른 순서를 재현한다. 이미 결제 대기를 떠났어야 한다.
+        # 브라우저 종료 시점의 결제 요청은 결제 대기 이탈 후이므로 거부되어야 한다.
         current = runtime.store.get(job_id)
         try:
             runtime.store.dispatch_payment(job_id, current)
@@ -586,12 +586,12 @@ def test_shutdown_pause_racing_payment_marks_result_unknown(tmp_path):
     transition = runtime.store.transition
     def payment_first(job_id, state, reason, **kwargs):
         if reason == PAUSE_REASON:
-            # 종료가 결제 대기를 읽은 직후, 멈춤 전이 전에 사용자가 결제를 시작한 순서를 재현한다.
+            # 일시 정지 전이 직전에 결제가 시작된 경우.
             runtime.store.dispatch_payment(job_id, runtime.store.get(job_id))
         return transition(job_id, state, reason, **kwargs)
     runtime.store.transition = payment_first
     runtime.close()
-    assert not browser.closed  # 진행 중인 결제의 예약창을 멈춤이 닫지 않는다
+    assert not browser.closed  # 결제 진행 중인 예약창은 유지
     store = JobStore(tmp_path / 'data' / 'jobs.sqlite3')
     try:
         final = store.get(job['id'])

@@ -62,7 +62,7 @@ class GimpoRuntime:
         self.clients, self.inputs, self.tasks = {}, {}, {}
         self.closing = False
         self.random = rng or random.Random()
-        self.sleep = sleep or asyncio.sleep  # 감시 대기만 이 함수를 쓴다. 테스트가 주입해 시간을 멈춘다.
+        self.sleep = sleep or asyncio.sleep  # 감시 대기용 비동기 sleep. 테스트에서 대체 구현을 주입할 수 있다.
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run, name="gimpo-browser", daemon=True)
         self.thread.start()
@@ -116,7 +116,7 @@ class GimpoRuntime:
             return job
 
     def _resume(self, job_id):
-        """앱 재시작 전 감시 작업을 저장된 입력과 .env의 예약 비밀번호로 다시 시작한다."""
+        """재개 대상 감시 작업을 저장된 재개 입력과 .env 예약 비밀번호로 재검증한 뒤 다시 시작한다."""
         job = self.store.get(job_id)
         try:
             password = reservation_password()
@@ -134,9 +134,10 @@ class GimpoRuntime:
                 and self.store.resume_data(job["id"]) is not None)
 
     async def _pause_for_restart(self, job_id):
-        """정상 종료 때 감시 작업의 브라우저를 닫고, 다음 시작 때 이어 가도록 활성으로 남긴다.
+        """정상 종료 시 감시 작업을 일시 정지 상태(활성 유지)로 전환하고 브라우저를 종료한다.
 
-        결제 대기를 먼저 떠난 뒤에 브라우저를 닫아, 닫는 사이 결제 요청이 받아들여지지 않게 한다."""
+        결제 대기 상태를 먼저 이탈한 뒤 브라우저를 닫아 종료 중 결제 요청 수락을 차단한다.
+        결제가 이미 시작된 작업은 결제 결과 확인 필요로 전환하고 예약창을 유지한다."""
         task = self.tasks.get(job_id)
         if task and task is not asyncio.current_task():
             task.cancel()
@@ -145,11 +146,11 @@ class GimpoRuntime:
         try:
             self.store.transition(job_id, "WAITING_AVAILABLE", "앱이 종료되어 감시를 멈췄습니다. 앱을 다시 켜면 이어 갑니다.",
                                   expected=PREPAYMENT, summary=None, handoffDeadline=None, commandStatus="DONE",
-                                  commandId=uuid.uuid4().hex,  # 마지막 회차 행을 덮지 않고 새 행으로 남긴다
+                                  commandId=uuid.uuid4().hex,  # 일시 정지 기록을 별도 로그 행으로 남긴다
                                   cause="INTERRUPTED" if job["state"] == READY else None)
         except Conflict:
             if self.store.get(job_id)["paymentMayHaveBeenSent"]:
-                self.payment_unknown(job_id)  # 종료 직전에 사용자가 결제를 시작했다. 결제 중인 예약창은 닫지 않는다.
+                self.payment_unknown(job_id)  # 결제 진행 중: 예약창 유지
             return
         try:
             await self._close_client(job_id)
@@ -280,7 +281,7 @@ class GimpoRuntime:
             raise BrowserFault("예약 가능한 기간을 벗어났습니다. 입출차 시간을 수정한 뒤 다시 조회해주세요.") from None
 
     def _watch_exit(self, job_id):
-        """이번 회차에 시도할 출차. 감시 모드는 후보를 차례로 돌고, 1회 조회는 원하는 출차 그대로다."""
+        """이번 회차의 신청 출차. 감시 모드는 출차 후보를 순환하고, 1회 조회는 요청 출차를 사용한다."""
         inputs = self.inputs[job_id]
         if inputs["mode"] != "watch":
             return inputs["exitAt"]
@@ -386,7 +387,8 @@ class GimpoRuntime:
         await self._finish_pre(job_id, fault.state, str(fault), PREPAYMENT)
 
     async def _retry(self, job_id, job, fault):
-        """감시 모드 결제 전 단계의 일시 오류면 브라우저를 닫고 기다린 뒤 1단계부터 다시 한다. 맡았으면 True."""
+        """감시 모드 결제 전 단계의 일시 오류를 재시도로 처리한다: 브라우저 종료, 백오프 대기, 1단계 재진입.
+        재시도를 예약했으면 True를 반환한다."""
         inputs = self.inputs.get(job_id)
         if (not fault.retryable or self.closing or not inputs or inputs["mode"] != "watch"
                 or job["state"] not in PREPAYMENT - {READY}):
@@ -396,24 +398,24 @@ class GimpoRuntime:
             return False
         failures = job.get("consecutiveFailures", 0) + 1
         if failures >= MAX_CONSECUTIVE_FAILURES:
-            return False  # 다섯 번째 실패는 기다리지 않고 그 오류로 끝낸다
+            return False  # 연속 실패 한도 도달: 해당 오류로 종료
         running = self.tasks.get(job_id)
         if running is not None and running is not asyncio.current_task():
-            running.cancel()  # 감시 루프가 부른 경우 기다리던 회차를 멈춘다
+            running.cancel()  # 진행 중인 감시 회차 취소
             await asyncio.gather(running, return_exceptions=True)
         try:
             await self._close_client(job_id, clear_inputs=False)
         except Conflict:
-            return True  # 닫지 못한 사유는 _close_client가 남겼다
+            return True  # 종료 실패 사유는 _close_client가 기록
         delay = retry_delay(jittered(inputs["intervalSeconds"], self.random), failures)
         try:
             self.store.transition(job_id, "WAITING_AVAILABLE",
                                   f"일시 오류로 {wait_text(delay)} 뒤 다시 시작합니다(연속 {failures}/{MAX_CONSECUTIVE_FAILURES}): {fault}",
                                   expected=PREPAYMENT - {READY}, summary=None, consecutiveFailures=failures,
-                                  commandId=uuid.uuid4().hex, commandStatus="RUNNING")  # 새 로그 행
+                                  commandId=uuid.uuid4().hex, commandStatus="RUNNING")  # 재시도 기록을 별도 로그 행으로 남긴다
         except Conflict:
-            return True  # 그 사이 중지 등 다른 명령이 작업을 가져갔다
-        # 이벤트 루프 위에서 곧바로 등록해 중지가 이 대기를 취소할 수 있게 한다.
+            return True  # 다른 명령(중지 등)이 작업을 점유
+        # 재시작 대기 태스크를 즉시 등록해 중지·종료 시 취소 대상에 포함한다.
         task = self.loop.create_task(self._restart_later(job_id, delay))
         self.tasks[job_id] = task
         task.add_done_callback(lambda done: self.tasks.pop(job_id, None) if self.tasks.get(job_id) is done else None)

@@ -25,7 +25,7 @@ class FakeFeeClient:
 
 
 class GatedSleep:
-    """대기 시간을 기록한다. 처음 free번은 바로 돌려주고, 그 뒤로는 취소될 때까지 멈춘다."""
+    """대기 시간 기록용 sleep. 처음 free회는 즉시 반환하고 이후에는 취소될 때까지 대기한다."""
     def __init__(self, free=0):
         self.free = free
         self.delays = []
@@ -98,7 +98,7 @@ class FixtureBrowser(PlaywrightGimpoClient):
     error_html = False
     quote_amount = "8000"
     completion_overrides = {}
-    statuses = {}  # 경로별 공항 오류 응답 상태 코드(본문은 JSON이 아닌 오류 화면)
+    statuses = {}  # 경로별 오류 응답 상태 코드(본문은 HTML 오류 화면)
     def __init__(self, owner, job, inputs):
         super().__init__(owner, job, inputs, headless=True)
         self.forwarded = []
