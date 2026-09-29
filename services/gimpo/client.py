@@ -174,7 +174,7 @@ class PlaywrightGimpoClient:
     async def _start(self):
         if self.context:
             if not await self.alive():
-                raise BrowserFault("공식 브라우저가 종료되었습니다. 다시 조회해주세요.", "SESSION_EXPIRED")
+                raise BrowserFault("공식 브라우저가 종료되었습니다. 다시 조회해주세요.", "SESSION_EXPIRED", retryable=True)
             return
         from playwright.async_api import async_playwright
         from playwright_stealth import Stealth
@@ -317,11 +317,11 @@ class PlaywrightGimpoClient:
         if response.status >= 500:
             raise BrowserFault("공항 서버 응답이 지연되고 있습니다.", "ERROR", retryable=True)
         if response.status != 200:
-            raise BrowserFault("공항 세션 또는 화면을 확인할 수 없습니다.", "SESSION_EXPIRED")
+            raise BrowserFault("공항 세션 또는 화면을 확인할 수 없습니다.", "SESSION_EXPIRED", retryable=True)
         try:
             data = await response.json()
         except Exception:
-            raise BrowserFault("정상 조회 대신 오류 화면을 받았습니다.", "SESSION_EXPIRED") from None
+            raise BrowserFault("정상 조회 대신 오류 화면을 받았습니다.", "SESSION_EXPIRED", retryable=True) from None
         return OfficialContract.code(data, duplicate)
 
     async def _load_search_form(self, entry_at=None, exit_at=None):
@@ -390,7 +390,7 @@ class PlaywrightGimpoClient:
             await self._load_search_form(entry, end)
             if await self._check_loaded_search_form():
                 return entry, end
-        raise BrowserFault("예약신청 화면 진입용 평일 시간대를 찾지 못했습니다. 잠시 후 다시 시작해주세요.")
+        raise BrowserFault("예약신청 화면 진입용 평일 시간대를 찾지 못했습니다. 잠시 후 다시 시작해주세요.", retryable=True)
 
     async def _quote(self, entry_at, exit_at):
         # Obtain the requested period's price from the official calculator, not
@@ -462,7 +462,7 @@ class PlaywrightGimpoClient:
             await self.page.click("#requestBtn")
         response = await pending.value
         if response is None or response.status != 200 or urlparse(self.page.url).path != "/reservation/resInsert.do":
-            raise BrowserFault("공식 예약신청 화면에 진입하지 못했습니다.", "SESSION_EXPIRED")
+            raise BrowserFault("공식 예약신청 화면에 진입하지 못했습니다.", "SESSION_EXPIRED", retryable=True)
         await self.page.locator("#carNo").wait_for(state="visible")
         await self._pace("page")
         await self.page.evaluate("() => new Promise(resolve => $(resolve))")
@@ -524,7 +524,7 @@ class PlaywrightGimpoClient:
         if self.sealed_form is not None:
             raise BrowserFault("이미 진행한 결제는 다시 요청할 수 없습니다.")
         if not await self.alive() or urlparse(self.page.url).path != "/reservation/resInsert.do":
-            raise BrowserFault("예약신청 화면이 닫혔거나 변경되었습니다.", "SESSION_EXPIRED")
+            raise BrowserFault("예약신청 화면이 닫혔거나 변경되었습니다.", "SESSION_EXPIRED", retryable=True)
         await self._switch_exit(exit_at or self.exit_at)
         summary = OfficialContract.summary(await self._form(), self._period_inputs())
         self.dialog_error = False

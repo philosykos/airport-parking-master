@@ -8,12 +8,13 @@ from datetime import datetime
 import pytest
 from playwright.async_api import Error as PlaywrightError
 
+from services.gimpo.client import BrowserFault
 from services.gimpo.config import CONFIG
 from services.gimpo.jobs import GimpoRuntime, ProcessLease, RuntimeUnavailable
 from services.gimpo.parking import GimpoService
 from services.gimpo.store import Conflict, JobStore, READY
 from services.gimpo.validation import SEOUL, validate
-from services.gimpo.watch import exit_candidates, jittered, short_time, wait_text
+from services.gimpo.watch import exit_candidates, jittered, retry_delay, short_time, wait_text
 from tests.gimpo.fakes import FakeBrowser, FakeNotifier, GatedSleep
 from tests.gimpo.helpers import inputs, long_inputs, valid_input, wait_state
 from tests.support.waiting import eventually
@@ -40,6 +41,154 @@ def make_runtime(tmp_path, client=FakeBrowser, free=0, seed=7):
 
 class AlwaysFull(FakeBrowser):
     final_available = False
+
+
+def scripted(*outcomes, user_closed=False):
+    """신청 결과를 차례로 정한다. 'raise'는 응답 시간 초과, 그 밖에는 만차. 목록이 끝나면 만차다."""
+    queue = list(outcomes)
+    class Scripted(FakeBrowser):
+        final_available = False
+        instances = []
+        def __init__(self, *args):
+            super().__init__(*args)
+            Scripted.instances.append(self)
+        async def proceed(self, exit_at=None):
+            if (queue.pop(0) if queue else 'full') == 'raise':
+                raise TimeoutError()
+            return await super().proceed(exit_at)
+        async def closed_by_user(self):
+            return user_closed
+    return Scripted
+
+
+def messages(runtime, job_id):
+    return [log['message'] for log in runtime.store.get(job_id)['logs']]
+
+
+@pytest.mark.parametrize('error', [
+    lambda: TimeoutError(),
+    lambda: RuntimeError('boom'),
+    lambda: BrowserFault('공항 세션 또는 화면을 확인할 수 없습니다.', 'SESSION_EXPIRED', retryable=True),
+    lambda: BrowserFault('공항 서버 응답이 지연되고 있습니다.', 'ERROR', retryable=True),
+])
+def test_transient_error_restarts_from_bootstrap(tmp_path, error):
+    Client = scripted()
+    original = Client.proceed
+    async def fail_first(self, exit_at=None):
+        if len(Client.instances) == 1:
+            raise error()
+        return await original(self, exit_at)
+    Client.proceed = fail_first
+    runtime, gate = make_runtime(tmp_path, Client, free=1)
+    try:
+        job = runtime.create(inputs())
+        eventually(lambda: len(Client.instances) == 2 and len(gate.delays) == 2)
+        first, second = Client.instances
+        assert first.closed and second.bootstrap and second.prepares == 1 and second.proceeds == 1
+        replica = random.Random(7)
+        assert gate.delays[0] == retry_delay(jittered(30, replica), 1)
+        assert any(m.startswith(f'일시 오류로 {wait_text(gate.delays[0])} 뒤 다시 시작합니다(연속 1/5): ')
+                   for m in messages(runtime, job['id']))
+        assert runtime.store.get(job['id'])['consecutiveFailures'] == 0  # 두 번째 브라우저의 만차 응답이 되돌렸다
+    finally:
+        runtime.close()
+
+
+@pytest.mark.parametrize('fault', [
+    BrowserFault('공항 사이트에서 접근 또는 조회를 제한했습니다.', 'ERROR'),
+    BrowserFault('공식 만차 안내 문구가 변경되었습니다.'),
+])
+def test_blocking_error_stops_without_retry(tmp_path, fault):
+    class Blocked(FakeBrowser):
+        async def proceed(self, exit_at=None):
+            raise fault
+    runtime, gate = make_runtime(tmp_path, Blocked, free=5)
+    try:
+        job = runtime.create(inputs())
+        final = wait_state(runtime, job['id'], fault.state)
+        assert final['reason'] == str(fault) and not final['active'] and gate.delays == []
+    finally:
+        runtime.close()
+
+
+def test_once_mode_error_is_not_retried(tmp_path):
+    class Broken(FakeBrowser):
+        async def check(self):
+            raise TimeoutError()
+    runtime, gate = make_runtime(tmp_path, Broken, free=5)
+    try:
+        job = runtime.create(inputs('once'))
+        final = wait_state(runtime, job['id'], 'ERROR')
+        assert final['reason'] == '공항 응답 대기 시간이 초과되었습니다.' and gate.delays == []
+    finally:
+        runtime.close()
+
+
+def test_fifth_consecutive_failure_stops_immediately(tmp_path):
+    Client = scripted(*['raise'] * 9)
+    runtime, gate = make_runtime(tmp_path, Client, free=10)
+    try:
+        job = runtime.create(inputs())
+        final = wait_state(runtime, job['id'], 'ERROR')
+        assert final['reason'] == '공항 응답 대기 시간이 초과되었습니다.' and not final['active']
+        replica = random.Random(7)
+        assert gate.delays == [retry_delay(jittered(30, replica), k) for k in (1, 2, 3, 4)]
+        assert len(Client.instances) == 5 and all(c.closed for c in Client.instances)
+    finally:
+        runtime.close()
+
+
+def test_official_response_resets_failure_count(tmp_path):
+    Client = scripted('raise', 'full', 'raise')
+    runtime, gate = make_runtime(tmp_path, Client, free=10)
+    try:
+        job = runtime.create(inputs())
+        eventually(lambda: sum('(연속 1/5)' in m for m in messages(runtime, job['id'])) == 2)
+        assert not any('(연속 2/5)' in m for m in messages(runtime, job['id']))
+        runtime.stop(job['id'], runtime.store.get(job['id']))
+        wait_state(runtime, job['id'], 'STOPPED')
+    finally:
+        runtime.close()
+
+
+def test_user_closed_window_is_not_retried(tmp_path):
+    Client = scripted('raise', user_closed=True)
+    runtime, gate = make_runtime(tmp_path, Client, free=5)
+    try:
+        job = runtime.create(inputs())
+        wait_state(runtime, job['id'], 'ERROR')
+        assert gate.delays == [] and len(Client.instances) == 1
+    finally:
+        runtime.close()
+
+
+def test_stop_during_retry_wait_sends_nothing_more(tmp_path):
+    Client = scripted('raise')
+    runtime, gate = make_runtime(tmp_path, Client, free=0)
+    try:
+        job = runtime.create(inputs())
+        eventually(lambda: len(gate.delays) == 1)
+        runtime.stop(job['id'], runtime.store.get(job['id']))
+        wait_state(runtime, job['id'], 'STOPPED')
+        time.sleep(.5)
+        assert len(Client.instances) == 1 and Client.instances[0].proceeds == 0
+    finally:
+        runtime.close()
+
+
+def test_unexpected_browser_exit_while_waiting_is_retried(tmp_path):
+    Client = scripted()
+    runtime, gate = make_runtime(tmp_path, Client, free=0)
+    try:
+        job = runtime.create(inputs())
+        eventually(lambda: len(gate.delays) == 1)       # 만차 뒤 정상 대기에서 멈춰 있다
+        Client.instances[0].closed = True                  # 창이 아니라 브라우저가 통째로 죽었다
+        eventually(lambda: len(gate.delays) == 2)       # 감시 루프가 재시도 대기로 넘겼다
+        current = runtime.store.get(job['id'])
+        assert current['state'] == 'WAITING_AVAILABLE' and current['summary'] is None
+        assert current['reason'].endswith('(연속 1/5): 공식 브라우저가 종료되었습니다.')
+    finally:
+        runtime.close()
 
 
 def test_watch_rotates_exit_candidates_with_jittered_waits(tmp_path):

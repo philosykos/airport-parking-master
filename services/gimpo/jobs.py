@@ -12,7 +12,7 @@ from playwright.async_api import Error as PlaywrightError
 from services.gimpo.client import BrowserFault, PlaywrightGimpoClient
 from services.gimpo.store import Conflict, JobStore, PAYMENT_STATES, READY, RESTARTABLE
 from services.gimpo.validation import InputError, validate
-from services.gimpo.watch import exit_candidates, exit_note, jittered, short_time, wait_text
+from services.gimpo.watch import MAX_CONSECUTIVE_FAILURES, exit_candidates, exit_note, jittered, retry_delay, short_time, wait_text
 from services.notifications.outbox import NotificationOutbox
 from services.notifications.telegram import Notifier
 from services.notifications.config import CONFIG as NOTIFICATION_CONFIG
@@ -209,7 +209,8 @@ class GimpoRuntime:
                     await self._proceed(job_id)
                 else:
                     self.store.transition(job_id, "PREPARING", "예약신청 화면에 진입한 뒤 실제 예약 정보를 입력합니다.",
-                                          expected={"CHECKING", "WAITING_AVAILABLE"})
+                                          expected={"CHECKING", "WAITING_AVAILABLE"},
+                                          **({"commandId": uuid.uuid4().hex} if job["state"] == "WAITING_AVAILABLE" else {}))
                     await self._prepare(job_id, automatic=True, bootstrap=True)
                 return
             available = await client.check()
@@ -298,7 +299,7 @@ class GimpoRuntime:
             return error
         if isinstance(error, (TimeoutError, asyncio.TimeoutError)) or type(error).__name__ == "TimeoutError":
             return BrowserFault("공항 응답 대기 시간이 초과되었습니다.", "ERROR", retryable=True)
-        return BrowserFault("브라우저 또는 공식 화면을 확인할 수 없습니다. Chromium 설치와 화면을 확인해주세요.", "ERROR")
+        return BrowserFault("브라우저 또는 공식 화면을 확인할 수 없습니다. Chromium 설치와 화면을 확인해주세요.", "ERROR", retryable=True)
 
     async def _close_client(self, job_id, clear_inputs=True):
         client = self.clients.get(job_id)
@@ -336,7 +337,47 @@ class GimpoRuntime:
         if job["paymentMayHaveBeenSent"]:
             self.payment_unknown(job_id)
             return
+        if await self._retry(job_id, job, fault):
+            return
         await self._finish_pre(job_id, fault.state, str(fault), PREPAYMENT)
+
+    async def _retry(self, job_id, job, fault):
+        """감시 모드 결제 전 단계의 일시 오류면 브라우저를 닫고 기다린 뒤 1단계부터 다시 한다. 맡았으면 True."""
+        inputs = self.inputs.get(job_id)
+        if (not fault.retryable or self.closing or not inputs or inputs["mode"] != "watch"
+                or job["state"] not in PREPAYMENT - {READY}):
+            return False
+        client = self.clients.get(job_id)
+        if client is not None and await client.closed_by_user():
+            return False
+        failures = job.get("consecutiveFailures", 0) + 1
+        if failures >= MAX_CONSECUTIVE_FAILURES:
+            return False  # 다섯 번째 실패는 기다리지 않고 그 오류로 끝낸다
+        running = self.tasks.get(job_id)
+        if running is not None and running is not asyncio.current_task():
+            running.cancel()  # 감시 루프가 부른 경우 기다리던 회차를 멈춘다
+            await asyncio.gather(running, return_exceptions=True)
+        try:
+            await self._close_client(job_id, clear_inputs=False)
+        except Conflict:
+            return True  # 닫지 못한 사유는 _close_client가 남겼다
+        delay = retry_delay(jittered(inputs["intervalSeconds"], self.random), failures)
+        try:
+            self.store.transition(job_id, "WAITING_AVAILABLE",
+                                  f"일시 오류로 {wait_text(delay)} 뒤 다시 시작합니다(연속 {failures}/{MAX_CONSECUTIVE_FAILURES}): {fault}",
+                                  expected=PREPAYMENT - {READY}, summary=None, consecutiveFailures=failures,
+                                  commandId=uuid.uuid4().hex, commandStatus="RUNNING")  # 새 로그 행
+        except Conflict:
+            return True  # 그 사이 중지 등 다른 명령이 작업을 가져갔다
+        # 이벤트 루프 위에서 곧바로 등록해 중지가 이 대기를 취소할 수 있게 한다.
+        task = self.loop.create_task(self._restart_later(job_id, delay))
+        self.tasks[job_id] = task
+        task.add_done_callback(lambda done: self.tasks.pop(job_id, None) if self.tasks.get(job_id) is done else None)
+        return True
+
+    async def _restart_later(self, job_id, delay):
+        await self.sleep(delay)
+        await self._flow(job_id)
 
     def handoff_cancelled(self, job_id):
         self.loop.create_task(self._finish_pre(job_id, "HANDOFF_CANCELLED",
@@ -454,7 +495,7 @@ class GimpoRuntime:
                 elif job and job["state"] in {"AVAILABLE", "PREPARED", "WAITING_AVAILABLE"}:
                     client = self.clients.get(job["id"])
                     if client and not await client.alive():
-                        await self._fail(job["id"], BrowserFault("공식 브라우저가 종료되었습니다.", "SESSION_EXPIRED"))
+                        await self._fail(job["id"], BrowserFault("공식 브라우저가 종료되었습니다.", "SESSION_EXPIRED", retryable=True))
                 elif job and job["state"] in PAYMENT_STATES:
                     client = self.clients.get(job["id"])
                     if client is not None and not await client.alive():
