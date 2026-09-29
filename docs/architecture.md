@@ -38,7 +38,7 @@ flowchart LR
 | `services/config.py` | 서비스별 TOML 읽기와 공용 검증 도우미([설정 규칙](configuration.md)) |
 | `services/web_security.py` | Host 제한, 다른 출처 요청 거부, CSP 등 공통 보안 헤더 |
 | `services/t2/` | 인천 T2 발렛 예약: 라우트·예약 API 호출·개인정보 가림(`valet.py`), 반복 워커(`scheduler.py`), 파일 저장(`storage.py`), 입력 검증(`validation.py`) |
-| `services/gimpo/` | 김포 예약: HTTP 컨트롤러(`parking.py`), 런타임과 명령(`jobs.py`), 작업 저장소(`store.py`), Playwright 어댑터(`client.py`), 입력 검증(`validation.py`), 설정·비밀값(`config.py`) |
+| `services/gimpo/` | 김포 예약: HTTP 컨트롤러(`parking.py`), 런타임과 명령(`jobs.py`), 작업 저장소(`store.py`), Playwright 어댑터(`client.py`), 감시 규칙(`watch.py`), 입력 검증(`validation.py`), 설정·비밀값(`config.py`) |
 | `services/notifications/` | 공용 텔레그램 알림: 전송과 재시도 정책(`telegram.py`), 메시지 문안(`messages.py`), 메모리 큐(`background.py`), 김포용 영속 발송기(`outbox.py`) |
 | `config/` | 서비스별 설정 파일 |
 | `templates/`, `static/` | 화면. 아래 "화면" 절 |
@@ -70,14 +70,19 @@ flowchart LR
   명령은 `Conflict`(HTTP 409)로 거절된다.
 - `JobStore`(`store.py`)는 SQLite에 작업·알림 이벤트·기본 입력을 저장한다. 활성 작업은 하나만
   허용한다. 브라우저 세션과 예약 비밀번호는 저장하지 않고, 비밀번호는 런타임 메모리에만 둔다.
-  시작할 때 `recover`가 이전 실행의 활성 작업을 결제 요청이 나갔을 수 있는지에 따라
-  `PAYMENT_RESULT_UNKNOWN` 또는 `INTERRUPTED`로 바꾼다.
+  시작할 때 `recover`가 이전 실행의 활성 작업 중 감시로 이어 갈 수 없는 것을 결제 요청이 나갔을
+  수 있는지에 따라 `PAYMENT_RESULT_UNKNOWN` 또는 `INTERRUPTED`로 바꾼다(감시 재개는 아래 참고).
 - `PlaywrightGimpoClient`(`client.py`)는 화면에 보이는 Chromium을 띄우고 모든 요청을 가드 라우트로
   거친다. 결제 준비 요청(`payment.json`)은 봉인해 둔 입력과 같을 때 한 번만 통과시키고, 이미 나갔을
   수 있으면 막는다. 테스트는 `_launch`만 바꿔 이미 떠 있는 브라우저에 붙는다.
 - `NotificationOutbox`가 전용 스레드(`gimpo-notifications`)에서 저장소의 알림 이벤트를 읽어 보낸다.
   보내기 전에 이벤트가 현재 작업 상태와 여전히 맞는지 검사하고, 무효가 된 안내에는 정정 알림을
   보낸다.
+- 감시 모드의 출차 후보·무작위 대기·재시도 대기 규칙은 `watch.py`의 순수 함수다. 런타임이 회차마다
+  후보를 고르고, 클라이언트는 예약신청 화면에서 출차만 바꿔 신청한다(`_switch_exit`).
+- 감시 작업의 재개용 입력(차량번호·전화번호·자동 진행 동의)은 `jobs.sqlite3`의 `resume` 테이블에 두고
+  작업이 끝나면 지운다. 정상 종료는 감시 작업을 활성으로 남기고, 다음 시작의 `recover()`가 이어 갈 작업을
+  돌려주면 런타임이 `.env`의 예약 비밀번호로 입력을 다시 검증해 시작한다.
 
 ## 알림
 
