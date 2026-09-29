@@ -110,8 +110,10 @@ def test_handoff_invalidates_before_any_payment(browser_runtime,mutation,state):
 
 # 중복 코드 '10'/'20'과 결제 금액 '0'/'-1'은 각각 같은 분기(code != '00', paymentAmt <= 0)로 끝나므로 브라우저는
 # 한 건씩만 돈다. 코드·금액 판정 자체는 test_gimpo_contract.py가 OfficialContract로 직접 확인한다.
+# error_html은 "정상 조회 대신 오류 화면을 받았습니다."로 Task 4부터 일시 오류(재시도 대상)라 감시 모드는
+# 끝나지 않고 WAITING_AVAILABLE로 재시도 대기에 들어간다(터미널 상태가 아니다).
 @pytest.mark.parametrize('setting,value,state', [('codes',('10',),'STOPPED'),('duplicate','10','REVIEW_REQUIRED'),
-    ('payment_amount','0','REVIEW_REQUIRED'),('error_html',True,'SESSION_EXPIRED')])
+    ('payment_amount','0','REVIEW_REQUIRED'),('error_html',True,'WAITING_AVAILABLE')])
 def test_non_success_is_never_ready(browser_runtime,setting,value,state):
     runtime=browser_runtime
     class Scenario(FixtureBrowser): pass
