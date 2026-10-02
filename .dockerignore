@@ -1,0 +1,12 @@
+.git
+.env
+user_data.json
+data/
+logs/
+__pycache__/
+.pytest_cache/
+.test-runs/
+.superpowers/
+.serena/
+.claude/
+tests/
