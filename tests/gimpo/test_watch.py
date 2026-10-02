@@ -17,7 +17,15 @@ from services.gimpo.watch import (MAX_CONSECUTIVE_FAILURES, RETRY_BASE_CAP_SEC, 
     ('2026-10-03 11:00', '2026-10-03 15:00', ['2026-10-03 15:00']),
 ])
 def test_exit_candidates(entry, desired, expected):
-    assert exit_candidates(entry, desired) == expected
+    assert exit_candidates(entry, desired, 2) == expected
+
+
+@pytest.mark.parametrize('earlier_days,expected', [
+    (0, ['2026-10-06 18:00']),
+    (1, ['2026-10-06 18:00', '2026-10-05 18:00']),
+])
+def test_exit_candidates_limits_earlier_days(earlier_days, expected):
+    assert exit_candidates('2026-10-03 11:00', '2026-10-06 18:00', earlier_days) == expected
 
 
 def test_jittered_uses_triangular_arguments_in_order():

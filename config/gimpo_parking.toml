@@ -4,5 +4,9 @@ interval_sec = 30
 handoff_max_age_sec = 120
 browser_timeout_sec = 30
 
+[watch]
+# 감시 모드가 요청 출차 D와 함께 번갈아 신청할 앞당긴 출차 일수(0~2). 1이면 D, D−1만 시도한다.
+exit_earlier_days = 1
+
 [storage]
 directory = "data/gimpo"

@@ -59,7 +59,7 @@ def shared_chromium(tmp_path_factory):
 
 @pytest.fixture
 def browser_runtime(tmp_path):
-    runtime = GimpoRuntime(replace(CONFIG,directory=tmp_path/'data',browser_timeout_sec=5),FixtureBrowser,notifier=FakeNotifier())
+    runtime = GimpoRuntime(replace(CONFIG,directory=tmp_path/'data',browser_timeout_sec=5,exit_earlier_days=2),FixtureBrowser,notifier=FakeNotifier())
     yield runtime
     # Tests release payment sessions explicitly, never leave test browsers behind.
     job=runtime.store.active()
@@ -480,7 +480,7 @@ def test_application_switches_exit_candidates_with_cached_quotes(browser_runtime
     job = runtime.create(raw)
     eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
-    d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
+    d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'], 2)
     def discount_requests():
         return sum(path == '/reservation/calculateDiscountAmt.json' for path, _ in client.requests)
     def shown():
@@ -529,7 +529,7 @@ def test_manual_confirmation_shows_current_candidate_dates(browser_runtime):
     job = runtime.create(raw)
     eventually(lambda: in_application_wait(runtime, job['id']), timeout=15)
     client = runtime.clients[job['id']]
-    d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[1]
+    d1 = exit_candidates(raw['entryAt'], raw['exitAt'], 2)[1]
     runtime._submit(client.proceed(d1)).result(timeout=10)
     async def inspect():
         async with client.page.expect_event('dialog') as pending:
@@ -572,7 +572,7 @@ def test_candidate_completion_is_judged_with_candidate_exit(tmp_path):
         raw = long_inputs()
         job = runtime.create(raw)
         eventually(lambda: runtime.store.get(job['id'])['state'] == READY, timeout=15)
-        d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[1]
+        d1 = exit_candidates(raw['entryAt'], raw['exitAt'], 2)[1]
         assert runtime.store.get(job['id'])['summary']['exitAt'] == d1
         client = runtime.clients[job['id']]
         async def pay():

@@ -39,7 +39,7 @@ def test_45_day_end_and_30_day_duration():
 def test_toml_config_and_strict_types():
     raw = load_toml('gimpo_parking')
     assert parse_config(raw).interval_sec == 30
-    for section, key, value in [('request','interval_sec',True), ('request','interval_sec',5), ('storage','unknown',False), ('request','typo',1), ('storage','directory','')]:
+    for section, key, value in [('request','interval_sec',True), ('request','interval_sec',5), ('storage','unknown',False), ('request','typo',1), ('storage','directory',''), ('watch','exit_earlier_days',3), ('watch','exit_earlier_days',True)]:
         import copy
         changed = copy.deepcopy(raw); changed[section][key] = value
         with pytest.raises(ConfigError, match=f'{section}.{key}'):

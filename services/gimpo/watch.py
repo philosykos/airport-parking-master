@@ -10,11 +10,11 @@ def _parse(value):
     return datetime.strptime(value, _FORMAT)
 
 
-def exit_candidates(entry_at, exit_at):
-    """출차 후보 목록: 요청 출차 D, D−1일, D−2일 중 입차 후 24시간 이상인 후보. D는 항상 첫 후보다."""
+def exit_candidates(entry_at, exit_at, earlier_days):
+    """출차 후보 목록: 요청 출차 D와 D−1일~D−earlier_days일 중 입차 후 24시간 이상인 후보. D는 항상 첫 후보다."""
     entry, desired = _parse(entry_at), _parse(exit_at)
     result = [exit_at]
-    for days in (1, 2):
+    for days in range(1, earlier_days + 1):
         candidate = desired - timedelta(days=days)
         if candidate - entry >= timedelta(hours=24):
             result.append(candidate.strftime(_FORMAT))

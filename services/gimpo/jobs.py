@@ -285,7 +285,7 @@ class GimpoRuntime:
         inputs = self.inputs[job_id]
         if inputs["mode"] != "watch":
             return inputs["exitAt"]
-        candidates = exit_candidates(inputs["entryAt"], inputs["exitAt"])
+        candidates = exit_candidates(inputs["entryAt"], inputs["exitAt"], self.config.exit_earlier_days)
         return candidates[self.store.get(job_id).get("exitCandidateIndex", 0) % len(candidates)]
 
     async def _prepare(self, job_id, automatic, bootstrap=False):

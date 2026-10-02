@@ -10,12 +10,14 @@ class GimpoConfig:
     interval_sec: int
     handoff_max_age_sec: int
     browser_timeout_sec: int
+    exit_earlier_days: int
     directory: Path
 
 
 def parse_config(raw):
     label = config_label("gimpo_parking")
     schema = {"request": {"interval_sec", "handoff_max_age_sec", "browser_timeout_sec"},
+              "watch": {"exit_earlier_days"},
               "storage": {"directory"}}
     reject_unknown(raw, schema, "", label)
     tables = {}
@@ -34,6 +36,7 @@ def parse_config(raw):
     return GimpoConfig(integer("request", "interval_sec", 30, 3600),
                        integer("request", "handoff_max_age_sec", 10, 600),
                        integer("request", "browser_timeout_sec", 5, 120),
+                       integer("watch", "exit_earlier_days", 0, 2),
                        (root / directory).resolve())
 
 

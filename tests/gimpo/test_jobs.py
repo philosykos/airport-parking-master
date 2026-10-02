@@ -53,7 +53,7 @@ def crash(runtime):
 
 def make_runtime(tmp_path, client=FakeBrowser, free=0, seed=7):
     gate = GatedSleep(free)
-    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data'), client, notifier=FakeNotifier(),
+    runtime = GimpoRuntime(replace(CONFIG, directory=tmp_path / 'data', exit_earlier_days=2), client, notifier=FakeNotifier(),
                            rng=random.Random(seed), sleep=gate)
     return runtime, gate
 
@@ -217,7 +217,7 @@ def test_watch_rotates_exit_candidates_with_jittered_waits(tmp_path):
         job = runtime.create(raw)
         eventually(lambda: len(gate.delays) == 4)
         client = runtime.clients[job['id']]
-        d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'])
+        d, d1, d2 = exit_candidates(raw['entryAt'], raw['exitAt'], 2)
         assert client.prepared_exit == d and client.prepares == 1
         assert client.attempted_exits == [d, d1, d2, d]
         replica = random.Random(7)
@@ -241,7 +241,7 @@ def test_watch_ready_uses_candidate_and_notes_earlier_exit(tmp_path):
         raw = long_inputs()
         job = runtime.create(raw)
         current = wait_state(runtime, job['id'], READY)
-        d, d1 = exit_candidates(raw['entryAt'], raw['exitAt'])[:2]
+        d, d1 = exit_candidates(raw['entryAt'], raw['exitAt'], 2)[:2]
         assert current['summary']['exitAt'] == d1
         assert current['summary']['requestedExitAt'] == d
         assert current['summary']['exitNote'] == f'원하는 출차({short_time(d)})보다 1일 이릅니다'
